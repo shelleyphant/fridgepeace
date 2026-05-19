@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+.npm
+__pypackages__/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Build outputs
+
+# Bundler caches (eg webpack/vite)
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.*
+!.env.example
+.envrc
+
+# Python virtual environments
+.venv
+env/
+venv/
+ENV/
+
+# Databases
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Python tools
+
+# Testing and coverage (eg jest/nox)
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+
+# IDEs and editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Misc
+.cache
