@@ -1,0 +1,39 @@
+{
+  "name": "fridgepeace",
+  "version": "1.0.0",
+  "description": "PWA for managing shared kitchen spaces and food expiry",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shelleyphant/fridgepeace.git"
+  },
+  "keywords": [
+    "food waste",
+    "food management",
+    "shared kitchen"
+  ],
+  "contributors": [
+    {
+      "name": "Asad Ali"
+    },
+    {
+      "name": "Shelley Bassett",
+      "email": "hello@shelleybassett.com",
+      "url": "https://shelleybassett.com"
+    },
+    {
+      "name": "Max Jones"
+    },
+    {
+      "name": "Mingjun Lyu ",
+      "email": "mlyu0012@student.monash.edu"
+    },
+    {
+      "name": "Charlie (Zhaohua) Qi"
+    }
+  ],
+  "bugs": {
+    "url": "https://github.com/shelleyphant/fridgepeace/issues"
+  },
+  "homepage": "https://github.com/shelleyphant/fridgepeace#readme"
+}
