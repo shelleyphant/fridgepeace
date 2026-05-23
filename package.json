@@ -35,5 +35,9 @@
   "bugs": {
     "url": "https://github.com/shelleyphant/fridgepeace/issues"
   },
-  "homepage": "https://github.com/shelleyphant/fridgepeace#readme"
+  "homepage": "https://github.com/shelleyphant/fridgepeace#readme",
+  "devDependencies": {
+    "webpack": "^5.107.1",
+    "webpack-cli": "^7.0.2"
+  }
 }
