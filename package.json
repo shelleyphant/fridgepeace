@@ -37,7 +37,11 @@
   },
   "homepage": "https://github.com/shelleyphant/fridgepeace#readme",
   "devDependencies": {
+    "@babel/cli": "^7.28.6",
     "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.5",
+    "@babel/preset-react": "^7.28.5",
+    "babel-jest": "^30.4.1",
     "babel-loader": "^10.1.1",
     "webpack": "^5.107.1",
     "webpack-cli": "^7.0.2"
