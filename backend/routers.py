@@ -30,6 +30,9 @@ from schemas import (
 
 router = APIRouter()
 
+# ─── Household CRUD ────────────────────────────────────────
+# Household is the top-level grouping entity. Deleting a household
+# cascades to all its members, inventory items, events, and ownerships.
 
 @router.get("/households/", response_model=list[HouseholdResponse])
 def list_households(db: Session = Depends(get_db)):
@@ -72,6 +75,9 @@ def delete_household(household_id: int, db: Session = Depends(get_db)):
     db.delete(household)
     db.commit()
 
+# ─── Household Member CRUD ─────────────────────────────────
+# Members belong to a household. A member with related inventory records
+# or events cannot be deleted (enforced by RESTRICT foreign key).
 
 @router.get("/household-members/", response_model=list[HouseholdMemberResponse])
 def list_household_members(db: Session = Depends(get_db)):
@@ -121,6 +127,9 @@ def delete_household_member(member_id: int, db: Session = Depends(get_db)):
     db.delete(member)
     db.commit()
 
+# ─── Packaged Food CRUD ────────────────────────────────────
+# Packaged foods have a unique barcode constraint. The barcode
+# uniqueness is checked both on create and on update (when changed).
 
 @router.get("/packaged-foods/", response_model=list[PackagedFoodResponse])
 def list_packaged_foods(db: Session = Depends(get_db)):
@@ -172,6 +181,9 @@ def delete_packaged_food(food_id: int, db: Session = Depends(get_db)):
     db.delete(food)
     db.commit()
 
+# ─── Unpackaged Food CRUD ──────────────────────────────────
+# Unpackaged foods are items like vegetables and meat, referenced
+# from the FoodKeeper database. They have shelf-life estimates.
 
 @router.get("/unpackaged-foods/", response_model=list[UnpackagedFoodResponse])
 def list_unpackaged_foods(db: Session = Depends(get_db)):
@@ -215,6 +227,10 @@ def delete_unpackaged_food(food_id: int, db: Session = Depends(get_db)):
     db.delete(food)
     db.commit()
 
+# ─── Food Inventory CRUD ───────────────────────────────────
+# The core table linking households to food items. Each inventory
+# record must reference exactly one food type (packaged or unpackaged)
+# enforced by a CHECK constraint and validated at the application level.
 
 @router.get("/food-inventory/", response_model=list[FoodInventoryResponse])
 def list_inventory(db: Session = Depends(get_db)):
@@ -276,6 +292,10 @@ def delete_inventory_item(item_id: int, db: Session = Depends(get_db)):
     db.delete(item)
     db.commit()
 
+# ─── Food Events ───────────────────────────────────────────
+# Events log actions (added, consumed, expired, moved) on inventory
+# items. They are read-only historical records; no update endpoint is provided.
+# Filtering by inventory item is supported via a dedicated endpoint.
 
 @router.get("/food-events/", response_model=list[FoodEventResponse])
 def list_events(db: Session = Depends(get_db)):
@@ -318,6 +338,10 @@ def delete_event(event_id: int, db: Session = Depends(get_db)):
     db.delete(event)
     db.commit()
 
+# ─── Food Ownerships ──────────────────────────────────────
+# Many-to-many relationship between inventory items and members,
+# using a composite primary key of (inventory_item_id, member_id).
+# Supports filtering by inventory item or by member.
 
 @router.get("/food-ownerships/", response_model=list[FoodOwnershipResponse])
 def list_ownerships(db: Session = Depends(get_db)):

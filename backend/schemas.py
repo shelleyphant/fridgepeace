@@ -5,6 +5,8 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 
+# ─── Household ─────────────────────────────────────────────
+
 class HouseholdCreate(BaseModel):
     name: str
 
@@ -14,6 +16,8 @@ class HouseholdResponse(BaseModel):
     id: int
     name: str
 
+
+# ─── Household Member ──────────────────────────────────────
 
 class HouseholdMemberCreate(BaseModel):
     household_id: int
@@ -26,6 +30,8 @@ class HouseholdMemberResponse(BaseModel):
     household_id: int
     display_name: str
 
+
+# ─── Packaged Food ─────────────────────────────────────────
 
 class PackagedFoodCreate(BaseModel):
     barcode: Optional[str] = None
@@ -46,6 +52,8 @@ class PackagedFoodResponse(BaseModel):
     category: Optional[str] = None
     nutrition: Optional[str] = None
 
+
+# ─── Unpackaged Food ────────────────────────────────────────
 
 class UnpackagedFoodCreate(BaseModel):
     foodkeeper_id: Optional[str] = None
@@ -73,6 +81,8 @@ class UnpackagedFoodResponse(BaseModel):
     pantry_days_max: Optional[int] = None
 
 
+# ─── Food Inventory ────────────────────────────────────────
+
 class FoodInventoryCreate(BaseModel):
     household_id: int
     added_by_member_id: int
@@ -99,6 +109,8 @@ class FoodInventoryResponse(BaseModel):
     date_updated: datetime
 
 
+# ─── Food Event ────────────────────────────────────────────
+
 class FoodEventCreate(BaseModel):
     inventory_item_id: int
     member_id: int
@@ -113,6 +125,8 @@ class FoodEventResponse(BaseModel):
     event_type: str
     date_occurred: datetime
 
+
+# ─── Food Ownership ────────────────────────────────────────
 
 class FoodOwnershipCreate(BaseModel):
     inventory_item_id: int

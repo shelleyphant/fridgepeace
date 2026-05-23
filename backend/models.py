@@ -45,6 +45,10 @@ def get_db():
         db.close()
 
 
+# ─── Household ─────────────────────────────────────────────
+# Top-level entity. Deleting a household cascades to all its
+# members, inventory items, events, and ownerships.
+
 class Household(Base):
     __tablename__ = "household"
 
@@ -58,6 +62,10 @@ class Household(Base):
         "FoodInventory", back_populates="household", cascade="all, delete-orphan"
     )
 
+
+# ─── Household Member ──────────────────────────────────────
+# Belongs to a household. RESTRICT on delete prevents removing
+# members that still have inventory records or events.
 
 class HouseholdMember(Base):
     __tablename__ = "household_member"
@@ -87,6 +95,10 @@ class HouseholdMember(Base):
     )
 
 
+# ─── Packaged Food ─────────────────────────────────────────
+# Store-bought items with barcodes. The barcode column has a
+# UNIQUE constraint enforced at both the DB and application level.
+
 class PackagedFood(Base):
     __tablename__ = "packaged_food"
 
@@ -104,6 +116,10 @@ class PackagedFood(Base):
         "FoodInventory", back_populates="packaged_food"
     )
 
+
+# ─── Unpackaged Food ───────────────────────────────────────
+# Fresh items (vegetables, meat, etc.) referenced from the
+# FoodKeeper database with estimated shelf-life per storage location.
 
 class UnpackagedFood(Base):
     __tablename__ = "unpackaged_food"
@@ -123,6 +139,11 @@ class UnpackagedFood(Base):
         "FoodInventory", back_populates="unpackaged_food"
     )
 
+
+# ─── Food Inventory ────────────────────────────────────────
+# Core table linking a household to a food item. Exactly one of
+# packaged_food_id or unpackaged_food_id must be set (enforced by a
+# CHECK constraint). SET NULL on food deletion preserves inventory records.
 
 class FoodInventory(Base):
     __tablename__ = "food_inventory"
@@ -188,6 +209,10 @@ class FoodInventory(Base):
     )
 
 
+# ─── Food Event ────────────────────────────────────────────
+# Immutable log entry recording an action on an inventory item.
+# Supported event types: added, consumed, expired, moved.
+
 class FoodEvent(Base):
     __tablename__ = "food_event"
 
@@ -212,6 +237,11 @@ class FoodEvent(Base):
         "HouseholdMember", back_populates="events", foreign_keys=[member_id]
     )
 
+
+# ─── Food Ownership ────────────────────────────────────────
+# Many-to-many join table between inventory items and members.
+# Uses a composite primary key (inventory_item_id, member_id)
+# to enforce uniqueness of ownership assignments.
 
 class FoodOwnership(Base):
     __tablename__ = "food_ownership"
