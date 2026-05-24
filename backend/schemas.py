@@ -109,6 +109,24 @@ class FoodInventoryResponse(BaseModel):
     date_updated: datetime
 
 
+class PackagedFoodBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    name: str
+    brand: Optional[str] = None
+    category: Optional[str] = None
+
+
+class UnpackagedFoodBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    name: str
+    category: Optional[str] = None
+
+
+class FoodInventoryDetailResponse(FoodInventoryResponse):
+    packaged_food: Optional[PackagedFoodBrief] = None
+    unpackaged_food: Optional[UnpackagedFoodBrief] = None
+
+
 # ─── Food Event ────────────────────────────────────────────
 
 class FoodEventCreate(BaseModel):

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from models import (
     FoodEvent,
@@ -15,6 +15,7 @@ from schemas import (
     FoodEventCreate,
     FoodEventResponse,
     FoodInventoryCreate,
+    FoodInventoryDetailResponse,
     FoodInventoryResponse,
     FoodOwnershipCreate,
     FoodOwnershipResponse,
@@ -237,9 +238,17 @@ def list_inventory(db: Session = Depends(get_db)):
     return db.query(FoodInventory).all()
 
 
-@router.get("/food-inventory/{item_id}", response_model=FoodInventoryResponse)
+@router.get("/food-inventory/{item_id}", response_model=FoodInventoryDetailResponse)
 def get_inventory_item(item_id: int, db: Session = Depends(get_db)):
-    item = db.query(FoodInventory).filter(FoodInventory.id == item_id).first()
+    item = (
+        db.query(FoodInventory)
+        .options(
+            joinedload(FoodInventory.packaged_food),
+            joinedload(FoodInventory.unpackaged_food),
+        )
+        .filter(FoodInventory.id == item_id)
+        .first()
+    )
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory item not found")
     return item

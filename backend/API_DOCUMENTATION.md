@@ -624,7 +624,50 @@ GET /food-inventory/{item_id}
 |-----------|------|-------------|
 | item_id | int | Inventory item ID |
 
-**Response 200:** Same as above
+**Response 200 (packaged example):**
+```json
+{
+  "id": 1,
+  "household_id": 1,
+  "added_by_member_id": 1,
+  "packaged_food_id": 1,
+  "unpackaged_food_id": null,
+  "storage_location": "fridge",
+  "quantity": "2.50",
+  "unit": "L",
+  "expiry_date": "2026-06-01",
+  "date_added": "2026-05-23T12:00:00",
+  "date_updated": "2026-05-23T12:00:00",
+  "packaged_food": {
+    "name": "Coca Cola",
+    "brand": "Coca-Cola",
+    "category": "Drinks"
+  },
+  "unpackaged_food": null
+}
+```
+
+**Response 200 (unpackaged example):**
+```json
+{
+  "id": 2,
+  "household_id": 1,
+  "added_by_member_id": 2,
+  "packaged_food_id": null,
+  "unpackaged_food_id": 1,
+  "storage_location": "pantry",
+  "quantity": "1.00",
+  "unit": "kg",
+  "expiry_date": "2026-05-25",
+  "date_added": "2026-05-23T12:00:00",
+  "date_updated": "2026-05-23T12:00:00",
+  "packaged_food": null,
+  "unpackaged_food": {
+    "name": "Tomato",
+    "category": "Vegetables"
+  }
+}
+```
 
 ---
 
