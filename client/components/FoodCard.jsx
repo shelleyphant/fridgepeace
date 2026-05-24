@@ -5,3 +5,5 @@ const FoodCard = () => {
 };
 
 export default FoodCard;
+
+const SampleData = {};
