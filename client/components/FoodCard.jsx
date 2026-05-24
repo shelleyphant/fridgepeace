@@ -14,17 +14,19 @@ const FoodCard = () => {
 
 export default FoodCard;
 
-// Combination of GET /food-inventory/ and GET /unpackaged-foods/{food_id}
+// Intention to use GET /food-inventory/{food_id}
 const SampleData = {
-  foodkeeper_id: 'VEG001',
+  id: 1,
+  household_id: 1,
+  added_by_member_id: 1,
+  packaged_food_id: 1,
+  unpackaged_food_id: null,
   category: 'Vegetables',
   name: 'Tomato',
-  fridge_days_min: 3,
-  fridge_days_max: 7,
-  freezer_days_min: 30,
-  freezer_days_max: 90,
-  pantry_days_min: 1,
-  pantry_days_max: 3,
+  brand: null,
+  storage_location: 'fridge',
+  quantity: '2.50',
+  unit: 'L',
   expiry_date: '2026-06-01',
   date_added: '2026-05-23T12:00:00',
   date_updated: '2026-05-23T12:00:00',
