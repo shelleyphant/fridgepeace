@@ -14,6 +14,7 @@ const FoodCard = () => {
 
 export default FoodCard;
 
+// Combination of GET /food-inventory/ and GET /unpackaged-foods/{food_id}
 const SampleData = {
   foodkeeper_id: 'VEG001',
   category: 'Vegetables',
