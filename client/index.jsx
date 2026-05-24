@@ -1,12 +1,17 @@
 import { createRoot } from 'react-dom/client';
-import FoodCard from './components/FoodCard';
 import './main.css';
+import Button from './components/Button';
+import Drawer from './components/Drawer';
+import { useState } from 'react';
 
 const App = () => {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <>
-      <div className="p-4">
-        <FoodCard />
+      <div className="m-auto max-w-lg p-4">
+        <Button title="New Food" action={() => setIsOpen(true)}></Button>
+        <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)} />
       </div>
       <div></div>
     </>
