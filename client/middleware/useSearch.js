@@ -1,13 +1,22 @@
 import { useState, useEffect } from 'react';
 import foodData from '../source/food-data/foodkeeper.json';
-import { OpenFoodFacts } from '@openfoodfacts/openfoodfacts-nodejs';
 
-const proxyFetch = (url, options) => {
-  const urlString = url instanceof Request ? url.url : url instanceof URL ? url.href : String(url);
-  return window.fetch(urlString.replace('https://world.openfoodfacts.org', '/off-proxy'), options);
-};
+async function login() {
+  const body = new URLSearchParams({
+    user_id: process.env.OFF_USER,
+    password: process.env.OFF_PASSWORD,
+    action: 'process',
+  });
+  const res = await window.fetch('/off-proxy/cgi/session.pl', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+  if (!res.ok) console.error('OFF login failed:', res.status);
+}
 
-const offClient = new OpenFoodFacts(proxyFetch);
+login();
 
 export const categories = Object.fromEntries(
   (foodData.sheets.find((s) => s.name === 'Category')?.data ?? [])
@@ -29,24 +38,34 @@ export function useSearch(query) {
 
     let cancelled = false;
 
-    (async () => {
+    const timer = setTimeout(async () => {
       const local = products
         .filter((p) => p.Name?.toLowerCase().includes(query.toLowerCase()))
         .map((p) => ({ ...p, _source: 'foodkeeper' }));
 
       let remote = [];
       try {
-        const { data, error } = await offClient.search({ q: query, page_size: 10 });
-        if (error) console.error('OFF error:', error);
-        else remote = (data?.products ?? []).map((p) => ({ ...p, _source: 'openfoodfacts' }));
+        const params = new URLSearchParams({
+          action: 'process',
+          search_terms: query,
+          tagtype_0: 'countries',
+          tag_contains_0: 'contains',
+          tag_0: 'Australia',
+          sort_by: 'unique_scans_n',
+          page_size: '20',
+          json: '1',
+        });
+        const res = await window.fetch(`/off-proxy/cgi/search.pl?${params}`, { credentials: 'include' });
+        const json = await res.json();
+        remote = (json?.products ?? []).map((p) => ({ ...p, _source: 'openfoodfacts' }));
       } catch (e) {
         console.error('OFF search failed:', e);
       }
 
       if (!cancelled) setResults([...local, ...remote]);
-    })();
+    }, 400);
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [query]);
 
   return results;

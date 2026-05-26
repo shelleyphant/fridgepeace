@@ -52,11 +52,9 @@ const NewFood = () => {
                   pantry_days_max: selected['Pantry_Max'],
                 };
                 console.log(body);
-                await axios.post(
-                  '/unpackaged-foods',
-                  { headers: { 'content-type': 'application/json' } },
-                  { data: body },
-                );
+                await axios.post('/unpackaged-foods', body, {
+                  headers: { 'content-type': 'application/json' },
+                });
               } else {
                 // TODO: axios call for packaged food item
                 console.log(selected);

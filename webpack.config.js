@@ -81,6 +81,7 @@ module.exports = {
           target: 'https://world.openfoodfacts.org',
           pathRewrite: { '^/off-proxy': '' },
           changeOrigin: true,
+          cookieDomainRewrite: 'localhost',
         }),
       );
       return middlewares;
