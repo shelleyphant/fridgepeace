@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 # ─── Household ─────────────────────────────────────────────
@@ -66,6 +66,18 @@ class UnpackagedFoodCreate(BaseModel):
     pantry_days_min: Optional[int] = None
     pantry_days_max: Optional[int] = None
 
+    @field_validator(
+        'fridge_days_min', 'fridge_days_max',
+        'freezer_days_min', 'freezer_days_max',
+        'pantry_days_min', 'pantry_days_max',
+        mode='before',
+    )
+    @classmethod
+    def empty_int_str_to_none(cls, v):
+        if v == '':
+            return None
+        return v
+
 
 class UnpackagedFoodResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -92,6 +104,13 @@ class FoodInventoryCreate(BaseModel):
     quantity: Decimal
     unit: str
     expiry_date: Optional[date] = None
+
+    @field_validator('packaged_food_id', 'unpackaged_food_id', mode='before')
+    @classmethod
+    def empty_int_str_to_none(cls, v):
+        if v == '':
+            return None
+        return v
 
 
 class FoodInventoryResponse(BaseModel):
