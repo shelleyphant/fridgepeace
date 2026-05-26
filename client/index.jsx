@@ -3,6 +3,7 @@ import './main.css';
 import Button from './components/Button';
 import Drawer from './components/Drawer';
 import { useState } from 'react';
+import axios from 'axios';
 
 const App = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,6 +18,7 @@ const App = () => {
     </>
   );
 };
+
 const container = document.getElementById('root');
 const root = createRoot(container);
 root.render(<App />);

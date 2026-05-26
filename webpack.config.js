@@ -67,6 +67,12 @@ module.exports = {
     extensions: ['.js', '.jsx'],
   },
   devServer: {
+    proxy: [
+      {
+        context: ['/'],
+        target: 'http://localhost:8000',
+      },
+    ],
     static: path.resolve(__dirname, 'build'),
     port: 4040,
     open: true,
