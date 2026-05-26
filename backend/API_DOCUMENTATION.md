@@ -10,7 +10,7 @@ FridgePeace is a refrigerator food management system API that supports household
 backend/
 ├── main.py           FastAPI entry point, router registration, health check
 ├── models.py         SQLAlchemy ORM models (7 tables)
-├── schemas.py        Pydantic request/response models
+├── schemas.py        Pydantic request/response models with validation (incl. empty-string-to-null coercion for Optional[int] fields)
 ├── routers.py        All API endpoint routes
 ├── requirements.txt  Dependency list
 └── API_DOCUMENTATION.md   This file
@@ -124,6 +124,7 @@ Swagger UI: `http://localhost:8000/docs`
 | **Unique barcode** | Packaged food barcodes must be unique |
 | **Composite PK** | Food ownership uses (inventory_item_id, member_id) as composite key |
 | **SET NULL on food deletion** | Deleting a food reference sets it to NULL in inventory |
+| **Empty string tolerance** | All `Optional[int]` fields accept empty string `""` as input — it is automatically converted to `null`. This allows frontend forms to send blank number inputs without triggering a 422 validation error |
 
 ---
 
@@ -546,7 +547,9 @@ POST /unpackaged-foods/
 }
 ```
 
-**Validation:** `name` is required
+**Validation:**
+- `name` is required
+- All optional integer fields (`fridge_days_min`, `fridge_days_max`, `freezer_days_min`, `freezer_days_max`, `pantry_days_min`, `pantry_days_max`) accept both `null` and empty string `""` as valid input — either will result in the field being stored as `null`
 
 **Response 201:** Returns the complete food info
 
@@ -708,6 +711,7 @@ POST /food-inventory/
 **Validation Rules:**
 - `household_id` and `added_by_member_id` must exist (returns 404)
 - Exactly one of `packaged_food_id` or `unpackaged_food_id` must be set (returns 400)
+- `packaged_food_id` and `unpackaged_food_id` accept both `null` and empty string `""` as valid input — either will be treated as `null` when determining food type exclusivity
 - `quantity` and `unit` are required
 
 **Error Codes:**
@@ -975,8 +979,9 @@ DELETE /food-ownerships/{inventory_item_id}/{member_id}
 | 200 | OK | Request succeeded |
 | 201 | Created | Resource created successfully |
 | 204 | No Content | Deletion succeeded (no response body) |
-| 400 | Bad Request | Validation failed (e.g., duplicate barcode, invalid inventory type) |
+| 400 | Bad Request | Validation failed (e.g., duplicate barcode, invalid inventory type, missing required fields) |
 | 404 | Not Found | Resource does not exist |
+| 422 | Unprocessable Entity | Request body failed Pydantic schema validation (e.g., wrong type for a field, invalid enum value) |
 
 ---
 
