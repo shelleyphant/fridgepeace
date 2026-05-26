@@ -1,19 +1,11 @@
 import React, { useState } from 'react';
-import foodData from '../../foodkeeper.json';
 import axios from 'axios';
-
-const products =
-  foodData.sheets
-    .find((s) => s.name === 'Product')
-    ?.data.map((row) => Object.assign({}, ...row)) ?? [];
+import { categories, useSearch } from './useSearch';
 
 const NewFood = () => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
-
-  const results = search
-    ? products.filter((p) => p.Name?.toLowerCase().includes(search.toLowerCase()))
-    : [];
+  const results = useSearch(search);
 
   return (
     <div>
@@ -34,7 +26,7 @@ const NewFood = () => {
               className="cursor-pointer p-1 hover:bg-gray-100"
               onClick={() => setSelected(p)}
             >
-              {p.Name}
+              {p._source === 'foodkeeper' ? p.Name : p.product_name}
             </li>
           ))}
         </ul>
@@ -43,30 +35,32 @@ const NewFood = () => {
         <div>
           <pre className="mt-1 border p-2 text-xs whitespace-pre-wrap">
             {JSON.stringify(selected, null, 2)}
-            {console.log(selected)}
           </pre>
           <button
             className="mt-2 bg-blue-500 px-4 py-2 text-white"
             onClick={async () => {
-              const body = {
-                foodkeeper_id: selected['ID'],
-                category: selected['Category_ID'],
-                name: selected['Name'],
-                fridge_days_min: selected['Refrigerate_Min'],
-                fridge_days_max: selected['Refrigerate_Max'],
-                freezer_days_min: selected['Freeze_Min'],
-                freezer_days_max: selected['Freeze_Max'],
-                pantry_days_min: selected['Pantry_Min'],
-                pantry_days_max: selected['Pantry_Max'],
-              };
-              console.log(body);
-              await axios.post(
-                '/unpackaged-foods',
-                { headers: { 'content-type': 'application/json' } },
-                {
-                  data: body,
-                },
-              );
+              if (selected._source === 'foodkeeper') {
+                const body = {
+                  foodkeeper_id: selected['ID'].toString(),
+                  category: categories[selected['Category_ID']] ?? null,
+                  name: selected['Name'],
+                  fridge_days_min: selected['Refrigerate_Min'],
+                  fridge_days_max: selected['Refrigerate_Max'],
+                  freezer_days_min: selected['Freeze_Min'],
+                  freezer_days_max: selected['Freeze_Max'],
+                  pantry_days_min: selected['Pantry_Min'],
+                  pantry_days_max: selected['Pantry_Max'],
+                };
+                console.log(body);
+                await axios.post(
+                  '/unpackaged-foods',
+                  { headers: { 'content-type': 'application/json' } },
+                  { data: body },
+                );
+              } else {
+                // TODO: axios call for packaged food item
+                console.log(selected);
+              }
             }}
           >
             Add to fridge

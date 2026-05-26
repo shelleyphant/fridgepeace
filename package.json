@@ -61,6 +61,7 @@
     "webpack-dev-server": "^5.2.4"
   },
   "dependencies": {
+    "@openfoodfacts/openfoodfacts-nodejs": "^2.0.0-alpha.30",
     "@phosphor-icons/react": "^2.1.10",
     "@tailwindcss/postcss": "^4.3.0",
     "axios": "^1.16.1",
