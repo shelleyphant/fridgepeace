@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { useSearch } from '../hooks/useSearch';
-import { useAddFood } from '../hooks/useAddFood';
+import FoodDetail from './FoodDetail';
 
 const NewFood = () => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
-  const [quantity, setQuantity] = useState('');
   const results = useSearch(search);
-  const { addFood, loading, error } = useAddFood();
 
   return (
     <div>
@@ -33,28 +31,7 @@ const NewFood = () => {
           ))}
         </ul>
       )}
-      {selected && (
-        <div>
-          <pre className="mt-1 border p-2 text-xs whitespace-pre-wrap">
-            {JSON.stringify(selected, null, 2)}
-          </pre>
-          <label>Quantity</label>
-          <input
-            className="border"
-            onChange={(e) => {
-              setQuantity(e.target.value);
-            }}
-            value={quantity}
-            type="number"
-          ></input>
-          <button
-            className="mt-2 bg-blue-500 px-4 py-2 text-white"
-            onClick={() => addFood(selected, quantity)}
-          >
-            Add to fridge
-          </button>
-        </div>
-      )}
+      {selected && <FoodDetail food={selected} />}
     </div>
   );
 };
