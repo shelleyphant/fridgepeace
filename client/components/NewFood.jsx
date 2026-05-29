@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { categories, useSearch } from './useSearch';
+import { useSearch } from '../hooks/useSearch';
+import { useAddFood } from '../hooks/useAddFood';
 
 const NewFood = () => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
+  const [quantity, setQuantity] = useState('');
   const results = useSearch(search);
+  const { addFood, loading, error } = useAddFood();
 
   return (
     <div>
@@ -36,30 +38,18 @@ const NewFood = () => {
           <pre className="mt-1 border p-2 text-xs whitespace-pre-wrap">
             {JSON.stringify(selected, null, 2)}
           </pre>
+          <label>Quantity</label>
+          <input
+            className="border"
+            onChange={(e) => {
+              setQuantity(e.target.value);
+            }}
+            value={quantity}
+            type="number"
+          ></input>
           <button
             className="mt-2 bg-blue-500 px-4 py-2 text-white"
-            onClick={async () => {
-              if (selected._source === 'foodkeeper') {
-                const body = {
-                  foodkeeper_id: selected['ID'].toString(),
-                  category: categories[selected['Category_ID']] ?? null,
-                  name: selected['Name'],
-                  fridge_days_min: selected['Refrigerate_Min'],
-                  fridge_days_max: selected['Refrigerate_Max'],
-                  freezer_days_min: selected['Freeze_Min'],
-                  freezer_days_max: selected['Freeze_Max'],
-                  pantry_days_min: selected['Pantry_Min'],
-                  pantry_days_max: selected['Pantry_Max'],
-                };
-                console.log(body);
-                await axios.post('/unpackaged-foods', body, {
-                  headers: { 'content-type': 'application/json' },
-                });
-              } else {
-                // TODO: axios call for packaged food item
-                console.log(selected);
-              }
-            }}
+            onClick={() => addFood(selected, quantity)}
           >
             Add to fridge
           </button>

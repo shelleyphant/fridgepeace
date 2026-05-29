@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import NewFood from '../middleware/NewFood';
+import AddFood from './AddFood';
 
 const Drawer = ({ isOpen, onClose }) => {
   const [rendered, setRendered] = useState(false);
@@ -26,7 +26,7 @@ const Drawer = ({ isOpen, onClose }) => {
         className="m-auto h-1 w-16 rounded border-0 bg-gray-300 hover:cursor-pointer"
         onClick={onClose}
       ></hr>
-      <NewFood />
+      <AddFood />
     </div>
   );
 };
