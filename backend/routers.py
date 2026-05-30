@@ -10,7 +10,10 @@ from models import (
     PackagedFood,
     UnpackagedFood,
     User,
+<<<<<<< HEAD
     generate_household_code,
+=======
+>>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
     get_db,
 )
 from schemas import (
@@ -238,7 +241,11 @@ def list_user_households(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/member/{household_id}/members", response_model=list[MemberWithUserResponse])
+<<<<<<< HEAD
 def list_household_members_with_user(household_id: str, db: Session = Depends(get_db)):
+=======
+def list_household_members_with_user(household_id: int, db: Session = Depends(get_db)):
+>>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
     household = db.query(Household).filter(Household.id == household_id).first()
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
