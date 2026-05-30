@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useMembership } from '../hooks/useMembership';
+import Button from './Button';
 
 const Onboarding = () => {
   const member_id = localStorage.getItem('member_id');
@@ -19,8 +20,8 @@ const Onboarding = () => {
     if (!formType)
       return (
         <div>
-          <button onClick={() => setFormType('signup')}>Sign Up</button>
-          <button onClick={() => setFormType('login')}>Log In</button>
+          <Button title="Sign Up" action={() => setFormType('signup')} />
+          <Button title="Log In" action={() => setFormType('login')} />
         </div>
       );
     return (
@@ -28,9 +29,13 @@ const Onboarding = () => {
         <label>
           {formType === 'signup' ? 'Choose a display name' : 'Enter your member ID'}
         </label>
-        <input value={input} onChange={(e) => setInput(e.target.value)} />
+        <input
+          className="w-full border"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+        />
         {error && <p>{error}</p>}
-        <button onClick={handleSend}>Submit</button>
+        <Button title="Submit" action={handleSend} />
       </div>
     );
   }
