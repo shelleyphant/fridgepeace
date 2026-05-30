@@ -63,20 +63,48 @@ class Household(Base):
     )
 
 
+# ─── User ──────────────────────────────────────────────────
+# Independent user entity. A user can join multiple households
+# via HouseholdMember. Username is globally unique.
+
+class User(Base):
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    memberships: Mapped[list["HouseholdMember"]] = relationship(
+        "HouseholdMember", back_populates="user", cascade="all, delete-orphan"
+    )
+
+
 # ─── Household Member ──────────────────────────────────────
-# Belongs to a household. RESTRICT on delete prevents removing
+# Join table between User and Household. A user can be a member
+# of multiple households. RESTRICT on delete prevents removing
 # members that still have inventory records or events.
 
 class HouseholdMember(Base):
     __tablename__ = "household_member"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id", ondelete="CASCADE", onupdate="CASCADE"),
+        nullable=False,
+    )
     household_id: Mapped[int] = mapped_column(
         ForeignKey("household.id", ondelete="CASCADE", onupdate="CASCADE"),
         nullable=False,
     )
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    joined_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
 
+    user: Mapped["User"] = relationship("User", back_populates="memberships")
     household: Mapped["Household"] = relationship(
         "Household", back_populates="members"
     )
