@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAddFood } from '../hooks/useAddFood';
+import { useAddFood } from '../../hooks/useAddFood';
 
 const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
   const [quantity, setQuantity] = useState('');

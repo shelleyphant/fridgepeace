@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useRecentFoods } from '../hooks/useRecentFoods';
+import { useRecentFoods } from '../../hooks/useRecentFoods';
 import FoodDetail from './FoodDetail';
 
 const RecentFood = ({ onSuccess }) => {

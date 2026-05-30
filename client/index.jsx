@@ -2,11 +2,16 @@ import { createRoot } from 'react-dom/client';
 import './main.css';
 import Button from './components/Button';
 import Drawer from './components/Drawer';
+import Onboarding from './components/Onboarding';
 import { useState } from 'react';
-import axios from 'axios';
+
+const isSetUp = () =>
+  localStorage.getItem('member_id') && localStorage.getItem('household_id');
 
 const App = () => {
   const [isOpen, setIsOpen] = useState(false);
+
+  if (!isSetUp()) return <Onboarding />;
 
   return (
     <>
