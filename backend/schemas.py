@@ -7,18 +7,17 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ─── Household ─────────────────────────────────────────────
 
-
 class HouseholdCreate(BaseModel):
     name: str
 
-    @field_validator("name")
+    @field_validator('name')
     @classmethod
     def validate_name(cls, v):
         stripped = v.strip()
         if not stripped:
-            raise ValueError("name must not be empty or whitespace-only")
+            raise ValueError('name must not be empty or whitespace-only')
         if len(stripped) > 255:
-            raise ValueError("name must not exceed 255 characters")
+            raise ValueError('name must not exceed 255 characters')
         return stripped
 
 
@@ -30,29 +29,28 @@ class HouseholdResponse(BaseModel):
 
 # ─── User ──────────────────────────────────────────────────
 
-
 class UserCreate(BaseModel):
     username: str
     display_name: str
 
-    @field_validator("username")
+    @field_validator('username')
     @classmethod
     def validate_username(cls, v):
         stripped = v.strip()
         if not stripped:
-            raise ValueError("username must not be empty or whitespace-only")
+            raise ValueError('username must not be empty or whitespace-only')
         if len(stripped) > 255:
-            raise ValueError("username must not exceed 255 characters")
+            raise ValueError('username must not exceed 255 characters')
         return stripped
 
-    @field_validator("display_name")
+    @field_validator('display_name')
     @classmethod
     def validate_display_name(cls, v):
         stripped = v.strip()
         if not stripped:
-            raise ValueError("display_name must not be empty or whitespace-only")
+            raise ValueError('display_name must not be empty or whitespace-only')
         if len(stripped) > 255:
-            raise ValueError("display_name must not exceed 255 characters")
+            raise ValueError('display_name must not exceed 255 characters')
         return stripped
 
 
@@ -66,20 +64,19 @@ class UserResponse(BaseModel):
 
 # ─── Household Member ──────────────────────────────────────
 
-
 class HouseholdMemberCreate(BaseModel):
     user_id: int
     household_id: str
     display_name: str
 
-    @field_validator("display_name")
+    @field_validator('display_name')
     @classmethod
     def validate_display_name(cls, v):
         stripped = v.strip()
         if not stripped:
-            raise ValueError("display_name must not be empty or whitespace-only")
+            raise ValueError('display_name must not be empty or whitespace-only')
         if len(stripped) > 255:
-            raise ValueError("display_name must not exceed 255 characters")
+            raise ValueError('display_name must not exceed 255 characters')
         return stripped
 
 
@@ -128,7 +125,6 @@ class MemberWithUserResponse(BaseModel):
 
 # ─── Packaged Food ─────────────────────────────────────────
 
-
 class PackagedFoodCreate(BaseModel):
     barcode: Optional[str] = None
     name: str
@@ -151,7 +147,6 @@ class PackagedFoodResponse(BaseModel):
 
 # ─── Unpackaged Food ────────────────────────────────────────
 
-
 class UnpackagedFoodCreate(BaseModel):
     foodkeeper_id: Optional[str] = None
     category: Optional[str] = None
@@ -164,17 +159,14 @@ class UnpackagedFoodCreate(BaseModel):
     pantry_days_max: Optional[int] = None
 
     @field_validator(
-        "fridge_days_min",
-        "fridge_days_max",
-        "freezer_days_min",
-        "freezer_days_max",
-        "pantry_days_min",
-        "pantry_days_max",
-        mode="before",
+        'fridge_days_min', 'fridge_days_max',
+        'freezer_days_min', 'freezer_days_max',
+        'pantry_days_min', 'pantry_days_max',
+        mode='before',
     )
     @classmethod
     def empty_int_str_to_none(cls, v):
-        if v == "":
+        if v == '':
             return None
         return v
 
@@ -195,7 +187,6 @@ class UnpackagedFoodResponse(BaseModel):
 
 # ─── Food Inventory ────────────────────────────────────────
 
-
 class FoodInventoryCreate(BaseModel):
     household_id: str
     added_by_member_id: int
@@ -206,10 +197,10 @@ class FoodInventoryCreate(BaseModel):
     unit: str
     expiry_date: Optional[date] = None
 
-    @field_validator("packaged_food_id", "unpackaged_food_id", mode="before")
+    @field_validator('packaged_food_id', 'unpackaged_food_id', mode='before')
     @classmethod
     def empty_int_str_to_none(cls, v):
-        if v == "":
+        if v == '':
             return None
         return v
 
@@ -249,11 +240,10 @@ class FoodInventoryDetailResponse(FoodInventoryResponse):
 
 # ─── Food Event ────────────────────────────────────────────
 
-
 class FoodEventCreate(BaseModel):
     inventory_item_id: int
     member_id: int
-    event_type: Literal["added", "consumed", "expired", "moved"]
+    event_type: Literal['added', 'consumed', 'expired', 'moved']
 
 
 class FoodEventResponse(BaseModel):
@@ -266,7 +256,6 @@ class FoodEventResponse(BaseModel):
 
 
 # ─── Food Ownership ────────────────────────────────────────
-
 
 class FoodOwnershipCreate(BaseModel):
     inventory_item_id: int
