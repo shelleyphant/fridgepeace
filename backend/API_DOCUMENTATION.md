@@ -54,15 +54,9 @@ Swagger UI: `http://localhost:8000/docs`
 |--------|------|-------------|
 | id | INT (PK, Auto) | Unique member ID |
 | user_id | INT (FK → user) | Associated user account |
-<<<<<<< HEAD
-<<<<<<< HEAD
 | household_id | CHAR(4) (FK → household) | Associated household |
-=======
 | household_id | INT (FK → household) | Associated household |
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
 | household_id | CHAR(4) (FK → household) | Associated household |
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
 | display_name | VARCHAR(255) | Display name within the household |
 | joined_at | DATETIME | When the user joined the household (auto) |
 
@@ -138,14 +132,8 @@ Swagger UI: `http://localhost:8000/docs`
 | Rule | Description |
 |------|-------------|
 | **Unique username** | User usernames must be globally unique |
-<<<<<<< HEAD
-<<<<<<< HEAD
 | **Household code** | Household IDs are auto-generated 4-character alphanumeric codes (A-Z, 0-9) with collision retry |
-=======
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
 | **Household code** | Household IDs are auto-generated 4-character alphanumeric codes (A-Z, 0-9) with collision retry |
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
 | **Cascade delete household** | Deleting a household cascades to its members, inventory, events, and ownerships |
 | **Cascade delete user** | Deleting a user cascades to all their household memberships |
 | **Member deletion restricted** | A member with related inventory or events cannot be deleted (RESTRICT) |
@@ -312,15 +300,9 @@ GET /household-members/
   {
     "id": 1,
     "user_id": 1,
-<<<<<<< HEAD
-<<<<<<< HEAD
     "household_id": "A1B2",
-=======
     "household_id": 1,
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
     "household_id": "A1B2",
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
     "display_name": "Alice",
     "joined_at": "2026-05-30T12:00:00"
   }
@@ -345,15 +327,9 @@ GET /household-members/{member_id}
 {
   "id": 1,
   "user_id": 1,
-<<<<<<< HEAD
-<<<<<<< HEAD
   "household_id": "A1B2",
-=======
   "household_id": 1,
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
   "household_id": "A1B2",
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
   "display_name": "Alice",
   "joined_at": "2026-05-30T12:00:00"
 }
@@ -371,15 +347,8 @@ POST /household-members/
 ```json
 {
   "user_id": 1,
-<<<<<<< HEAD
-<<<<<<< HEAD
   "household_id": "A1B2",
-=======
   "household_id": 1,
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
-  "household_id": "A1B2",
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
   "display_name": "Alice"
 }
 ```
@@ -395,15 +364,9 @@ POST /household-members/
 {
   "id": 1,
   "user_id": 1,
-<<<<<<< HEAD
-<<<<<<< HEAD
   "household_id": "A1B2",
-=======
   "household_id": 1,
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
   "household_id": "A1B2",
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
   "display_name": "Alice",
   "joined_at": "2026-05-30T12:00:00"
 }
@@ -426,15 +389,8 @@ PUT /household-members/{member_id}
 ```json
 {
   "user_id": 1,
-<<<<<<< HEAD
-<<<<<<< HEAD
   "household_id": "A1B2",
-=======
   "household_id": 1,
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
-  "household_id": "A1B2",
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
   "display_name": "Alice Updated"
 }
 ```
@@ -446,15 +402,9 @@ PUT /household-members/{member_id}
 {
   "id": 1,
   "user_id": 1,
-<<<<<<< HEAD
-<<<<<<< HEAD
   "household_id": "A1B2",
-=======
   "household_id": 1,
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
   "household_id": "A1B2",
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
   "display_name": "Alice Updated",
   "joined_at": "2026-05-30T12:00:00"
 }
@@ -489,15 +439,9 @@ POST /member/join
 ```json
 {
   "user_id": 1,
-<<<<<<< HEAD
-<<<<<<< HEAD
   "household_id": "A1B2",
-=======
   "household_id": 1,
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
   "household_id": "A1B2",
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
   "display_name": "Alice"
 }
 ```
@@ -512,15 +456,9 @@ POST /member/join
 {
   "id": 1,
   "user_id": 1,
-<<<<<<< HEAD
-<<<<<<< HEAD
   "household_id": "A1B2",
-=======
   "household_id": 1,
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
   "household_id": "A1B2",
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
   "display_name": "Alice",
   "joined_at": "2026-05-30T12:00:00"
 }
@@ -538,15 +476,9 @@ POST /member/leave
 ```json
 {
   "user_id": 1,
-<<<<<<< HEAD
-<<<<<<< HEAD
   "household_id": "A1B2"
-=======
   "household_id": 1
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
   "household_id": "A1B2"
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
 }
 ```
 
@@ -575,15 +507,9 @@ GET /member/{user_id}/households
 ```json
 [
   {
-<<<<<<< HEAD
-<<<<<<< HEAD
     "id": "A1B2",
-=======
     "id": 1,
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
     "id": "A1B2",
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
     "name": "Home"
   }
 ]
@@ -600,15 +526,9 @@ GET /member/{household_id}/members
 **Path Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-<<<<<<< HEAD
-<<<<<<< HEAD
 | household_id | string (4-char code) | Household code |
-=======
 | household_id | int | Household ID |
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
 | household_id | string (4-char code) | Household code |
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
 
 **Validation:** `household_id` must reference an existing household (returns 404 if not found)
 
@@ -618,15 +538,9 @@ GET /member/{household_id}/members
   {
     "id": 1,
     "user_id": 1,
-<<<<<<< HEAD
-<<<<<<< HEAD
     "household_id": "A1B2",
-=======
     "household_id": 1,
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
     "household_id": "A1B2",
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
     "display_name": "Alice",
     "joined_at": "2026-05-30T12:00:00",
     "user": {

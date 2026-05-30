@@ -66,15 +66,7 @@ class UserResponse(BaseModel):
 
 class HouseholdMemberCreate(BaseModel):
     user_id: int
-<<<<<<< HEAD
-<<<<<<< HEAD
     household_id: str
-=======
-    household_id: int
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
-    household_id: str
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
     display_name: str
 
     @field_validator('display_name')
@@ -92,57 +84,25 @@ class HouseholdMemberResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     user_id: int
-<<<<<<< HEAD
-<<<<<<< HEAD
     household_id: str
-=======
-    household_id: int
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
-    household_id: str
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
     display_name: str
     joined_at: datetime
 
 
 class MemberJoinRequest(BaseModel):
     user_id: int
-<<<<<<< HEAD
-<<<<<<< HEAD
     household_id: str
-=======
-    household_id: int
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
-    household_id: str
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
     display_name: Optional[str] = None
 
 
 class MemberLeaveRequest(BaseModel):
     user_id: int
-<<<<<<< HEAD
-<<<<<<< HEAD
     household_id: str
-=======
-    household_id: int
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
-    household_id: str
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
 
 
 class UserHouseholdBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-<<<<<<< HEAD
-<<<<<<< HEAD
     id: str
-=======
-    id: int
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
-    id: str
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
     name: str
 
 
@@ -157,15 +117,7 @@ class MemberWithUserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     user_id: int
-<<<<<<< HEAD
-<<<<<<< HEAD
     household_id: str
-=======
-    household_id: int
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
-    household_id: str
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
     display_name: str
     joined_at: datetime
     user: MemberUserBrief
