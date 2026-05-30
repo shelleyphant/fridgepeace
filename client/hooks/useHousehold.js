@@ -1,29 +1,11 @@
-import { useState } from 'react';
 import axios from 'axios';
 
-export function useHousehold() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+export async function addHousehold(housename) {
+  const result = await axios.post('/households/', { name: housename });
+  localStorage.setItem('household_id', String(result.data.id));
+}
 
-  async function addHousehold(housename) {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await axios.post('/household/', { params: { housename } });
-      localStorage.setItem('household_id', String(result.data.id));
-      return true;
-    } catch (e) {
-      setError(e.response?.data?.detail ?? e.message);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }
-  async function setHousehold(username) {
-    setLoading(true);
-    setError(null);
-  }
-
-  return { addHousehold, setHousehold, loading, error };
+export async function joinHousehold(member_id, household_id) {
+  const result = await axios.get('/member/join/', { member_id, household_id });
+  localStorage.setItem('household_id', household_id);
 }

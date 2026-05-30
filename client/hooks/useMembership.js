@@ -1,41 +1,13 @@
-import { useState } from 'react';
 import axios from 'axios';
 
-export function useMembership() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+export async function addMembership(username) {
+  const result = await axios.post('/users/', { username, display_name: username });
+  localStorage.setItem('member_id', String(result.data.id));
+}
 
-  async function addMembership(username) {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await axios.post('/users/', { username, display_name: username });
-      localStorage.setItem('member_id', String(result.data.id));
-      return true;
-    } catch (e) {
-      setError(e.response?.data?.detail ?? e.message);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function setMembership(username) {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await axios.get('/users/', { params: { username } });
-      localStorage.setItem('member_id', String(result.data.id));
-      return true;
-    } catch (e) {
-      setError(e.response?.data?.detail ?? e.message);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return { addMembership, setMembership, loading, error };
+export async function setMembership(username) {
+  const { data } = await axios.get('/users/');
+  const user = data.find((u) => u.username === username);
+  if (!user) throw new Error('Username not found');
+  localStorage.setItem('member_id', String(user.id));
 }
