@@ -23,17 +23,21 @@ export function useAddFood() {
         if (match) {
           unpackaged_food_id = match.id;
         } else {
-          const { data: created } = await axios.post('/unpackaged-foods/', {
-            foodkeeper_id: selected.ID?.toString() ?? null,
-            category: categories[selected.Category_ID] ?? null,
-            name: selected.Name,
-            fridge_days_min: selected.Refrigerate_Min ?? null,
-            fridge_days_max: selected.Refrigerate_Max ?? null,
-            freezer_days_min: selected.Freeze_Min ?? null,
-            freezer_days_max: selected.Freeze_Max ?? null,
-            pantry_days_min: selected.Pantry_Min ?? null,
-            pantry_days_max: selected.Pantry_Max ?? null,
-          }, { headers: { 'content-type': 'application/json' } });
+          const { data: created } = await axios.post(
+            '/unpackaged-foods/',
+            {
+              foodkeeper_id: selected.ID?.toString() ?? null,
+              category: categories[selected.Category_ID] ?? null,
+              name: selected.Name,
+              fridge_days_min: selected.Refrigerate_Min ?? null,
+              fridge_days_max: selected.Refrigerate_Max ?? null,
+              freezer_days_min: selected.Freeze_Min ?? null,
+              freezer_days_max: selected.Freeze_Max ?? null,
+              pantry_days_min: selected.Pantry_Min ?? null,
+              pantry_days_max: selected.Pantry_Max ?? null,
+            },
+            { headers: { 'content-type': 'application/json' } },
+          );
           unpackaged_food_id = created.id;
         }
       } else {
@@ -42,31 +46,41 @@ export function useAddFood() {
         if (match) {
           packaged_food_id = match.id;
         } else {
-          const { data: created } = await axios.post('/packaged-foods/', {
-            barcode: selected.code ?? null,
-            name: selected.product_name,
-            brand: selected.brands ?? null,
-            image_url: selected.image_front_url ?? null,
-            category: selected.categories ?? null,
-            nutrition: selected.nutriments ? JSON.stringify(selected.nutriments) : null,
-          }, { headers: { 'content-type': 'application/json' } });
+          const { data: created } = await axios.post(
+            '/packaged-foods/',
+            {
+              barcode: selected.code ?? null,
+              name: selected.product_name,
+              brand: selected.brands ?? null,
+              image_url: selected.image_front_url ?? null,
+              category: selected.categories ?? null,
+              nutrition: selected.nutriments
+                ? JSON.stringify(selected.nutriments)
+                : null,
+            },
+            { headers: { 'content-type': 'application/json' } },
+          );
           packaged_food_id = created.id;
         }
       }
 
-      const household_id = parseInt(localStorage.getItem('household_id'));
+      const household_id = localStorage.getItem('household_id');
       const added_by_member_id = parseInt(localStorage.getItem('member_id'));
 
-      await axios.post('/food-inventory/', {
-        packaged_food_id,
-        unpackaged_food_id,
-        household_id,
-        added_by_member_id,
-        quantity: inventoryDetails.quantity,
-        unit: inventoryDetails.unit ?? 'item', // TBC
-        storage_location: inventoryDetails.storage_location ?? null,
-        expiry_date: inventoryDetails.expiry_date ?? null,
-      }, { headers: { 'content-type': 'application/json' } });
+      await axios.post(
+        '/food-inventory/',
+        {
+          packaged_food_id,
+          unpackaged_food_id,
+          household_id,
+          added_by_member_id,
+          quantity: inventoryDetails.quantity,
+          unit: inventoryDetails.unit ?? 'item', // TBC
+          storage_location: inventoryDetails.storage_location ?? null,
+          expiry_date: inventoryDetails.expiry_date ?? null,
+        },
+        { headers: { 'content-type': 'application/json' } },
+      );
 
       return true;
     } catch (e) {
@@ -81,17 +95,22 @@ export function useAddFood() {
     setLoading(true);
     setError(null);
     try {
-      const newQuantity = parseFloat(inventoryItem.quantity) + parseFloat(additionalQuantity);
-      await axios.put(`/food-inventory/${inventoryItem.id}`, {
-        household_id: inventoryItem.household_id,
-        added_by_member_id: inventoryItem.added_by_member_id,
-        packaged_food_id: inventoryItem.packaged_food_id,
-        unpackaged_food_id: inventoryItem.unpackaged_food_id,
-        storage_location: inventoryItem.storage_location,
-        quantity: newQuantity,
-        unit: inventoryItem.unit,
-        expiry_date: inventoryItem.expiry_date,
-      }, { headers: { 'content-type': 'application/json' } });
+      const newQuantity =
+        parseFloat(inventoryItem.quantity) + parseFloat(additionalQuantity);
+      await axios.put(
+        `/food-inventory/${inventoryItem.id}`,
+        {
+          household_id: inventoryItem.household_id,
+          added_by_member_id: inventoryItem.added_by_member_id,
+          packaged_food_id: inventoryItem.packaged_food_id,
+          unpackaged_food_id: inventoryItem.unpackaged_food_id,
+          storage_location: inventoryItem.storage_location,
+          quantity: newQuantity,
+          unit: inventoryItem.unit,
+          expiry_date: inventoryItem.expiry_date,
+        },
+        { headers: { 'content-type': 'application/json' } },
+      );
       return true;
     } catch (e) {
       setError(e);

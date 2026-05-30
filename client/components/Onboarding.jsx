@@ -25,8 +25,8 @@ const Onboarding = ({ onComplete }) => {
   const handleHousehold = async () => {
     try {
       houseFormType === 'create'
-        ? await addHousehold(input)
-        : await joinHousehold(input);
+        ? await addHousehold(member_id, input)
+        : await joinHousehold(member_id, input);
       onComplete();
     } catch (e) {
       setError(e.response?.data?.detail ?? e.message);
