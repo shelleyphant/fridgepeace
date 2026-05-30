@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useAddFood } from '../hooks/useAddFood';
 
-const FoodDetail = ({ food }) => {
+const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
   const [quantity, setQuantity] = useState('');
-  const { addFood } = useAddFood();
+  const { addFood, updateFood } = useAddFood();
 
   return (
     <div>
@@ -19,7 +19,12 @@ const FoodDetail = ({ food }) => {
       />
       <button
         className="mt-2 bg-blue-500 px-4 py-2 text-white"
-        onClick={() => addFood(food, quantity)}
+        onClick={async () => {
+          const success = inventoryItem
+            ? await updateFood(inventoryItem, quantity)
+            : await addFood(food, { quantity });
+          if (success) onSuccess?.();
+        }}
       >
         Add to fridge
       </button>

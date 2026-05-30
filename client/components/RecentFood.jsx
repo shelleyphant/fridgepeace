@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useRecentFoods } from '../hooks/useRecentFoods';
 import FoodDetail from './FoodDetail';
 
-const RecentFood = () => {
+const RecentFood = ({ onSuccess }) => {
   const { recentFoods, loading, error } = useRecentFoods();
   const [selected, setSelected] = useState(null);
 
@@ -12,17 +12,17 @@ const RecentFood = () => {
   return (
     <div>
       <ul>
-        {recentFoods.map((f) => (
+        {recentFoods.map((item) => (
           <li
-            key={`${f._source}-${f.id}`}
+            key={item.id}
             className="cursor-pointer p-1 hover:bg-gray-100"
-            onClick={() => setSelected(f)}
+            onClick={() => setSelected(item)}
           >
-            {f.name}
+            {item.name}
           </li>
         ))}
       </ul>
-      {selected && <FoodDetail food={selected} />}
+      {selected && <FoodDetail food={selected} inventoryItem={selected} onSuccess={onSuccess} />}
     </div>
   );
 };

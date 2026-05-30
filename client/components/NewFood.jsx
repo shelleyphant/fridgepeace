@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSearch } from '../hooks/useSearch';
 import FoodDetail from './FoodDetail';
 
-const NewFood = () => {
+const NewFood = ({ onSuccess }) => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const results = useSearch(search);
@@ -31,7 +31,7 @@ const NewFood = () => {
           ))}
         </ul>
       )}
-      {selected && <FoodDetail food={selected} />}
+      {selected && <FoodDetail food={selected} onSuccess={onSuccess} />}
     </div>
   );
 };

@@ -26,7 +26,7 @@ const Drawer = ({ isOpen, onClose }) => {
         className="m-auto h-1 w-16 rounded border-0 bg-gray-300 hover:cursor-pointer"
         onClick={onClose}
       ></hr>
-      <AddFood />
+      <AddFood onClose={onClose} />
     </div>
   );
 };
