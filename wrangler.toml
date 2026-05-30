@@ -1,2 +1,5 @@
 name = "fridgepeace"
-pages_build_output_dir = "build"
+main = "worker.js"
+
+[assets]
+directory = "build"
