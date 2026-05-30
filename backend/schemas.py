@@ -1,14 +1,24 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # ─── Household ─────────────────────────────────────────────
 
 class HouseholdCreate(BaseModel):
     name: str
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError('name must not be empty or whitespace-only')
+        if len(stripped) > 255:
+            raise ValueError('name must not exceed 255 characters')
+        return stripped
 
 
 class HouseholdResponse(BaseModel):
@@ -22,6 +32,16 @@ class HouseholdResponse(BaseModel):
 class HouseholdMemberCreate(BaseModel):
     household_id: int
     display_name: str
+
+    @field_validator('display_name')
+    @classmethod
+    def validate_display_name(cls, v):
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError('display_name must not be empty or whitespace-only')
+        if len(stripped) > 255:
+            raise ValueError('display_name must not exceed 255 characters')
+        return stripped
 
 
 class HouseholdMemberResponse(BaseModel):
@@ -101,7 +121,7 @@ class FoodInventoryCreate(BaseModel):
     packaged_food_id: Optional[int] = None
     unpackaged_food_id: Optional[int] = None
     storage_location: Optional[str] = None
-    quantity: Decimal
+    quantity: Decimal = Field(..., gt=0)
     unit: str
     expiry_date: Optional[date] = None
 
@@ -151,7 +171,7 @@ class FoodInventoryDetailResponse(FoodInventoryResponse):
 class FoodEventCreate(BaseModel):
     inventory_item_id: int
     member_id: int
-    event_type: str
+    event_type: Literal['added', 'consumed', 'expired', 'moved']
 
 
 class FoodEventResponse(BaseModel):
