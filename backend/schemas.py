@@ -66,7 +66,11 @@ class UserResponse(BaseModel):
 
 class HouseholdMemberCreate(BaseModel):
     user_id: int
+<<<<<<< HEAD
     household_id: str
+=======
+    household_id: int
+>>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
     display_name: str
 
     @field_validator('display_name')
@@ -84,25 +88,41 @@ class HouseholdMemberResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     user_id: int
+<<<<<<< HEAD
     household_id: str
+=======
+    household_id: int
+>>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
     display_name: str
     joined_at: datetime
 
 
 class MemberJoinRequest(BaseModel):
     user_id: int
+<<<<<<< HEAD
     household_id: str
+=======
+    household_id: int
+>>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
     display_name: Optional[str] = None
 
 
 class MemberLeaveRequest(BaseModel):
     user_id: int
+<<<<<<< HEAD
     household_id: str
+=======
+    household_id: int
+>>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
 
 
 class UserHouseholdBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+<<<<<<< HEAD
     id: str
+=======
+    id: int
+>>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
     name: str
 
 
@@ -117,7 +137,11 @@ class MemberWithUserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     user_id: int
+<<<<<<< HEAD
     household_id: str
+=======
+    household_id: int
+>>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
     display_name: str
     joined_at: datetime
     user: MemberUserBrief

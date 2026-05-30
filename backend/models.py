@@ -104,8 +104,12 @@ class HouseholdMember(Base):
         ForeignKey("user.id", ondelete="CASCADE", onupdate="CASCADE"),
         nullable=False,
     )
+<<<<<<< HEAD
     household_id: Mapped[str] = mapped_column(
         String(4),
+=======
+    household_id: Mapped[int] = mapped_column(
+>>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
         ForeignKey("household.id", ondelete="CASCADE", onupdate="CASCADE"),
         nullable=False,
     )
