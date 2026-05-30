@@ -10,6 +10,8 @@ __pycache__/
 *.spec
 pip-log.txt
 pip-delete-this-directory.txt
+bin
+lib
 
 # Build outputs
 
@@ -29,9 +31,11 @@ pip-delete-this-directory.txt
 env/
 venv/
 ENV/
+pyvenv.cfg
 
 # Databases
 local_settings.py
+fridgepeace.db
 db.sqlite3
 db.sqlite3-journal
 
