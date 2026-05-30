@@ -19,7 +19,8 @@ const Onboarding = ({ onComplete }) => {
       setInput('');
       setError(null);
     } catch (e) {
-      setError(e.response?.data?.detail ?? e.message);
+      const detail = e.response?.data?.detail;
+      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : detail ?? e.message);
     }
   };
   const handleHousehold = async () => {
@@ -29,7 +30,8 @@ const Onboarding = ({ onComplete }) => {
         : await joinHousehold(member_id, input);
       onComplete();
     } catch (e) {
-      setError(e.response?.data?.detail ?? e.message);
+      const detail = e.response?.data?.detail;
+      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : detail ?? e.message);
     }
   };
 
