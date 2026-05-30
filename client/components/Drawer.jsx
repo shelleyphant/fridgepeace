@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AddFood from './inventory/AddFood';
 
-const Drawer = ({ isOpen, onClose }) => {
+const Drawer = ({ isOpen, onClose, onSuccess }) => {
   const [rendered, setRendered] = useState(false);
   const [show, setShow] = useState(false);
 
@@ -26,7 +26,7 @@ const Drawer = ({ isOpen, onClose }) => {
         className="m-auto h-1 w-16 rounded border-0 bg-gray-300 hover:cursor-pointer"
         onClick={onClose}
       ></hr>
-      <AddFood onClose={onClose} />
+      <AddFood onClose={onClose} onSuccess={onSuccess} />
     </div>
   );
 };

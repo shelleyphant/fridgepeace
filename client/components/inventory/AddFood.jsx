@@ -2,11 +2,11 @@ import React from 'react';
 import NewFood from './NewFood';
 import RecentFood from './RecentFood';
 
-const AddFood = ({ onClose }) => {
+const AddFood = ({ onClose, onSuccess }) => {
   return (
     <div>
-      <RecentFood onSuccess={onClose} />
-      <NewFood onSuccess={onClose} />
+      <RecentFood onSuccess={onSuccess ?? onClose} />
+      <NewFood onSuccess={onSuccess ?? onClose} />
     </div>
   );
 };

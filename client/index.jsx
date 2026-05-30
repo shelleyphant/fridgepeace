@@ -13,7 +13,7 @@ const isSetUp = () =>
 const App = () => {
   const [ready, setReady] = useState(isSetUp);
   const [isOpen, setIsOpen] = useState(false);
-  const { inventory, loading } = useInventory();
+  const { inventory, loading, refresh } = useInventory();
 
   if (!ready) return <Onboarding onComplete={() => setReady(true)} />;
 
@@ -22,7 +22,7 @@ const App = () => {
       <div className="m-auto max-w-lg p-4">
         <Button title="New Food" action={() => setIsOpen(true)} />
         {!loading && inventory.map((item) => <FoodCard key={item.id} item={item} />)}
-        <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)} />
+        <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)} onSuccess={() => { refresh(); setIsOpen(false); }} />
       </div>
     </>
   );
