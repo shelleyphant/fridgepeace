@@ -5,10 +5,12 @@ import FoodCard from './components/FoodCard';
 import { useState } from 'react';
 
 const isSetUp = () =>
-  localStorage.getItem('member_id') && localStorage.getItem('household_id');
+  !!(localStorage.getItem('member_id') && localStorage.getItem('household_id'));
 
 const App = () => {
-  if (!isSetUp()) return <Onboarding />;
+  const [ready, setReady] = useState(isSetUp);
+
+  if (!ready) return <Onboarding onComplete={() => setReady(true)} />;
 
   return (
     <>
