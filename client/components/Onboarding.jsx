@@ -19,17 +19,19 @@ const Onboarding = ({ onComplete }) => {
       setInput('');
       setError(null);
     } catch (e) {
-      setError(e.response?.data?.detail ?? e.message);
+      const detail = e.response?.data?.detail;
+      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : detail ?? e.message);
     }
   };
   const handleHousehold = async () => {
     try {
       houseFormType === 'create'
-        ? await addHousehold(input)
-        : await joinHousehold(input);
+        ? await addHousehold(member_id, input)
+        : await joinHousehold(member_id, input);
       onComplete();
     } catch (e) {
-      setError(e.response?.data?.detail ?? e.message);
+      const detail = e.response?.data?.detail;
+      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : detail ?? e.message);
     }
   };
 
@@ -44,9 +46,7 @@ const Onboarding = ({ onComplete }) => {
     return (
       <div>
         <label>
-          {memberFormType === 'signup'
-            ? 'Choose a username'
-            : 'Enter your username'}
+          {memberFormType === 'signup' ? 'Choose a username' : 'Enter your username'}
         </label>
         <input
           className="w-full border"
