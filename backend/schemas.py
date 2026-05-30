@@ -23,14 +23,50 @@ class HouseholdCreate(BaseModel):
 
 class HouseholdResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: int
+    id: str
     name: str
+
+
+# ─── User ──────────────────────────────────────────────────
+
+class UserCreate(BaseModel):
+    username: str
+    display_name: str
+
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v):
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError('username must not be empty or whitespace-only')
+        if len(stripped) > 255:
+            raise ValueError('username must not exceed 255 characters')
+        return stripped
+
+    @field_validator('display_name')
+    @classmethod
+    def validate_display_name(cls, v):
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError('display_name must not be empty or whitespace-only')
+        if len(stripped) > 255:
+            raise ValueError('display_name must not exceed 255 characters')
+        return stripped
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    username: str
+    display_name: str
+    created_at: datetime
 
 
 # ─── Household Member ──────────────────────────────────────
 
 class HouseholdMemberCreate(BaseModel):
-    household_id: int
+    user_id: int
+    household_id: str
     display_name: str
 
     @field_validator('display_name')
@@ -47,8 +83,44 @@ class HouseholdMemberCreate(BaseModel):
 class HouseholdMemberResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    household_id: int
+    user_id: int
+    household_id: str
     display_name: str
+    joined_at: datetime
+
+
+class MemberJoinRequest(BaseModel):
+    user_id: int
+    household_id: str
+    display_name: Optional[str] = None
+
+
+class MemberLeaveRequest(BaseModel):
+    user_id: int
+    household_id: str
+
+
+class UserHouseholdBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+
+
+class MemberUserBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    username: str
+    display_name: str
+
+
+class MemberWithUserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    household_id: str
+    display_name: str
+    joined_at: datetime
+    user: MemberUserBrief
 
 
 # ─── Packaged Food ─────────────────────────────────────────
@@ -116,7 +188,7 @@ class UnpackagedFoodResponse(BaseModel):
 # ─── Food Inventory ────────────────────────────────────────
 
 class FoodInventoryCreate(BaseModel):
-    household_id: int
+    household_id: str
     added_by_member_id: int
     packaged_food_id: Optional[int] = None
     unpackaged_food_id: Optional[int] = None
@@ -136,7 +208,7 @@ class FoodInventoryCreate(BaseModel):
 class FoodInventoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    household_id: int
+    household_id: str
     added_by_member_id: int
     packaged_food_id: Optional[int] = None
     unpackaged_food_id: Optional[int] = None

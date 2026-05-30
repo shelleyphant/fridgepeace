@@ -9,6 +9,8 @@ from models import (
     HouseholdMember,
     PackagedFood,
     UnpackagedFood,
+    User,
+    generate_household_code,
     get_db,
 )
 from schemas import (
@@ -23,10 +25,17 @@ from schemas import (
     HouseholdMemberCreate,
     HouseholdMemberResponse,
     HouseholdResponse,
+    MemberJoinRequest,
+    MemberLeaveRequest,
+    MemberUserBrief,
+    MemberWithUserResponse,
     PackagedFoodCreate,
     PackagedFoodResponse,
     UnpackagedFoodCreate,
     UnpackagedFoodResponse,
+    UserCreate,
+    UserHouseholdBrief,
+    UserResponse,
 )
 
 router = APIRouter()
@@ -41,7 +50,7 @@ def list_households(db: Session = Depends(get_db)):
 
 
 @router.get("/households/{household_id}", response_model=HouseholdResponse)
-def get_household(household_id: int, db: Session = Depends(get_db)):
+def get_household(household_id: str, db: Session = Depends(get_db)):
     household = db.query(Household).filter(Household.id == household_id).first()
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
@@ -50,7 +59,10 @@ def get_household(household_id: int, db: Session = Depends(get_db)):
 
 @router.post("/households/", response_model=HouseholdResponse, status_code=status.HTTP_201_CREATED)
 def create_household(payload: HouseholdCreate, db: Session = Depends(get_db)):
-    household = Household(name=payload.name)
+    code = generate_household_code()
+    while db.query(Household).filter(Household.id == code).first() is not None:
+        code = generate_household_code()
+    household = Household(id=code, name=payload.name)
     db.add(household)
     db.commit()
     db.refresh(household)
@@ -58,7 +70,7 @@ def create_household(payload: HouseholdCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/households/{household_id}", response_model=HouseholdResponse)
-def update_household(household_id: int, payload: HouseholdCreate, db: Session = Depends(get_db)):
+def update_household(household_id: str, payload: HouseholdCreate, db: Session = Depends(get_db)):
     household = db.query(Household).filter(Household.id == household_id).first()
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
@@ -69,16 +81,49 @@ def update_household(household_id: int, payload: HouseholdCreate, db: Session = 
 
 
 @router.delete("/households/{household_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_household(household_id: int, db: Session = Depends(get_db)):
+def delete_household(household_id: str, db: Session = Depends(get_db)):
     household = db.query(Household).filter(Household.id == household_id).first()
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
     db.delete(household)
     db.commit()
 
+
+# ─── User CRUD ─────────────────────────────────────────────
+# Users are independent entities not tied to a specific household.
+# Username is globally unique.
+
+@router.get("/users/", response_model=list[UserResponse])
+def list_users(db: Session = Depends(get_db)):
+    return db.query(User).all()
+
+
+@router.get("/users/{user_id}", response_model=UserResponse)
+def get_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return user
+
+
+@router.post("/users/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_user(payload: UserCreate, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.username == payload.username).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists",
+        )
+    user = User(username=payload.username, display_name=payload.display_name)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 # ─── Household Member CRUD ─────────────────────────────────
-# Members belong to a household. A member with related inventory records
-# or events cannot be deleted (enforced by RESTRICT foreign key).
+# Members join a household via a user account. A member with related
+# inventory records or events cannot be deleted (enforced by RESTRICT FK).
 
 @router.get("/household-members/", response_model=list[HouseholdMemberResponse])
 def list_household_members(db: Session = Depends(get_db)):
@@ -95,10 +140,17 @@ def get_household_member(member_id: int, db: Session = Depends(get_db)):
 
 @router.post("/household-members/", response_model=HouseholdMemberResponse, status_code=status.HTTP_201_CREATED)
 def create_household_member(payload: HouseholdMemberCreate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     household = db.query(Household).filter(Household.id == payload.household_id).first()
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
-    member = HouseholdMember(household_id=payload.household_id, display_name=payload.display_name)
+    member = HouseholdMember(
+        user_id=payload.user_id,
+        household_id=payload.household_id,
+        display_name=payload.display_name,
+    )
     db.add(member)
     db.commit()
     db.refresh(member)
@@ -110,11 +162,15 @@ def update_household_member(member_id: int, payload: HouseholdMemberCreate, db: 
     member = db.query(HouseholdMember).filter(HouseholdMember.id == member_id).first()
     if not member:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household member not found")
+    user = db.query(User).filter(User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     household = db.query(Household).filter(Household.id == payload.household_id).first()
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
-    member.display_name = payload.display_name
+    member.user_id = payload.user_id
     member.household_id = payload.household_id
+    member.display_name = payload.display_name
     db.commit()
     db.refresh(member)
     return member
@@ -127,6 +183,72 @@ def delete_household_member(member_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household member not found")
     db.delete(member)
     db.commit()
+
+
+# ─── Member Join/Leave ─────────────────────────────────────
+# High-level endpoints for users to join and leave households.
+
+@router.post("/member/join", response_model=HouseholdMemberResponse, status_code=status.HTTP_201_CREATED)
+def member_join(payload: MemberJoinRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    household = db.query(Household).filter(Household.id == payload.household_id).first()
+    if not household:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
+    display_name = payload.display_name if payload.display_name else user.display_name
+    member = HouseholdMember(
+        user_id=payload.user_id,
+        household_id=payload.household_id,
+        display_name=display_name,
+    )
+    db.add(member)
+    db.commit()
+    db.refresh(member)
+    return member
+
+
+@router.post("/member/leave", status_code=status.HTTP_204_NO_CONTENT)
+def member_leave(payload: MemberLeaveRequest, db: Session = Depends(get_db)):
+    member = db.query(HouseholdMember).filter(
+        HouseholdMember.user_id == payload.user_id,
+        HouseholdMember.household_id == payload.household_id,
+    ).first()
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Membership not found",
+        )
+    db.delete(member)
+    db.commit()
+
+
+@router.get("/member/{user_id}/households", response_model=list[UserHouseholdBrief])
+def list_user_households(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    memberships = (
+        db.query(HouseholdMember)
+        .options(joinedload(HouseholdMember.household))
+        .filter(HouseholdMember.user_id == user_id)
+        .all()
+    )
+    return [m.household for m in memberships]
+
+
+@router.get("/member/{household_id}/members", response_model=list[MemberWithUserResponse])
+def list_household_members_with_user(household_id: str, db: Session = Depends(get_db)):
+    household = db.query(Household).filter(Household.id == household_id).first()
+    if not household:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
+    members = (
+        db.query(HouseholdMember)
+        .options(joinedload(HouseholdMember.user))
+        .filter(HouseholdMember.household_id == household_id)
+        .all()
+    )
+    return members
 
 # ─── Packaged Food CRUD ────────────────────────────────────
 # Packaged foods have a unique barcode constraint. The barcode
