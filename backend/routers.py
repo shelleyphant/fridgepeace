@@ -10,14 +10,7 @@ from models import (
     PackagedFood,
     UnpackagedFood,
     User,
-<<<<<<< HEAD
-<<<<<<< HEAD
     generate_household_code,
-=======
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
-    generate_household_code,
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
     get_db,
 )
 from schemas import (
@@ -245,15 +238,7 @@ def list_user_households(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/member/{household_id}/members", response_model=list[MemberWithUserResponse])
-<<<<<<< HEAD
-<<<<<<< HEAD
 def list_household_members_with_user(household_id: str, db: Session = Depends(get_db)):
-=======
-def list_household_members_with_user(household_id: int, db: Session = Depends(get_db)):
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
-def list_household_members_with_user(household_id: str, db: Session = Depends(get_db)):
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
     household = db.query(Household).filter(Household.id == household_id).first()
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")

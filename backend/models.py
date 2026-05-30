@@ -104,17 +104,8 @@ class HouseholdMember(Base):
         ForeignKey("user.id", ondelete="CASCADE", onupdate="CASCADE"),
         nullable=False,
     )
-<<<<<<< HEAD
-<<<<<<< HEAD
     household_id: Mapped[str] = mapped_column(
         String(4),
-=======
-    household_id: Mapped[int] = mapped_column(
->>>>>>> 2650f7e (Add User model with unique username, member join/leave endpoints)
-=======
-    household_id: Mapped[str] = mapped_column(
-        String(4),
->>>>>>> 6b644a9 (Changed Household PK from auto-increment integer to a shareable 4-character)
         ForeignKey("household.id", ondelete="CASCADE", onupdate="CASCADE"),
         nullable=False,
     )
