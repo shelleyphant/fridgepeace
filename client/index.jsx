@@ -20,6 +20,8 @@ const App = () => {
   const [ready, setReady] = useState(isSetUp);
 
   if (!ready) return <Onboarding onComplete={() => setReady(true)} />;
+  const [isOpen, setIsOpen] = useState(false);
+  const { inventory, loading } = useInventory();
 
   if (!isSetUp()) return <Onboarding />;
 
