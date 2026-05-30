@@ -23,7 +23,7 @@ class HouseholdCreate(BaseModel):
 
 class HouseholdResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: int
+    id: str
     name: str
 
 
@@ -66,7 +66,7 @@ class UserResponse(BaseModel):
 
 class HouseholdMemberCreate(BaseModel):
     user_id: int
-    household_id: int
+    household_id: str
     display_name: str
 
     @field_validator('display_name')
@@ -84,25 +84,25 @@ class HouseholdMemberResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     user_id: int
-    household_id: int
+    household_id: str
     display_name: str
     joined_at: datetime
 
 
 class MemberJoinRequest(BaseModel):
     user_id: int
-    household_id: int
+    household_id: str
     display_name: Optional[str] = None
 
 
 class MemberLeaveRequest(BaseModel):
     user_id: int
-    household_id: int
+    household_id: str
 
 
 class UserHouseholdBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: int
+    id: str
     name: str
 
 
@@ -117,7 +117,7 @@ class MemberWithUserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     user_id: int
-    household_id: int
+    household_id: str
     display_name: str
     joined_at: datetime
     user: MemberUserBrief
@@ -188,7 +188,7 @@ class UnpackagedFoodResponse(BaseModel):
 # ─── Food Inventory ────────────────────────────────────────
 
 class FoodInventoryCreate(BaseModel):
-    household_id: int
+    household_id: str
     added_by_member_id: int
     packaged_food_id: Optional[int] = None
     unpackaged_food_id: Optional[int] = None
@@ -208,7 +208,7 @@ class FoodInventoryCreate(BaseModel):
 class FoodInventoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    household_id: int
+    household_id: str
     added_by_member_id: int
     packaged_food_id: Optional[int] = None
     unpackaged_food_id: Optional[int] = None

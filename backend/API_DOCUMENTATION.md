@@ -36,7 +36,7 @@ Swagger UI: `http://localhost:8000/docs`
 
 | Column | Type | Description |
 |--------|------|-------------|
-| id | INT (PK, Auto) | Unique household ID |
+| id | CHAR(4) (PK) | Unique household code (auto-generated) |
 | name | VARCHAR(255) | Household name |
 
 ### 2. user
@@ -54,7 +54,7 @@ Swagger UI: `http://localhost:8000/docs`
 |--------|------|-------------|
 | id | INT (PK, Auto) | Unique member ID |
 | user_id | INT (FK → user) | Associated user account |
-| household_id | INT (FK → household) | Associated household |
+| household_id | CHAR(4) (FK → household) | Associated household |
 | display_name | VARCHAR(255) | Display name within the household |
 | joined_at | DATETIME | When the user joined the household (auto) |
 
@@ -90,7 +90,7 @@ Swagger UI: `http://localhost:8000/docs`
 | Column | Type | Description |
 |--------|------|-------------|
 | id | INT (PK, Auto) | Unique inventory ID |
-| household_id | INT (FK → household) | Owning household |
+| household_id | CHAR(4) (FK → household) | Owning household |
 | added_by_member_id | INT (FK → household_member) | Who added it |
 | packaged_food_id | INT (FK → packaged_food, nullable) | If packaged |
 | unpackaged_food_id | INT (FK → unpackaged_food, nullable) | If unpackaged |
@@ -130,6 +130,7 @@ Swagger UI: `http://localhost:8000/docs`
 | Rule | Description |
 |------|-------------|
 | **Unique username** | User usernames must be globally unique |
+| **Household code** | Household IDs are auto-generated 4-character alphanumeric codes (A-Z, 0-9) with collision retry |
 | **Cascade delete household** | Deleting a household cascades to its members, inventory, events, and ownerships |
 | **Cascade delete user** | Deleting a user cascades to all their household memberships |
 | **Member deletion restricted** | A member with related inventory or events cannot be deleted (RESTRICT) |
@@ -171,7 +172,7 @@ GET /households/
 ```json
 [
   {
-    "id": 1,
+    "id": "A1B2",
     "name": "Happy Family"
   }
 ]
@@ -188,12 +189,12 @@ GET /households/{household_id}
 **Path Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| household_id | int | Household ID |
+| household_id | string (4-char code) | Household code |
 
 **Response 200:**
 ```json
 {
-  "id": 1,
+  "id": "A1B2",
   "name": "Happy Family"
 }
 ```
@@ -223,11 +224,12 @@ POST /households/
 **Validation:**
 - `name` is required, must not be empty or whitespace-only, and must not exceed 255 characters
 - Leading/trailing whitespace is automatically trimmed
+- `id` is auto-generated as a random 4-character alphanumeric code (letters A-Z + digits 0-9)
 
 **Response 201:**
 ```json
 {
-  "id": 1,
+  "id": "A1B2",
   "name": "Happy Family"
 }
 ```
@@ -243,7 +245,7 @@ PUT /households/{household_id}
 **Path Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| household_id | int | Household ID |
+| household_id | string (4-char code) | Household code |
 
 **Request Body:**
 ```json
@@ -257,7 +259,7 @@ PUT /households/{household_id}
 **Response 200:**
 ```json
 {
-  "id": 1,
+  "id": "A1B2",
   "name": "Happy Family v2"
 }
 ```
@@ -273,7 +275,7 @@ DELETE /households/{household_id}
 **Path Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| household_id | int | Household ID |
+| household_id | string (4-char code) | Household code |
 
 **Response 204:** No content
 
@@ -295,7 +297,7 @@ GET /household-members/
   {
     "id": 1,
     "user_id": 1,
-    "household_id": 1,
+    "household_id": "A1B2",
     "display_name": "Alice",
     "joined_at": "2026-05-30T12:00:00"
   }
@@ -320,7 +322,7 @@ GET /household-members/{member_id}
 {
   "id": 1,
   "user_id": 1,
-  "household_id": 1,
+  "household_id": "A1B2",
   "display_name": "Alice",
   "joined_at": "2026-05-30T12:00:00"
 }
@@ -338,7 +340,7 @@ POST /household-members/
 ```json
 {
   "user_id": 1,
-  "household_id": 1,
+  "household_id": "A1B2",
   "display_name": "Alice"
 }
 ```
@@ -354,7 +356,7 @@ POST /household-members/
 {
   "id": 1,
   "user_id": 1,
-  "household_id": 1,
+  "household_id": "A1B2",
   "display_name": "Alice",
   "joined_at": "2026-05-30T12:00:00"
 }
@@ -377,7 +379,7 @@ PUT /household-members/{member_id}
 ```json
 {
   "user_id": 1,
-  "household_id": 1,
+  "household_id": "A1B2",
   "display_name": "Alice Updated"
 }
 ```
@@ -389,7 +391,7 @@ PUT /household-members/{member_id}
 {
   "id": 1,
   "user_id": 1,
-  "household_id": 1,
+  "household_id": "A1B2",
   "display_name": "Alice Updated",
   "joined_at": "2026-05-30T12:00:00"
 }
@@ -424,7 +426,7 @@ POST /member/join
 ```json
 {
   "user_id": 1,
-  "household_id": 1,
+  "household_id": "A1B2",
   "display_name": "Alice"
 }
 ```
@@ -439,7 +441,7 @@ POST /member/join
 {
   "id": 1,
   "user_id": 1,
-  "household_id": 1,
+  "household_id": "A1B2",
   "display_name": "Alice",
   "joined_at": "2026-05-30T12:00:00"
 }
@@ -457,7 +459,7 @@ POST /member/leave
 ```json
 {
   "user_id": 1,
-  "household_id": 1
+  "household_id": "A1B2"
 }
 ```
 
@@ -486,7 +488,7 @@ GET /member/{user_id}/households
 ```json
 [
   {
-    "id": 1,
+    "id": "A1B2",
     "name": "Home"
   }
 ]
@@ -503,7 +505,7 @@ GET /member/{household_id}/members
 **Path Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| household_id | int | Household ID |
+| household_id | string (4-char code) | Household code |
 
 **Validation:** `household_id` must reference an existing household (returns 404 if not found)
 
@@ -513,7 +515,7 @@ GET /member/{household_id}/members
   {
     "id": 1,
     "user_id": 1,
-    "household_id": 1,
+    "household_id": "A1B2",
     "display_name": "Alice",
     "joined_at": "2026-05-30T12:00:00",
     "user": {
@@ -832,7 +834,7 @@ GET /food-inventory/
 [
   {
     "id": 1,
-    "household_id": 1,
+    "household_id": "A1B2",
     "added_by_member_id": 1,
     "packaged_food_id": 1,
     "unpackaged_food_id": null,
@@ -863,7 +865,7 @@ GET /food-inventory/{item_id}
 ```json
 {
   "id": 1,
-  "household_id": 1,
+  "household_id": "A1B2",
   "added_by_member_id": 1,
   "packaged_food_id": 1,
   "unpackaged_food_id": null,
@@ -886,7 +888,7 @@ GET /food-inventory/{item_id}
 ```json
 {
   "id": 2,
-  "household_id": 1,
+  "household_id": "A1B2",
   "added_by_member_id": 2,
   "packaged_food_id": null,
   "unpackaged_food_id": 1,
@@ -915,7 +917,7 @@ POST /food-inventory/
 **Request Body (packaged example):**
 ```json
 {
-  "household_id": 1,
+  "household_id": "A1B2",
   "added_by_member_id": 1,
   "packaged_food_id": 1,
   "unpackaged_food_id": null,
@@ -929,7 +931,7 @@ POST /food-inventory/
 **Request Body (unpackaged example):**
 ```json
 {
-  "household_id": 1,
+  "household_id": "A1B2",
   "added_by_member_id": 2,
   "packaged_food_id": null,
   "unpackaged_food_id": 1,
