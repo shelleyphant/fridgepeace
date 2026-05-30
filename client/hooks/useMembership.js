@@ -10,7 +10,7 @@ export function useMembership() {
     setError(null);
 
     try {
-      const result = await axios.post('/user/', { username, username });
+      const result = await axios.post('/users/', { username, display_name: username });
       localStorage.setItem('member_id', String(result.data.id));
       return true;
     } catch (e) {
@@ -26,7 +26,7 @@ export function useMembership() {
     setError(null);
 
     try {
-      const result = await axios.get('/user/', { params: { username } });
+      const result = await axios.get('/users/', { params: { username } });
       localStorage.setItem('member_id', String(result.data.id));
       return true;
     } catch (e) {
