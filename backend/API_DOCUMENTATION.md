@@ -9,7 +9,7 @@ FridgePeace is a refrigerator food management system API that supports household
 ```
 backend/
 ├── main.py           FastAPI entry point, router registration, health check
-├── models.py         SQLAlchemy ORM models (7 tables)
+├── models.py         SQLAlchemy ORM models (8 tables)
 ├── schemas.py        Pydantic request/response models with validation (input trimming, length constraints, positive-only numeric fields, enum validation, and empty-string-to-null coercion for Optional[int] fields)
 ├── routers.py        All API endpoint routes
 ├── requirements.txt  Dependency list
@@ -30,7 +30,7 @@ Swagger UI: `http://localhost:8000/docs`
 
 ---
 
-## Database Schema (7 Tables)
+## Database Schema (8 Tables)
 
 ### 1. household
 
@@ -39,15 +39,26 @@ Swagger UI: `http://localhost:8000/docs`
 | id | INT (PK, Auto) | Unique household ID |
 | name | VARCHAR(255) | Household name |
 
-### 2. household_member
+### 2. user
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT (PK, Auto) | Unique user ID |
+| username | VARCHAR(255) (Unique) | Globally unique username |
+| display_name | VARCHAR(255) | User display name |
+| created_at | DATETIME | Account creation timestamp (auto) |
+
+### 3. household_member
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | INT (PK, Auto) | Unique member ID |
+| user_id | INT (FK → user) | Associated user account |
 | household_id | INT (FK → household) | Associated household |
-| display_name | VARCHAR(255) | Member display name |
+| display_name | VARCHAR(255) | Display name within the household |
+| joined_at | DATETIME | When the user joined the household (auto) |
 
-### 3. packaged_food
+### 4. packaged_food
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -59,7 +70,7 @@ Swagger UI: `http://localhost:8000/docs`
 | category | VARCHAR(255) | Category (snacks, drinks, etc.) |
 | nutrition | TEXT | Nutritional info |
 
-### 4. unpackaged_food
+### 5. unpackaged_food
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -74,7 +85,7 @@ Swagger UI: `http://localhost:8000/docs`
 | pantry_days_min | INT | Min pantry shelf days |
 | pantry_days_max | INT | Max pantry shelf days |
 
-### 5. food_inventory (Core Table)
+### 6. food_inventory (Core Table)
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -92,7 +103,7 @@ Swagger UI: `http://localhost:8000/docs`
 
 > **Constraint**: Exactly one of `packaged_food_id` or `unpackaged_food_id` must be set.
 
-### 6. food_event
+### 7. food_event
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -102,7 +113,7 @@ Swagger UI: `http://localhost:8000/docs`
 | event_type | VARCHAR(50) | Event type (added/consumed/expired/moved) |
 | date_occurred | DATETIME | When it happened (auto) |
 
-### 7. food_ownership (M:N Relationship)
+### 8. food_ownership (M:N Relationship)
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -118,13 +129,15 @@ Swagger UI: `http://localhost:8000/docs`
 
 | Rule | Description |
 |------|-------------|
+| **Unique username** | User usernames must be globally unique |
 | **Cascade delete household** | Deleting a household cascades to its members, inventory, events, and ownerships |
+| **Cascade delete user** | Deleting a user cascades to all their household memberships |
 | **Member deletion restricted** | A member with related inventory or events cannot be deleted (RESTRICT) |
 | **Packaged/Unpackaged exclusivity** | Each inventory item must be exactly one type |
 | **Unique barcode** | Packaged food barcodes must be unique |
 | **Composite PK** | Food ownership uses (inventory_item_id, member_id) as composite key |
 | **SET NULL on food deletion** | Deleting a food reference sets it to NULL in inventory |
-| **Input validation** | String fields (`name`, `display_name`) are trimmed, must not be empty or whitespace-only, and must not exceed 255 characters. `quantity` must be greater than zero. `event_type` accepts only `added`, `consumed`, `expired`, or `moved`. All `Optional[int]` fields accept empty string `""` as input — it is automatically converted to `null` so frontend forms can send blank number inputs without triggering a 422 error |
+| **Input validation** | String fields (`name`, `display_name`, `username`) are trimmed, must not be empty or whitespace-only, and must not exceed 255 characters. `quantity` must be greater than zero. `event_type` accepts only `added`, `consumed`, `expired`, or `moved`. All `Optional[int]` fields accept empty string `""` as input — it is automatically converted to `null` so frontend forms can send blank number inputs without triggering a 422 error |
 
 ---
 
@@ -281,8 +294,10 @@ GET /household-members/
 [
   {
     "id": 1,
+    "user_id": 1,
     "household_id": 1,
-    "display_name": "Alice"
+    "display_name": "Alice",
+    "joined_at": "2026-05-30T12:00:00"
   }
 ]
 ```
@@ -304,8 +319,10 @@ GET /household-members/{member_id}
 ```json
 {
   "id": 1,
+  "user_id": 1,
   "household_id": 1,
-  "display_name": "Alice"
+  "display_name": "Alice",
+  "joined_at": "2026-05-30T12:00:00"
 }
 ```
 
@@ -320,12 +337,14 @@ POST /household-members/
 **Request Body:**
 ```json
 {
+  "user_id": 1,
   "household_id": 1,
   "display_name": "Alice"
 }
 ```
 
 **Validation:**
+- `user_id` must reference an existing user (returns 404 if not found)
 - `household_id` must reference an existing household (returns 404 if not found)
 - `display_name` is required, must not be empty or whitespace-only, and must not exceed 255 characters
 - Leading/trailing whitespace in `display_name` is automatically trimmed
@@ -334,8 +353,10 @@ POST /household-members/
 ```json
 {
   "id": 1,
+  "user_id": 1,
   "household_id": 1,
-  "display_name": "Alice"
+  "display_name": "Alice",
+  "joined_at": "2026-05-30T12:00:00"
 }
 ```
 
@@ -355,19 +376,22 @@ PUT /household-members/{member_id}
 **Request Body:**
 ```json
 {
+  "user_id": 1,
   "household_id": 1,
   "display_name": "Alice Updated"
 }
 ```
 
-**Validation:** Both `member_id` and `household_id` are checked for existence. `display_name` validation is the same as create — must not be empty or whitespace-only, maximum 255 characters, and leading/trailing whitespace is trimmed.
+**Validation:** `user_id`, `member_id`, and `household_id` are all checked for existence. `display_name` validation is the same as create — must not be empty or whitespace-only, maximum 255 characters, and leading/trailing whitespace is trimmed.
 
 **Response 200:**
 ```json
 {
   "id": 1,
+  "user_id": 1,
   "household_id": 1,
-  "display_name": "Alice Updated"
+  "display_name": "Alice Updated",
+  "joined_at": "2026-05-30T12:00:00"
 }
 ```
 
@@ -390,9 +414,208 @@ DELETE /household-members/{member_id}
 
 ---
 
-### 3. Packaged Foods
+#### 2.6 Join Household
 
-#### 3.1 List All Packaged Foods
+```
+POST /member/join
+```
+
+**Request Body:**
+```json
+{
+  "user_id": 1,
+  "household_id": 1,
+  "display_name": "Alice"
+}
+```
+
+**Validation:**
+- `user_id` must reference an existing user (returns 404 if not found)
+- `household_id` must reference an existing household (returns 404 if not found)
+- `display_name` is optional — if omitted, defaults to the user's `display_name`
+
+**Response 201:**
+```json
+{
+  "id": 1,
+  "user_id": 1,
+  "household_id": 1,
+  "display_name": "Alice",
+  "joined_at": "2026-05-30T12:00:00"
+}
+```
+
+---
+
+#### 2.7 Leave Household
+
+```
+POST /member/leave
+```
+
+**Request Body:**
+```json
+{
+  "user_id": 1,
+  "household_id": 1
+}
+```
+
+**Validation:**
+- The membership must exist (returns 404 "Membership not found" if the user is not a member of that household)
+- If the member has related inventory records or events, leaving will fail (RESTRICT constraint)
+
+**Response 204:** No content
+
+---
+
+#### 2.8 List User's Households
+
+```
+GET /member/{user_id}/households
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| user_id | int | User ID |
+
+**Validation:** `user_id` must reference an existing user (returns 404 if not found)
+
+**Response 200:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Home"
+  }
+]
+```
+
+---
+
+#### 2.9 List Household Members (with User Info)
+
+```
+GET /member/{household_id}/members
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| household_id | int | Household ID |
+
+**Validation:** `household_id` must reference an existing household (returns 404 if not found)
+
+**Response 200:**
+```json
+[
+  {
+    "id": 1,
+    "user_id": 1,
+    "household_id": 1,
+    "display_name": "Alice",
+    "joined_at": "2026-05-30T12:00:00",
+    "user": {
+      "id": 1,
+      "username": "alice",
+      "display_name": "Alice"
+    }
+  }
+]
+```
+
+---
+
+### 3. Users
+
+Users are standalone entities not tied to a specific household. Each user has a globally unique username.
+
+#### 3.1 List All Users
+
+```
+GET /users/
+```
+
+**Response 200:**
+```json
+[
+  {
+    "id": 1,
+    "username": "alice",
+    "display_name": "Alice",
+    "created_at": "2026-05-30T12:00:00"
+  }
+]
+```
+
+---
+
+#### 3.2 Get Single User
+
+```
+GET /users/{user_id}
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| user_id | int | User ID |
+
+**Response 200:**
+```json
+{
+  "id": 1,
+  "username": "alice",
+  "display_name": "Alice",
+  "created_at": "2026-05-30T12:00:00"
+}
+```
+
+**Response 404:**
+```json
+{
+  "detail": "User not found"
+}
+```
+
+---
+
+#### 3.3 Create User
+
+```
+POST /users/
+```
+
+**Request Body:**
+```json
+{
+  "username": "alice",
+  "display_name": "Alice"
+}
+```
+
+**Validation:**
+- `username` is required, must not be empty or whitespace-only, and must not exceed 255 characters
+- `display_name` is required, must not be empty or whitespace-only, and must not exceed 255 characters
+- `username` must be globally unique (duplicate returns 400 "Username already exists")
+- Leading/trailing whitespace is automatically trimmed on both fields
+
+**Response 201:**
+```json
+{
+  "id": 1,
+  "username": "alice",
+  "display_name": "Alice",
+  "created_at": "2026-05-30T12:00:00"
+}
+```
+
+---
+
+### 4. Packaged Foods
+
+#### 4.1 List All Packaged Foods
 
 ```
 GET /packaged-foods/
@@ -415,7 +638,7 @@ GET /packaged-foods/
 
 ---
 
-#### 3.2 Get Single Packaged Food
+#### 4.2 Get Single Packaged Food
 
 ```
 GET /packaged-foods/{food_id}
@@ -430,7 +653,7 @@ GET /packaged-foods/{food_id}
 
 ---
 
-#### 3.3 Create Packaged Food
+#### 4.3 Create Packaged Food
 
 ```
 POST /packaged-foods/
@@ -456,7 +679,7 @@ POST /packaged-foods/
 
 ---
 
-#### 3.4 Update Packaged Food
+#### 4.4 Update Packaged Food
 
 ```
 PUT /packaged-foods/{food_id}
@@ -475,7 +698,7 @@ PUT /packaged-foods/{food_id}
 
 ---
 
-#### 3.5 Delete Packaged Food
+#### 4.5 Delete Packaged Food
 
 ```
 DELETE /packaged-foods/{food_id}
@@ -492,9 +715,9 @@ DELETE /packaged-foods/{food_id}
 
 ---
 
-### 4. Unpackaged Foods
+### 5. Unpackaged Foods
 
-#### 4.1 List All Unpackaged Foods
+#### 5.1 List All Unpackaged Foods
 
 ```
 GET /unpackaged-foods/
@@ -520,7 +743,7 @@ GET /unpackaged-foods/
 
 ---
 
-#### 4.2 Get Single Unpackaged Food
+#### 5.2 Get Single Unpackaged Food
 
 ```
 GET /unpackaged-foods/{food_id}
@@ -535,7 +758,7 @@ GET /unpackaged-foods/{food_id}
 
 ---
 
-#### 4.3 Create Unpackaged Food
+#### 5.3 Create Unpackaged Food
 
 ```
 POST /unpackaged-foods/
@@ -564,7 +787,7 @@ POST /unpackaged-foods/
 
 ---
 
-#### 4.4 Update Unpackaged Food
+#### 5.4 Update Unpackaged Food
 
 ```
 PUT /unpackaged-foods/{food_id}
@@ -581,7 +804,7 @@ PUT /unpackaged-foods/{food_id}
 
 ---
 
-#### 4.5 Delete Unpackaged Food
+#### 5.5 Delete Unpackaged Food
 
 ```
 DELETE /unpackaged-foods/{food_id}
@@ -596,9 +819,9 @@ DELETE /unpackaged-foods/{food_id}
 
 ---
 
-### 5. Food Inventory
+### 6. Food Inventory
 
-#### 5.1 List All Inventory Items
+#### 6.1 List All Inventory Items
 
 ```
 GET /food-inventory/
@@ -625,7 +848,7 @@ GET /food-inventory/
 
 ---
 
-#### 5.2 Get Single Inventory Item
+#### 6.2 Get Single Inventory Item
 
 ```
 GET /food-inventory/{item_id}
@@ -683,7 +906,7 @@ GET /food-inventory/{item_id}
 
 ---
 
-#### 5.3 Create Inventory Item
+#### 6.3 Create Inventory Item
 
 ```
 POST /food-inventory/
@@ -733,7 +956,7 @@ POST /food-inventory/
 
 ---
 
-#### 5.4 Update Inventory Item
+#### 6.4 Update Inventory Item
 
 ```
 PUT /food-inventory/{item_id}
@@ -752,7 +975,7 @@ PUT /food-inventory/{item_id}
 
 ---
 
-#### 5.5 Delete Inventory Item
+#### 6.5 Delete Inventory Item
 
 ```
 DELETE /food-inventory/{item_id}
@@ -769,9 +992,9 @@ DELETE /food-inventory/{item_id}
 
 ---
 
-### 6. Food Events
+### 7. Food Events
 
-#### 6.1 List All Events
+#### 7.1 List All Events
 
 ```
 GET /food-events/
@@ -792,7 +1015,7 @@ GET /food-events/
 
 ---
 
-#### 6.2 Get Single Event
+#### 7.2 Get Single Event
 
 ```
 GET /food-events/{event_id}
@@ -807,7 +1030,7 @@ GET /food-events/{event_id}
 
 ---
 
-#### 6.3 List Events by Inventory Item
+#### 7.3 List Events by Inventory Item
 
 ```
 GET /food-events/by-inventory/{inventory_item_id}
@@ -833,7 +1056,7 @@ GET /food-events/by-inventory/{inventory_item_id}
 
 ---
 
-#### 6.4 Create Event
+#### 7.4 Create Event
 
 ```
 POST /food-events/
@@ -873,7 +1096,7 @@ POST /food-events/
 
 ---
 
-#### 6.5 Delete Event
+#### 7.5 Delete Event
 
 ```
 DELETE /food-events/{event_id}
@@ -888,9 +1111,9 @@ DELETE /food-events/{event_id}
 
 ---
 
-### 7. Food Ownerships
+### 8. Food Ownerships
 
-#### 7.1 List All Ownerships
+#### 8.1 List All Ownerships
 
 ```
 GET /food-ownerships/
@@ -909,7 +1132,7 @@ GET /food-ownerships/
 
 ---
 
-#### 7.2 List Ownerships by Inventory Item
+#### 8.2 List Ownerships by Inventory Item
 
 ```
 GET /food-ownerships/by-inventory/{inventory_item_id}
@@ -924,7 +1147,7 @@ GET /food-ownerships/by-inventory/{inventory_item_id}
 
 ---
 
-#### 7.3 List Ownerships by Member
+#### 8.3 List Ownerships by Member
 
 ```
 GET /food-ownerships/by-member/{member_id}
@@ -939,7 +1162,7 @@ GET /food-ownerships/by-member/{member_id}
 
 ---
 
-#### 7.4 Create Ownership
+#### 8.4 Create Ownership
 
 ```
 POST /food-ownerships/
@@ -968,7 +1191,7 @@ POST /food-ownerships/
 
 ---
 
-#### 7.5 Delete Ownership
+#### 8.5 Delete Ownership
 
 ```
 DELETE /food-ownerships/{inventory_item_id}/{member_id}
@@ -1007,11 +1230,18 @@ DELETE /food-ownerships/{inventory_item_id}/{member_id}
 | Household | POST | `/households/` | Create household |
 | Household | PUT | `/households/{id}` | Update household |
 | Household | DELETE | `/households/{id}` | Delete household |
+| User | GET | `/users/` | List all users |
+| User | GET | `/users/{id}` | Get single user |
+| User | POST | `/users/` | Create user (username unique) |
 | Member | GET | `/household-members/` | List all members |
 | Member | GET | `/household-members/{id}` | Get single member |
-| Member | POST | `/household-members/` | Create member |
+| Member | POST | `/household-members/` | Create member (low-level) |
 | Member | PUT | `/household-members/{id}` | Update member |
 | Member | DELETE | `/household-members/{id}` | Delete member |
+| Member | POST | `/member/join` | Join a household |
+| Member | POST | `/member/leave` | Leave a household |
+| Member | GET | `/member/{user_id}/households` | List user's households |
+| Member | GET | `/member/{household_id}/members` | List household members with user info |
 | Packaged Food | GET | `/packaged-foods/` | List all packaged foods |
 | Packaged Food | GET | `/packaged-foods/{id}` | Get single packaged food |
 | Packaged Food | POST | `/packaged-foods/` | Create packaged food |
