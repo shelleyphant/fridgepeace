@@ -10,6 +10,7 @@ from models import (
     PackagedFood,
     UnpackagedFood,
     User,
+    generate_household_code,
     get_db,
 )
 from schemas import (
@@ -49,7 +50,7 @@ def list_households(db: Session = Depends(get_db)):
 
 
 @router.get("/households/{household_id}", response_model=HouseholdResponse)
-def get_household(household_id: int, db: Session = Depends(get_db)):
+def get_household(household_id: str, db: Session = Depends(get_db)):
     household = db.query(Household).filter(Household.id == household_id).first()
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
@@ -58,7 +59,10 @@ def get_household(household_id: int, db: Session = Depends(get_db)):
 
 @router.post("/households/", response_model=HouseholdResponse, status_code=status.HTTP_201_CREATED)
 def create_household(payload: HouseholdCreate, db: Session = Depends(get_db)):
-    household = Household(name=payload.name)
+    code = generate_household_code()
+    while db.query(Household).filter(Household.id == code).first() is not None:
+        code = generate_household_code()
+    household = Household(id=code, name=payload.name)
     db.add(household)
     db.commit()
     db.refresh(household)
@@ -66,7 +70,7 @@ def create_household(payload: HouseholdCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/households/{household_id}", response_model=HouseholdResponse)
-def update_household(household_id: int, payload: HouseholdCreate, db: Session = Depends(get_db)):
+def update_household(household_id: str, payload: HouseholdCreate, db: Session = Depends(get_db)):
     household = db.query(Household).filter(Household.id == household_id).first()
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
@@ -77,7 +81,7 @@ def update_household(household_id: int, payload: HouseholdCreate, db: Session = 
 
 
 @router.delete("/households/{household_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_household(household_id: int, db: Session = Depends(get_db)):
+def delete_household(household_id: str, db: Session = Depends(get_db)):
     household = db.query(Household).filter(Household.id == household_id).first()
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
@@ -234,7 +238,7 @@ def list_user_households(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/member/{household_id}/members", response_model=list[MemberWithUserResponse])
-def list_household_members_with_user(household_id: int, db: Session = Depends(get_db)):
+def list_household_members_with_user(household_id: str, db: Session = Depends(get_db)):
     household = db.query(Household).filter(Household.id == household_id).first()
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
