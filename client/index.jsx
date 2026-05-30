@@ -6,7 +6,9 @@ import Onboarding from './components/Onboarding';
 import FoodCard from './components/inventory/FoodCard';
 import { useInventory } from './hooks/useInventory';
 import { useState } from 'react';
-import axios from 'axios';
+
+const isSetUp = () =>
+  localStorage.getItem('member_id') && localStorage.getItem('household_id');
 
 const isSetUp = () =>
   !!(localStorage.getItem('member_id') && localStorage.getItem('household_id'));
@@ -18,6 +20,8 @@ const App = () => {
   const [ready, setReady] = useState(isSetUp);
 
   if (!ready) return <Onboarding onComplete={() => setReady(true)} />;
+
+  if (!isSetUp()) return <Onboarding />;
 
   return (
     <>

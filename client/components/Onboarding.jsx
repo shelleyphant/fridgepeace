@@ -44,9 +44,7 @@ const Onboarding = ({ onComplete }) => {
     return (
       <div>
         <label>
-          {memberFormType === 'signup'
-            ? 'Choose a username'
-            : 'Enter your username'}
+          {memberFormType === 'signup' ? 'Choose a username' : 'Enter your username'}
         </label>
         <input
           className="w-full border"
