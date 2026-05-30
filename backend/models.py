@@ -45,6 +45,15 @@ def get_db():
         db.close()
 
 
+def generate_household_code() -> str:
+    """Generate a random 4-character alphanumeric household code."""
+    import secrets
+    import string
+
+    alphabet = string.ascii_uppercase + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(4))
+
+
 # ─── Household ─────────────────────────────────────────────
 # Top-level entity. Deleting a household cascades to all its
 # members, inventory items, events, and ownerships.
@@ -52,7 +61,7 @@ def get_db():
 class Household(Base):
     __tablename__ = "household"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    id: Mapped[str] = mapped_column(String(4), primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
     members: Mapped[list["HouseholdMember"]] = relationship(
@@ -95,7 +104,8 @@ class HouseholdMember(Base):
         ForeignKey("user.id", ondelete="CASCADE", onupdate="CASCADE"),
         nullable=False,
     )
-    household_id: Mapped[int] = mapped_column(
+    household_id: Mapped[str] = mapped_column(
+        String(4),
         ForeignKey("household.id", ondelete="CASCADE", onupdate="CASCADE"),
         nullable=False,
     )
@@ -177,7 +187,8 @@ class FoodInventory(Base):
     __tablename__ = "food_inventory"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    household_id: Mapped[int] = mapped_column(
+    household_id: Mapped[str] = mapped_column(
+        String(4),
         ForeignKey("household.id", ondelete="CASCADE", onupdate="CASCADE"),
         nullable=False,
     )
