@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
+const API = process.env.API_URL ?? '';
+
 export function useInventory() {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,9 +14,9 @@ export function useInventory() {
     try {
       const memberId = parseInt(localStorage.getItem('member_id'));
       const [{ data: inv }, { data: packaged }, { data: unpackaged }] = await Promise.all([
-        axios.get('/food-inventory/'),
-        axios.get('/packaged-foods/'),
-        axios.get('/unpackaged-foods/'),
+        axios.get(`${API}/food-inventory/`),
+        axios.get(`${API}/packaged-foods/`),
+        axios.get(`${API}/unpackaged-foods/`),
       ]);
 
       const packagedById = Object.fromEntries(packaged.map((f) => [f.id, f.name]));
