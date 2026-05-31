@@ -23,7 +23,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./fridgepeace.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./fridgepeace_v2.db"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
