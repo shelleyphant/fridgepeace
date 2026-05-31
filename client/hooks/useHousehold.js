@@ -8,7 +8,7 @@ export async function addHousehold(member_id, housename) {
     user_id: member_id,
     household_id: resultCreate.data.id,
   });
-  localStorage.setItem('household_id', String(result.data.id));
+  localStorage.setItem('household_id', String(resultCreate.data.id));
 }
 
 export async function joinHousehold(member_id, household_id) {
