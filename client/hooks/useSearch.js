@@ -1,22 +1,6 @@
 import { useState, useEffect } from 'react';
 import foodData from '../source/food-data/foodkeeper.json';
 
-async function login() {
-  const body = new URLSearchParams({
-    user_id: process.env.OFF_USER,
-    password: process.env.OFF_PASSWORD,
-    action: 'process',
-  });
-  const res = await window.fetch('/off-proxy/cgi/session.pl', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-  if (!res.ok) console.error('OFF login failed:', res.status);
-}
-
-login();
 
 export const categories = Object.fromEntries(
   (foodData.sheets.find((s) => s.name === 'Category')?.data ?? [])
@@ -55,7 +39,7 @@ export function useSearch(query) {
           page_size: '20',
           json: '1',
         });
-        const res = await window.fetch(`/off-proxy/cgi/search.pl?${params}`, { credentials: 'include' });
+        const res = await window.fetch(`/off-proxy/cgi/search.pl?${params}`);
         const json = await res.json();
         remote = (json?.products ?? []).map((p) => ({ ...p, _source: 'openfoodfacts' }));
       } catch (e) {
