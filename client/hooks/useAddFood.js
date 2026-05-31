@@ -2,6 +2,8 @@ import { useState } from 'react';
 import axios from 'axios';
 import { categories } from './useSearch';
 
+const API = process.env.API_URL ?? '';
+
 export function useAddFood() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -18,13 +20,13 @@ export function useAddFood() {
       } else if (selected._source === 'unpackaged') {
         unpackaged_food_id = selected.unpackaged_food_id;
       } else if (selected._source === 'foodkeeper') {
-        const { data: existing } = await axios.get('/unpackaged-foods/');
+        const { data: existing } = await axios.get(`${API}/unpackaged-foods/`);
         const match = existing.find((f) => f.foodkeeper_id === selected.ID?.toString());
         if (match) {
           unpackaged_food_id = match.id;
         } else {
           const { data: created } = await axios.post(
-            '/unpackaged-foods/',
+            `${API}/unpackaged-foods/`,
             {
               foodkeeper_id: selected.ID?.toString() ?? null,
               category: categories[selected.Category_ID] ?? null,
@@ -41,13 +43,13 @@ export function useAddFood() {
           unpackaged_food_id = created.id;
         }
       } else {
-        const { data: existing } = await axios.get('/packaged-foods/');
+        const { data: existing } = await axios.get(`${API}/packaged-foods/`);
         const match = existing.find((f) => f.barcode === selected.code);
         if (match) {
           packaged_food_id = match.id;
         } else {
           const { data: created } = await axios.post(
-            '/packaged-foods/',
+            `${API}/packaged-foods/`,
             {
               barcode: selected.code ?? null,
               name: selected.product_name,
@@ -68,14 +70,14 @@ export function useAddFood() {
       const added_by_member_id = parseInt(localStorage.getItem('member_id'));
 
       await axios.post(
-        '/food-inventory/',
+        `${API}/food-inventory/`,
         {
           packaged_food_id,
           unpackaged_food_id,
           household_id,
           added_by_member_id,
           quantity: inventoryDetails.quantity,
-          unit: inventoryDetails.unit ?? 'item', // TBC
+          unit: inventoryDetails.unit ?? 'item',
           storage_location: inventoryDetails.storage_location ?? null,
           expiry_date: inventoryDetails.expiry_date ?? null,
         },
@@ -98,7 +100,7 @@ export function useAddFood() {
       const newQuantity =
         parseFloat(inventoryItem.quantity) + parseFloat(additionalQuantity);
       await axios.put(
-        `/food-inventory/${inventoryItem.id}`,
+        `${API}/food-inventory/${inventoryItem.id}`,
         {
           household_id: inventoryItem.household_id,
           added_by_member_id: inventoryItem.added_by_member_id,

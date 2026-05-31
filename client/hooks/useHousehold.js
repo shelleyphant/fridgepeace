@@ -1,8 +1,10 @@
 import axios from 'axios';
 
+const API = process.env.API_URL ?? '';
+
 export async function addHousehold(member_id, housename) {
-  const resultCreate = await axios.post('/households/', { name: housename });
-  const result = await axios.post('/member/join/', {
+  const resultCreate = await axios.post(`${API}/households/`, { name: housename });
+  const result = await axios.post(`${API}/member/join/`, {
     user_id: member_id,
     household_id: resultCreate.data.id,
   });
@@ -10,7 +12,7 @@ export async function addHousehold(member_id, housename) {
 }
 
 export async function joinHousehold(member_id, household_id) {
-  const result = await axios.post('/member/join/', {
+  const result = await axios.post(`${API}/member/join/`, {
     user_id: member_id,
     household_id,
   });
