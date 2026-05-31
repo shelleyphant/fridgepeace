@@ -4,8 +4,13 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const webpack = require('webpack');
 const dotenv = require('dotenv');
 
-// Load environment variables from .env file
-const env = dotenv.config().parsed;
+// Load .env file, then let real process.env override (for CI/CD environments)
+const fileEnv = dotenv.config().parsed || {};
+const env = { ...fileEnv };
+for (const key of Object.keys(fileEnv)) {
+  if (process.env[key]) env[key] = process.env[key];
+}
+if (process.env.API_URL) env.API_URL = process.env.API_URL;
 console.log('ENV values loaded:', env);
 
 // Format for DefinePlugin
