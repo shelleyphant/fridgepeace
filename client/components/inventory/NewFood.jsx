@@ -26,7 +26,9 @@ const NewFood = ({ onSuccess }) => {
               className="cursor-pointer p-1 hover:bg-gray-100"
               onClick={() => setSelected(p)}
             >
-              {p._source === 'foodkeeper' ? p.Name : p.product_name}
+              {p._source === 'foodkeeper'
+                ? `${p.Name} (${p.Name_subtitle}) `
+                : `${p.product_name} (${p.brands})`}
             </li>
           ))}
         </ul>
