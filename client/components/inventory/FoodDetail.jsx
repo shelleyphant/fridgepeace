@@ -38,6 +38,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
   const [storageLocation, setStorageLocation] = useState('fridge');
   const [expiryDate, setExpiryDate] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [claimOnAdd, setClaimOnAdd] = useState(true);
   const [touched, setTouched] = useState({});
   const { addFood, updateFood, loading, error } = useAddFood();
   const { events, loading: eventsLoading, error: eventsError, fetchEvents } = useFoodEvents();
@@ -92,7 +93,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
     const details = { quantity, unit, storage_location: storageLocation, expiry_date: expiryDate || null };
 
     const success = inventoryItem
-      ? await updateFood(inventoryItem, quantity)
+      ? await updateFood(inventoryItem, quantity, claimOnAdd)
       : await addFood(food, details);
 
     if (success) {
@@ -114,7 +115,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         {foodCategory && <p className="text-sm text-gray-500">{foodCategory}</p>}
         {inventoryItemId && (
           <div className="mt-1">
-            <OwnerBadge ownerName={ownerDisplayName} />
+            <OwnerBadge ownerNames={inventoryItem?.owner_display_names ?? (ownerDisplayName ? [ownerDisplayName] : [])} />
           </div>
         )}
         {food.fridge_days_min != null && (
@@ -211,6 +212,18 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
           <p className="mt-0.5 text-xs text-red-500">{expiryError}</p>
         )}
       </div>
+
+      {isUpdate && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={claimOnAdd}
+            onChange={(e) => setClaimOnAdd(e.target.checked)}
+            className="rounded border-gray-300 text-water-600 focus:ring-water-500"
+          />
+          Claim ownership when adding
+        </label>
+      )}
 
       {error && (
         <p className="text-sm text-red-600">

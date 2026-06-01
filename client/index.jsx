@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import './main.css';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import Header from './components/Header';
 import Drawer from './components/Drawer';
@@ -30,23 +30,19 @@ const FILTER_OPTIONS = [
   { value: 'pantry', label: '📦 Pantry' },
 ];
 
-const App = () => {
-  const [ready, setReady] = useState(isSetUp);
+const FridgeApp = ({ onLeaveHousehold }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [sortBy, setSortBy] = useState('recent');
   const [filterBy, setFilterBy] = useState('all');
   const [editingItem, setEditingItem] = useState(null);
-  const [localItems, setLocalItems] = useState(null);
   const { inventory, loading, error, refresh } = useInventory();
-
-  const items = localItems ?? inventory;
 
   const currentMemberId = parseInt(localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID));
 
   const filtered = useMemo(() => {
-    let result = [...items];
+    let result = [...inventory];
     if (filterBy === 'mine') {
-      result = result.filter((i) => i.owner_id === currentMemberId);
+      result = result.filter((i) => (i.owner_ids ?? []).includes(currentMemberId));
     } else if (filterBy !== 'all') {
       result = result.filter((i) => i.storage_location === filterBy);
     }
@@ -60,28 +56,26 @@ const App = () => {
       return new Date(b.date_added) - new Date(a.date_added);
     });
     return result;
-  }, [items, sortBy, filterBy, currentMemberId]);
+  }, [inventory, sortBy, filterBy, currentMemberId]);
 
-  const handleDelete = (deletedId) => {
-    setLocalItems((prev) => (prev ?? inventory).filter((i) => i.id !== deletedId));
-  };
-
-  const handleEditSave = () => {
-    setEditingItem(null);
-    setLocalItems(null);
+  const handleDelete = useCallback((deletedId) => {
     refresh();
-  };
+  }, [refresh]);
+
+  const handleEditSave = useCallback(() => {
+    setEditingItem(null);
+    refresh();
+  }, [refresh]);
+
+  const handleDrawerSuccess = useCallback(() => {
+    refresh();
+    setIsOpen(false);
+  }, [refresh]);
 
   const handleLogout = () => {
     if (!window.confirm('Logout and clear local data?')) return;
     localStorage.clear();
-    setReady(false);
-  };
-
-  const handleLeaveHousehold = () => {
-    localStorage.removeItem(STORAGE_KEYS.HOUSEHOLD_ID);
-    localStorage.removeItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID);
-    setReady(false);
+    onLeaveHousehold();
   };
 
   const handleSwitchHousehold = async (newHouseholdId) => {
@@ -99,8 +93,6 @@ const App = () => {
     refresh();
   };
 
-  if (!ready) return <Onboarding onComplete={() => setReady(true)} />;
-
   const householdId = localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_ID);
   const memberName = localStorage.getItem(STORAGE_KEYS.MEMBER_NAME);
   const userId = localStorage.getItem(STORAGE_KEYS.MEMBER_ID);
@@ -113,7 +105,7 @@ const App = () => {
           memberName={memberName}
           userId={userId}
           onLogout={handleLogout}
-          onLeaveHousehold={handleLeaveHousehold}
+          onLeaveHousehold={onLeaveHousehold}
           onSwitchHousehold={handleSwitchHousehold}
         />
 
@@ -193,7 +185,7 @@ const App = () => {
           )
         )}
 
-        <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)} onSuccess={() => { setLocalItems(null); refresh(); setIsOpen(false); }} />
+        <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)} onSuccess={handleDrawerSuccess} />
       </div>
 
       <button
@@ -204,6 +196,19 @@ const App = () => {
       </button>
     </>
   );
+};
+
+const App = () => {
+  const [ready, setReady] = useState(isSetUp);
+
+  const handleLeaveHousehold = () => {
+    localStorage.clear();
+    setReady(false);
+  };
+
+  if (!ready) return <Onboarding onComplete={() => setReady(true)} />;
+
+  return <FridgeApp onLeaveHousehold={handleLeaveHousehold} />;
 };
 
 const container = document.getElementById('root');

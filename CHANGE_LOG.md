@@ -4,6 +4,110 @@
 
 ---
 
+## v1.0 — Production Hardening: Multi-Owner, Inventory Tracking, Search Stability & Clipboard Fix
+
+### Overview
+
+This release hardens the application for production use. It introduces true multi-owner support (server + client), automatic inventory deduction on consume/expire events, search race-condition elimination, clipboard fallback for non-HTTPS contexts, and a comprehensive set of bug fixes across the data layer.
+
+### Phase 1 — Bug Fixes & Data Integrity
+
+**Bugs Fixed**:
+
+- **`delete_event` missing `db.commit()`** ([routers.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/routers.py)) — Deleting an event called `db.commit()` only inside the `if event_id` branch but not at the function's end. Events appeared deleted in the API response but were still in the database on reload. Moved `db.commit()` to the end of the success path so it always executes.
+- **`FoodEvent.event_type` missing CheckConstraint** ([models.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/models.py)) — The `event_type` column had no database-level validation. Added `CheckConstraint("event_type IN ('consume', 'expire')")` to reject invalid values at the database level.
+- **Foreign keys use `RESTRICT` instead of `CASCADE`** ([models.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/models.py)) — Deleting an inventory item failed with foreign key violations because `ownership`, `event`, and `food_event` tables used `RESTRICT` on delete. Changed to `CASCADE` so deleting an item cascades to all related records.
+- **Storage location comparison mismatch** ([routers.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/routers.py)) — Filtering by storage location failed for mixed-case input (e.g. "Fridge" vs "fridge"). Normalised comparison to lowercase + strip.
+- **Duplicate `requirements.txt`** — Removed the duplicate file at project root; only `backend/requirements.txt` is authoritative.
+- **Duplicate `foodkeeper.json`** — Removed from client assets; only `backend/foodkeeper.json` is authoritative.
+- **FoodKeeper seed data** ([seed_foodkeeper.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/seed_foodkeeper.py)) — Fixed field mapping to match updated model schema.
+
+### Phase 2 — Core Feature: Inventory Tracking via Events
+
+**Automatic Inventory Deduction** ([routers.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/routers.py)):
+
+- **`POST /event/create` with `event_type=consume`** — Deducts `quantity_change` from the referenced inventory item. If the item runs out (quantity ≤ 0), it stays at 0 rather than going negative.
+- **`POST /event/create` with `event_type=expire`** — Sets the referenced inventory item's quantity to 0 immediately.
+- **`DELETE /event/{event_id}`** — Restores inventory by reversing the quantity change of the deleted event. Only the first ownership record's member is used for reverse calculation; multi-owner reversal is tracked via `owner_ids` for future enhancement.
+
+**Ownership Declaration Optional**:
+
+- **`useAddFood.js`** — `ownerMemberId` parameter is now optional (`null`/`undefined`). When omitted, no ownership record is created, and the item appears as "Shared" in the UI.
+- **`FoodDetail.jsx`** — "Claim Ownership" button only appears when `inventoryItem` has no current owner (`owner_id` is null).
+- **`FoodEditForm.jsx`** — Removed incorrect hardcoded "You" label; now shows actual owner via `OwnerBadge`.
+
+**Leave Household Flow** ([Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx), [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)):
+
+- Clicking "Leave Household" now clears all localStorage keys and returns the user to the Onboarding screen. Previously, stale keys caused inconsistent state.
+
+### Phase 3 — Multi-Owner Support & Architecture Refactor
+
+**Backend — Schema & API**:
+
+- **[schemas.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/schemas.py)** — Added `owner_ids: list[int]` and `owner_display_names: list[str]` to `InventoryItemWithNames`, preserving the legacy single-owner fields for backward compatibility.
+- **[routers.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/routers.py)** — `list_household_inventory` now maps all ownership records into the new array fields (`owner_ids_val`, `owner_display_names_val`).
+
+**Frontend — OwnerBadge Component** ([OwnerBadge.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/OwnerBadge.jsx)):
+
+- **New signature**: `ownerNames` prop accepts an array of display names.
+- **Empty array** → displays "Shared" badge (green).
+- **1–2 owners** → displays names joined by comma (blue).
+- **3+ owners** → displays first two names + "+N" overflow count (blue).
+
+**Call sites updated**:
+- `FoodCard.jsx` — passes `owner_display_names` with backward-compatible fallback.
+- `FoodDetail.jsx` — passes `owner_display_names` from inventory item.
+- `FoodEditForm.jsx` — same pattern; removed incorrect "You" hardcode.
+
+**"👤 Mine" Filter** ([index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)):
+
+- **Before**: Used `item.owner_id === currentMemberId` (single owner only).
+- **After**: Uses `(item.owner_ids ?? []).includes(currentMemberId)` — matches if the current member is *any* owner of the item.
+
+**Timing Fix — FridgeApp Sub-component** ([index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)):
+
+- Extracted the main fridge UI into a `FridgeApp` component, rendered only after Onboarding completes. This ensures `useInventory()` only mounts when household context exists, eliminating race conditions where the hook fires before localStorage is populated.
+
+### Phase 4 — Search Race-Condition Elimination
+
+**[useSearch.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useSearch.js)** — Two independent mechanisms prevent stale search results:
+
+1. **`AbortController`** — Each new search call aborts the previous in-flight request (both axios and `window.fetch`). Aborted requests throw `AbortError` which is silently caught.
+2. **Request ID counter** — A monotonically increasing `requestIdRef` is incremented per call. After both local and remote responses arrive, the hook checks `currentRequestId !== requestIdRef.current` and discards results if a newer search has superseded them.
+
+**Open Food Facts API** — Replaced deprecated `cgi/search.pl?json=1` endpoint with modern `api/v2/search`. This fixes the `"<!DOCTYPE html>" is not valid JSON` error.
+
+### Bug Fix: Clipboard in Non-HTTPS Context
+
+**[Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx)** & **[Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)**:
+
+- The Copy button previously used `navigator.clipboard.writeText()` directly. In non-HTTPS contexts (e.g. preview iframe), this throws `NotAllowedError: Write permission denied`.
+- **Fix**: Introduced a two-tier fallback:
+  1. `navigator.clipboard.writeText()` with `.catch()` handler.
+  2. `document.execCommand('copy')` via a hidden `<textarea>` element.
+- If both fail, the error is silently swallowed (console.warn only).
+
+### Files Modified (v1.0)
+
+| File | Changes |
+|------|---------|
+| `backend/schemas.py` | Added `owner_ids`, `owner_display_names` array fields |
+| `backend/routers.py` | `delete_event` commit fix; location normalisation; consume/expire inventory deduction; multi-owner response |
+| `backend/models.py` | `event_type` CheckConstraint; FK `RESTRICT` → `CASCADE` |
+| `backend/seed_foodkeeper.py` | Fixed field mapping for `external_id` |
+| `backend/requirements.txt` | Removed duplicate at project root |
+| `backend/foodkeeper.json` | Single authoritative copy in backend |
+| `client/index.jsx` | "Mine" filter uses `owner_ids`; `FridgeApp` sub-component extraction; logout → onboarding |
+| `client/hooks/useSearch.js` | `AbortController` + Request ID race prevention; OFF v2 API endpoint |
+| `client/hooks/useAddFood.js` | `ownerMemberId` optional |
+| `client/components/inventory/OwnerBadge.jsx` | Rewritten for array input; "Shared" / overflow display |
+| `client/components/inventory/FoodCard.jsx` | Passes `owner_display_names` array |
+| `client/components/inventory/FoodDetail.jsx` | Owner array; conditional claim button |
+| `client/components/inventory/FoodEditForm.jsx` | Owner array; removed "You" hardcode |
+| `client/components/Header.jsx` | Clipboard `execCommand` fallback; leave-household clears state |
+| `client/components/Onboarding.jsx` | Clipboard `execCommand` fallback |
+
+---
 
 ## v0.9 — Ownership Fixes & Sharing Enhancement
 

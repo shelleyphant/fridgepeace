@@ -50,7 +50,7 @@ const FoodCard = ({ item, onDelete, onEdit }) => {
             <span className="block text-sm text-gray-500">{item.food_brand}</span>
           )}
           <div className="mt-1">
-            <OwnerBadge ownerName={item.owner_display_name} />
+            <OwnerBadge ownerNames={item.owner_display_names ?? (item.owner_display_name ? [item.owner_display_name] : [])} />
           </div>
         </div>
         <div className="flex items-center gap-2">

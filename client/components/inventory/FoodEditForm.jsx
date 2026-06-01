@@ -98,7 +98,7 @@ const FoodEditForm = ({ item, onSave, onCancel }) => {
     <div className="rounded-2xl bg-white p-4 shadow-sm mt-3 border-l-4 border-l-water-400">
       <p className="text-lg font-bold mb-3">Edit: {item.name}</p>
       <div className="mb-3">
-        <OwnerBadge ownerName={isOwner ? 'You' : (item.owner_display_name ?? null)} />
+        <OwnerBadge ownerNames={item.owner_display_names ?? (item.owner_display_name ? [item.owner_display_name] : [])} />
       </div>
 
       <div className="space-y-3">

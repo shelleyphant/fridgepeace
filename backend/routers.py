@@ -418,11 +418,12 @@ def update_inventory_item(item_id: int, payload: FoodInventoryCreate, db: Sessio
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Item must be either packaged or unpackaged (exactly one of packaged_food_id or unpackaged_food_id)",
         )
-    old_storage = item.storage_location
+    old_storage = (item.storage_location or "").strip().lower()
     for key, value in payload.model_dump().items():
         setattr(item, key, value)
 
-    if payload.storage_location and payload.storage_location != old_storage:
+    new_storage = (payload.storage_location or "").strip().lower()
+    if payload.storage_location and new_storage != old_storage:
         event = FoodEvent(
             inventory_item_id=item.id,
             member_id=payload.added_by_member_id,
@@ -498,6 +499,12 @@ def create_event(payload: FoodEventCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household member not found")
     event = FoodEvent(**payload.model_dump())
     db.add(event)
+
+    if payload.event_type == "consumed":
+        item.quantity = max(0, item.quantity - 1)
+    elif payload.event_type == "expired":
+        item.quantity = 0
+
     db.commit()
     db.refresh(event)
     return event
@@ -509,6 +516,7 @@ def delete_event(event_id: int, db: Session = Depends(get_db)):
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
     db.delete(event)
+    db.commit()
 
 
 # ─── Food Search ───────────────────────────────────────────
@@ -718,6 +726,8 @@ def list_household_inventory(household_id: str, db: Session = Depends(get_db)):
             food_category = None
             source_type = None
 
+        owner_ids_val = [o.member_id for o in item.ownerships]
+        owner_display_names_val = [o.member.display_name for o in item.ownerships]
         owner = item.ownerships[0] if item.ownerships else None
         owner_id_val = owner.member_id if owner else None
         owner_display_name_val = owner.member.display_name if owner else None
@@ -741,6 +751,8 @@ def list_household_inventory(household_id: str, db: Session = Depends(get_db)):
             source_type=source_type,
             owner_id=owner_id_val,
             owner_display_name=owner_display_name_val,
+            owner_ids=owner_ids_val,
+            owner_display_names=owner_display_names_val,
         ))
 
     return result

@@ -261,7 +261,7 @@ class FoodEvent(Base):
         nullable=False,
     )
     member_id: Mapped[int] = mapped_column(
-        ForeignKey("household_member.id", ondelete="RESTRICT", onupdate="CASCADE"),
+        ForeignKey("household_member.id", ondelete="CASCADE", onupdate="CASCADE"),
         nullable=False,
     )
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -274,6 +274,13 @@ class FoodEvent(Base):
     )
     member: Mapped["HouseholdMember"] = relationship(
         "HouseholdMember", back_populates="events", foreign_keys=[member_id]
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "event_type IN ('added', 'consumed', 'expired', 'moved')",
+            name="ck_food_event_type",
+        ),
     )
 
 
@@ -318,14 +325,16 @@ class FoodOwnership(Base):
 class FoodKeeperCategory(Base):
     __tablename__ = "foodkeeper_category"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    external_id: Mapped[Optional[int]] = mapped_column(nullable=True)
     category_name: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
 class FoodKeeperProduct(Base):
     __tablename__ = "foodkeeper_product"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    external_id: Mapped[Optional[int]] = mapped_column(nullable=True)
     category_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("foodkeeper_category.id"), nullable=True
     )

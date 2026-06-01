@@ -22,6 +22,29 @@ function validateHouseholdCode(value) {
   return null;
 }
 
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+  } catch {
+    console.warn('Clipboard copy failed');
+  }
+  document.body.removeChild(ta);
+}
+
 const Onboarding = ({ onComplete }) => {
   const [member_id, setMemberId] = useState(localStorage.getItem(STORAGE_KEYS.MEMBER_ID));
   const [memberFormType, setMemberFormType] = useState(null);
@@ -133,7 +156,7 @@ const Onboarding = ({ onComplete }) => {
           </span>
           <button
             className="rounded-full bg-water-600 px-4 py-3 text-center text-sm text-white hover:bg-water-700"
-            onClick={() => navigator.clipboard?.writeText(householdCode)}
+            onClick={() => copyToClipboard(householdCode)}
           >
             Copy
           </button>

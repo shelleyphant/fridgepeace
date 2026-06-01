@@ -11,9 +11,32 @@ const Header = ({ householdId, memberName, userId, onLogout, onLeaveHousehold, o
 
   const handleCopy = () => {
     if (householdId) {
-      navigator.clipboard?.writeText(householdId);
+      copyToClipboard(householdId);
     }
   };
+
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+  } catch {
+    console.warn('Clipboard copy failed');
+  }
+  document.body.removeChild(ta);
+}
 
   const openPanel = async () => {
     setShowPanel(true);

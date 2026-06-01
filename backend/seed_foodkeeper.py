@@ -34,13 +34,12 @@ def seed_foodkeeper():
                     if cat_id is not None and cat_name:
                         category_map[int(cat_id)] = cat_name
 
-        cat_id_db_map = {}
+        ext_cat_to_db_map = {}
         for cid, cname in category_map.items():
-            cat = FoodKeeperCategory(id=cid, category_name=cname)
+            cat = FoodKeeperCategory(external_id=cid, category_name=cname)
             db.add(cat)
-            cat_id_db_map[cid] = cat.id
-
-        db.flush()
+            db.flush()
+            ext_cat_to_db_map[cid] = cat.id
 
         count = 0
         for sheet in data["sheets"]:
@@ -53,9 +52,11 @@ def seed_foodkeeper():
                     if prod_id is None:
                         continue
 
+                    cat_ext_id = int(obj.get("Category_ID")) if obj.get("Category_ID") is not None else None
+
                     product = FoodKeeperProduct(
-                        id=int(prod_id),
-                        category_id=cat_id_db_map.get(int(obj.get("Category_ID"))) if obj.get("Category_ID") is not None else None,
+                        external_id=int(prod_id),
+                        category_id=ext_cat_to_db_map.get(cat_ext_id) if cat_ext_id is not None else None,
                         name=str(obj.get("Name", "")),
                         fridge_days_min=_parse_int(obj.get("DOP_Refrigerate_Min")),
                         fridge_days_max=_parse_int(obj.get("DOP_Refrigerate_Max")),

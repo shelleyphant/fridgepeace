@@ -345,3 +345,5 @@ class InventoryItemWithNames(BaseModel):
     source_type: Optional[str] = None
     owner_id: Optional[int] = None
     owner_display_name: Optional[str] = None
+    owner_ids: list[int] = []
+    owner_display_names: list[str] = []

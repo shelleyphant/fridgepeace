@@ -84,7 +84,7 @@ export function useAddFood() {
     }
   }
 
-  async function updateFood(inventoryItem, additionalQuantity) {
+  async function updateFood(inventoryItem, additionalQuantity, claimOwnership = true) {
     setLoading(true);
     setError(null);
     try {
@@ -105,14 +105,16 @@ export function useAddFood() {
         { headers: { 'content-type': 'application/json' } },
       );
 
-      const memberId = parseInt(localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID));
-      try {
-        await axios.post(`${API_URL}/food-ownerships/`, {
-          inventory_item_id: inventoryItem.id,
-          member_id: memberId,
-        });
-      } catch {
-        // 400 = already owned, which is fine
+      if (claimOwnership) {
+        const memberId = parseInt(localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID));
+        try {
+          await axios.post(`${API_URL}/food-ownerships/`, {
+            inventory_item_id: inventoryItem.id,
+            member_id: memberId,
+          });
+        } catch {
+          // 400 = already owned, which is fine
+        }
       }
 
       return true;
