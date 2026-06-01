@@ -5,8 +5,8 @@ import foodData from '../source/food-data/foodkeeper.json';
 export const categories = Object.fromEntries(
   (foodData.sheets.find((s) => s.name === 'Category')?.data ?? [])
     .map((row) => Object.assign({}, ...row))
-    .filter((r) => r.Category_ID != null)
-    .map((r) => [r.Category_ID, r.Category_Name]),
+    .filter((r) => r.ID != null)
+    .map((r) => [r.ID, r.Category_Name]),
 );
 
 const products =
