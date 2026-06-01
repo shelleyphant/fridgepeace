@@ -93,22 +93,22 @@ const NewFood = ({ onSuccess }) => {
   return (
     <div>
       <input
-        className="w-full border"
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
         placeholder="Search food name or scan barcode"
         onChange={(e) => handleSearch(e.target.value)}
         value={search}
       />
       {barcodeLoading && (
-        <p className="mt-1 text-sm text-blue-500">Looking up barcode...</p>
+        <p className="mt-1 text-sm text-water-600">Looking up barcode...</p>
       )}
       {barcodeError && (
-        <p className="mt-1 text-sm text-red-500">{barcodeError}</p>
+        <p className="mt-1 text-sm text-red-600">{barcodeError}</p>
       )}
       {!selected && !barcodeLoading && loading && (
         <p className="mt-1 text-sm text-gray-500">Searching...</p>
       )}
       {!selected && !barcodeLoading && !loading && results.length > 0 && (
-        <ul className="mt-1 border">
+        <ul className="mt-1 rounded-lg border border-gray-300">
           {results.map((p, i) => {
             const badge = SOURCE_BADGE[p._source] ?? SOURCE_BADGE.openfoodfacts;
             return (

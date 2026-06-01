@@ -2,7 +2,6 @@ import { createRoot } from 'react-dom/client';
 import './main.css';
 import { useState, useMemo } from 'react';
 import Header from './components/Header';
-import Button from './components/Button';
 import Drawer from './components/Drawer';
 import Onboarding from './components/Onboarding';
 import FoodCard from './components/inventory/FoodCard';
@@ -76,45 +75,44 @@ const App = () => {
 
   return (
     <>
-      <div className="m-auto max-w-lg p-4">
+      <div className="m-auto max-w-lg p-4 pb-24 min-h-screen">
         <Header householdId={householdId} memberName={memberName} onLogout={handleLogout} />
 
-        <div className="flex items-center justify-between mb-3">
-          <Button title="New Food" action={() => setIsOpen(true)} />
-          <div className="flex gap-1">
-            <select
-              className="border rounded px-2 py-1 text-sm"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+        <div className="mb-3">
+          <div className="flex flex-wrap gap-1">
+            {FILTER_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                className={`rounded-full px-3 py-1 text-center text-sm border ${
+                  filterBy === o.value
+                    ? 'bg-water-600 text-white border-water-600'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+                onClick={() => setFilterBy(o.value)}
+              >
+                {o.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="flex gap-1 mb-3">
-          {FILTER_OPTIONS.map((o) => (
-            <button
-              key={o.value}
-              className={`px-3 py-1 text-sm rounded border ${
-                filterBy === o.value
-                  ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-              }`}
-              onClick={() => setFilterBy(o.value)}
-            >
-              {o.label}
-            </button>
-          ))}
+        <div className="mb-3 flex justify-end">
+          <select
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
         </div>
 
         {error && (
           <div className="mt-4 rounded bg-red-50 p-4 text-center">
             <p className="text-red-600">Could not load inventory.</p>
             <button
-              className="mt-2 rounded bg-red-500 px-4 py-1 text-sm text-white"
+              className="mt-2 rounded-full bg-red-500 px-4 py-1.5 text-center text-sm text-white hover:bg-red-600"
               onClick={() => refresh()}
             >
               Retry
@@ -157,6 +155,17 @@ const App = () => {
         )}
 
         <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)} onSuccess={() => { setLocalItems(null); refresh(); setIsOpen(false); }} />
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-white px-4 py-3 shadow">
+        <div className="m-auto max-w-lg">
+          <button
+            className="w-full rounded-full bg-water-600 px-6 py-3 text-center text-sm font-medium text-white hover:bg-water-700"
+            onClick={() => setIsOpen(true)}
+          >
+            + New Food
+          </button>
+        </div>
       </div>
     </>
   );

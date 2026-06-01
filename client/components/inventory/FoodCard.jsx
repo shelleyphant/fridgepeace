@@ -41,7 +41,7 @@ const FoodCard = ({ item, onDelete, onEdit }) => {
   };
 
   return (
-    <div className={`rounded-4xl bg-white p-4 shadow-sm mt-3 border-l-4 ${STATUS_STYLE[expiryStatus]}`}>
+    <div className={`rounded-2xl bg-white p-4 shadow-sm mt-3 border-l-4 ${STATUS_STYLE[expiryStatus]}`}>
       <div className="flex items-start justify-between">
         <div>
           <span className="block text-xl font-bold">{item.name}</span>
@@ -70,14 +70,14 @@ const FoodCard = ({ item, onDelete, onEdit }) => {
 
       <div className="mt-3 flex gap-2">
         <button
-          className="rounded bg-gray-100 px-3 py-1 text-xs text-gray-600 hover:bg-gray-200"
+          className="rounded-full bg-gray-100 px-4 py-1 text-center text-xs text-gray-600 hover:bg-gray-200"
           onClick={() => onEdit?.(item)}
         >
           Edit
         </button>
         {!confirming ? (
           <button
-            className="rounded bg-gray-100 px-3 py-1 text-xs text-red-500 hover:bg-red-50"
+            className="rounded-full bg-red-500 px-4 py-1 text-center text-xs text-white hover:bg-red-600"
             onClick={() => setConfirming(true)}
           >
             Delete
@@ -85,14 +85,14 @@ const FoodCard = ({ item, onDelete, onEdit }) => {
         ) : (
           <div className="flex items-center gap-1">
             <button
-              className="rounded bg-red-500 px-3 py-1 text-xs text-white disabled:opacity-50"
+              className="rounded-full bg-red-500 px-3 py-1 text-center text-xs text-white disabled:opacity-50"
               onClick={handleDelete}
               disabled={loading}
             >
               {loading ? '...' : 'Confirm'}
             </button>
             <button
-              className="rounded bg-gray-200 px-3 py-1 text-xs text-gray-600"
+              className="rounded-full bg-gray-100 px-3 py-1 text-center text-xs text-gray-600 hover:bg-gray-200"
               onClick={() => setConfirming(false)}
             >
               Cancel

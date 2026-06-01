@@ -2,7 +2,7 @@ import React from 'react';
 
 const SkeletonCard = () => {
   return (
-    <div className="rounded-4xl bg-white p-4 shadow-sm mt-3 animate-pulse">
+    <div className="rounded-2xl bg-white p-4 shadow-sm mt-3 animate-pulse">
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <div className="h-5 w-32 rounded bg-gray-200"></div>

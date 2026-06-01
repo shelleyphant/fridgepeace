@@ -66,7 +66,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         <div className="flex-1">
           <label className="block text-sm font-medium">Quantity</label>
           <input
-            className="w-full border px-2 py-1"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
             onChange={(e) => setQuantity(e.target.value)}
             value={quantity}
             type="number"
@@ -78,7 +78,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         <div className="w-24">
           <label className="block text-sm font-medium">Unit</label>
           <select
-            className="w-full border px-2 py-1"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
             value={unit}
             onChange={(e) => setUnit(e.target.value)}
             disabled={loading}
@@ -97,10 +97,10 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
             <button
               key={opt.value}
               type="button"
-              className={`flex-1 rounded px-3 py-1.5 text-sm border ${
+              className={`flex-1 rounded-full px-3 py-1.5 text-center text-sm border ${
                 storageLocation === opt.value
-                  ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  ? 'bg-water-600 text-white border-water-600'
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
               }`}
               onClick={() => setStorageLocation(opt.value)}
               disabled={loading}
@@ -114,7 +114,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
       <div>
         <label className="block text-sm font-medium">Expiry Date (optional)</label>
         <input
-          className="w-full border px-2 py-1"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
           type="date"
           value={expiryDate}
           onChange={(e) => setExpiryDate(e.target.value)}
@@ -133,7 +133,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
       )}
 
       <button
-        className="mt-2 w-full rounded bg-blue-500 px-4 py-2 text-white disabled:opacity-50"
+        className="mt-2 w-full rounded-full bg-water-600 px-6 py-2 text-center text-sm font-medium text-white disabled:opacity-50 hover:bg-water-700"
         disabled={loading || successMsg !== ''}
         onClick={handleSubmit}
       >

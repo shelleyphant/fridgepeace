@@ -4,6 +4,95 @@
 
 ---
 
+## v0.4 — Mobile-First Vertical Layout & Onboarding Refinements
+
+### Overview
+
+Restructured the entire UI for mobile-first vertical layout. The toolbar was split into discrete rows, a fixed bottom action bar was added for thumb-friendly access, and the onboarding flow was streamlined to auto-skip household selection for returning users.
+
+### Layout: Mobile-First Vertical Stack
+
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx), [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx), [Drawer.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Drawer.jsx), [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)
+
+**Before**: "New Food" button, sort dropdown, and filter tabs were crammed into a single horizontal row. On narrow mobile screens, controls overlapped and felt cluttered. The Drawer used `absolute` positioning (relative to the content container), so it could break on scroll. The Header was spacious (`text-2xl`, `py-1.5`), consuming precious vertical space.
+
+**After**:
+- **Vertical stack order**: Header → Filters (wrapping row) → Sort (right-aligned) → Content → Drawer
+- **Fixed bottom bar**: "+ New Food" button is now a `fixed bottom-0` full-width bar with `z-10`, always accessible without scrolling. Content area has `pb-24` to prevent overlap.
+- **Drawer**: Changed from `absolute` to `fixed` with `z-20`, ensuring it always overlays all content including the bottom bar.
+- **Compact Header**: Title reduced to `text-xl`, all font sizes tightened (`text-xs` for details), button padding reduced (`px-3 py-1`), text truncation for long household codes.
+- **Onboarding centering**: All screens use `min-h-screen flex flex-col justify-center` for proper vertical center alignment on mobile.
+
+```diff
+- <div className="flex items-center justify-between mb-3">
+-   <Button title="New Food" ... />
+-   <select sortBy ... />
+- </div>
+- <div className="flex gap-1 mb-3">[All | Fridge | Freezer | Pantry]</div>
++ <div className="mb-3"><div className="flex flex-wrap gap-1">[All | Fridge | Freezer | Pantry]</div></div>
++ <div className="mb-3 flex justify-end"><select sortBy ... /></div>
++ <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-white px-4 py-3 shadow">+ New Food</div>
+```
+
+### Button Text Alignment
+
+**Files modified**: [Button.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Button.jsx), [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx), [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx), [FoodCard.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodCard.jsx), [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx), [FoodEditForm.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodEditForm.jsx), [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)
+
+**Before**: Raw `<button>` elements had no explicit `text-center` class. While short text like "Edit" or "Save" happened to appear centered, longer text or buttons at full width (`w-full`) appeared left-aligned, creating visual inconsistency.
+
+**After**: Every interactive button component now includes `text-center`:
+- **Button.jsx** (base component) — `text-center` added to the primary styled div
+- **All raw `<button>` elements** — Logout, Retry, + New Food, Edit, Delete, Confirm, Cancel, Save, storage location toggles, filter tabs, Back, Copy — all include `text-center`
+
+### Onboarding: "Find User" → "Log In"
+
+**Files modified**: [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)
+
+**Before**: The second option on the welcome screen read "Find User", which was technically accurate (the action queries `GET /users/` to find a user by username) but semantically confusing for end users who expected to see "Log In".
+
+**After**: Changed to **"Log In"**, matching standard authentication terminology. The underlying implementation remains unchanged (username lookup, no password).
+
+### Onboarding: Auto-Skip Household Screen for Returning Users
+
+**Files modified**: [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)
+
+**Before**: After any sign-up or log-in, users were always shown the "Create a Household / Join a Household" screen — even if they already belonged to a household. This forced returning users through an unnecessary extra step every time.
+
+**After**: The `handleMembership` function now calls `GET /member/{user_id}/households` immediately after authentication:
+- If the user has **one or more** household memberships, it auto-selects the first household, stores `household_id` and `household_member_id` in `localStorage`, and calls `onComplete()` — bypassing the household selection screen entirely.
+- If the user has **no** households, the existing flow is preserved (show Create/Join buttons).
+- Requires a new `axios` import in Onboarding.jsx.
+
+```js
+// After successful login/signup
+const { data: households } = await axios.get(`/member/${userId}/households`);
+if (households.length > 0) {
+  const household = households[0];
+  localStorage.setItem('household_id', household.id);
+  // Also fetches household_member_id for inventory queries
+  const { data: members } = await axios.get(`/member/${household.id}/members`);
+  const myMembership = members.find(m => String(m.user_id) === String(userId));
+  localStorage.setItem('household_member_id', String(myMembership.id));
+  onComplete();  // Skip directly to main app
+  return;
+}
+```
+
+### Modified Files (v0.4)
+
+| File | Changes |
+|------|---------|
+| `client/index.jsx` | Vertical stack layout, fixed bottom bar, `pb-24`, removed `Button` import |
+| `client/components/Header.jsx` | Compact sizing (`text-xl`, `text-xs`, `px-3 py-1`, truncation) |
+| `client/components/Drawer.jsx` | `absolute` → `fixed`, added `z-20` and `right-0` |
+| `client/components/Onboarding.jsx` | Full-screen vertical centering, "Log In" label, auto-skip household, `text-center` on Back/Copy |
+| `client/components/Button.jsx` | Added `text-center` |
+| `client/components/inventory/FoodCard.jsx` | `text-center` on Edit/Delete/Confirm/Cancel |
+| `client/components/inventory/FoodDetail.jsx` | `text-center` on storage toggles and submit button |
+| `client/components/inventory/FoodEditForm.jsx` | `text-center` on storage toggles and Save/Cancel |
+
+---
+
 ## v0.3 — Frontend Feature Gap Implementation
 
 ### Overview
