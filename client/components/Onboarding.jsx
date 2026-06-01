@@ -9,12 +9,14 @@ const Onboarding = ({ onComplete }) => {
   const [houseFormType, setHouseFormType] = useState(null);
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
+  const [householdCode, setHouseholdCode] = useState(null);
 
   const handleMembership = async () => {
     try {
       memberFormType === 'signup'
         ? await addMembership(input)
         : await setMembership(input);
+      localStorage.setItem('member_name', input);
       setMemberId(localStorage.getItem('member_id'));
       setInput('');
       setError(null);
@@ -25,10 +27,13 @@ const Onboarding = ({ onComplete }) => {
   };
   const handleHousehold = async () => {
     try {
-      houseFormType === 'create'
-        ? await addHousehold(member_id, input)
-        : await joinHousehold(member_id, input);
-      onComplete();
+      if (houseFormType === 'create') {
+        await addHousehold(member_id, input);
+        setHouseholdCode(localStorage.getItem('household_id'));
+      } else {
+        await joinHousehold(member_id, input);
+        onComplete();
+      }
     } catch (e) {
       const detail = e.response?.data?.detail;
       setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : detail ?? e.message);
@@ -61,6 +66,29 @@ const Onboarding = ({ onComplete }) => {
       </div>
     );
   }
+  if (householdCode) {
+    return (
+      <div className="mt-8 text-center">
+        <p className="text-lg font-bold">Household Created!</p>
+        <p className="mt-2 text-sm text-gray-600">Share this code with others to join:</p>
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <span className="rounded bg-gray-100 px-6 py-3 text-2xl font-mono font-bold tracking-widest">
+            {householdCode}
+          </span>
+          <button
+            className="rounded bg-blue-500 px-4 py-3 text-sm text-white hover:bg-blue-600"
+            onClick={() => navigator.clipboard?.writeText(householdCode)}
+          >
+            Copy
+          </button>
+        </div>
+        <div className="mt-6">
+          <Button title="Continue to Fridge" action={onComplete} />
+        </div>
+      </div>
+    );
+  }
+
   if (member_id) {
     if (!houseFormType)
       return (

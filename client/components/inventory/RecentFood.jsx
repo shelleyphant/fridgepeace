@@ -11,15 +11,19 @@ const RecentFood = ({ onSuccess }) => {
   if (recentFoods.length === 0) return null;
 
   return (
-    <div>
+    <div className="mt-2">
+      <p className="text-sm font-medium text-gray-500 mb-1">Recently added</p>
       <ul>
         {recentFoods.map((item) => (
           <li
             key={item.id}
-            className="cursor-pointer p-1 hover:bg-gray-100"
+            className="flex items-center justify-between cursor-pointer rounded px-2 py-1.5 hover:bg-gray-100"
             onClick={() => setSelected(item)}
           >
-            {item.name}
+            <span>{item.name}</span>
+            {item.quantity && (
+              <span className="text-xs text-gray-400">{item.quantity} {item.unit}</span>
+            )}
           </li>
         ))}
       </ul>

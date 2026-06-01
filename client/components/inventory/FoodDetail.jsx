@@ -55,6 +55,13 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         )}
       </div>
 
+      {inventoryItem && (
+        <div className="rounded-lg bg-yellow-50 p-2 text-sm text-yellow-800">
+          Currently in fridge: <strong>{inventoryItem.quantity} {inventoryItem.unit}</strong>.
+          How many more do you want to add?
+        </div>
+      )}
+
       <div className="flex gap-2">
         <div className="flex-1">
           <label className="block text-sm font-medium">Quantity</label>

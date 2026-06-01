@@ -1,306 +1,262 @@
 # FridgePeace Change Log
 
-> **Scope**: All modifications from backend-frontend integration fixes, search query migration, to frontend usability improvements.
 > **Date**: 2026-06-01
 
 ---
 
-## Table of Contents
+## v0.3 — Frontend Feature Gap Implementation
 
-1. [Backend-Frontend Integration Fixes](#1-backend-frontend-integration-fixes)
-2. [Search Query Migration (Backend)](#2-search-query-migration-backend)
-3. [Frontend Usability Improvements](#3-frontend-usability-improvements)
-4. [Files Modified](#4-files-modified)
+### Overview
 
----
+Frontend was a "write-only" system — users could add food but had no way to manage it. This version adds full CRUD operations, inventory sorting/filtering, expiry warnings, household code sharing, and various usability enhancements.
 
-## 1. Backend-Frontend Integration Fixes
+### P0: Missing CRUD Operations (Critical)
 
-### 1.1 `member_id` Identity Crisis (Critical)
+#### P0-1: Delete Inventory Items
 
-**Problem**: Three bugs caused by confusing `member_id` with `household_member_id`.
+**Files created**: [useDeleteFood.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useDeleteFood.js)
 
-- `useMembership.js` stored `user.id` as `localStorage.setItem('member_id', ...)`
-- However, `food_inventory.added_by_member_id` is a foreign key referencing `household_member.id`, not `user.id`
-- This caused all inventory operations to silently fail or return empty results
+**Files modified**: [FoodCard.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodCard.jsx), [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
 
-**Fix**:
-- `useHousehold.js`: now stores `household_member_id` separately in localStorage after `/member/join/` response
-- `useAddFood.js`: reads `household_member_id` from localStorage instead of `member_id`
-- `useInventory.js`: reads `household_member_id` from localStorage instead of `member_id`
+**Before**: FoodCards were read-only with no delete mechanism. Users could not remove items.
 
-### 1.2 Trailing Slash Mismatch
+**After**: Each FoodCard shows a **Delete** button → "Confirm" / "Cancel" two-step interaction. Calls `DELETE /food-inventory/{id}` (existing endpoint). List updates optimistically after deletion.
 
-**Problem**: Backend routes `/member/join` and `/member/leave` had no trailing slash, but the frontend called `/member/join/` and `/member/leave/` (with trailing slashes). FastAPI's 301 redirect changed POST to GET, breaking the request body.
+#### P0-2: Edit Inventory Items
 
-**Fix**: Added trailing slashes to the backend route definitions in `routers.py`.
+**Files created**: [FoodEditForm.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodEditForm.jsx)
 
-### 1.3 FoodDetail Missing Error UI
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
 
-**Problem**: `FoodDetail.jsx` had no loading or error state rendering, so API failures were invisible to the user.
+**Before**: No way to modify quantity, expiry date, storage location, or unit after adding.
 
-**Fix**: Added error message display and loading state handling.
+**After**: Each FoodCard has an **Edit** button that opens an inline form pre-filled with current values. Supports editing quantity, unit, storage location, and expiry date. Calls `PUT /food-inventory/{id}` (existing endpoint). List refreshes after save.
 
----
+#### P0-3: Inventory Sort, Filter, and Expiry Warnings
 
-## 2. Search Query Migration (Backend)
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx), [FoodCard.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodCard.jsx)
 
-### 2.1 Motivation
-
-The frontend was importing `foodkeeper.json` (617 KB) directly via JavaScript `import`, which:
-- Added 617 KB to the webpack bundle (out of ~1.2 MB total)
-- Performed all search filtering client-side with `O(n)` linear scans
-- Made it impossible to update FoodKeeper data without rebuilding the frontend
-
-The decision was to migrate this to the backend, treating it like any other data source.
-
-### 2.2 New Database Tables
-
-**`foodkeeper_category`**
-| Column | Type | Notes |
-|--------|------|-------|
-| id | int (PK) | Auto-increment |
-| category_name | varchar(255) | e.g. "Dairy", "Vegetables" |
-
-**`foodkeeper_product`**
-| Column | Type | Notes |
-|--------|------|-------|
-| id | int (PK) | Auto-increment |
-| category_id | int (FK) | References `foodkeeper_category.id` |
-| name | varchar(255) | Product name |
-| fridge_days_min/max | int | Recommended fridge storage days |
-| freezer_days_min/max | int | Recommended freezer storage days |
-| pantry_days_min/max | int | Recommended pantry storage days |
-
-Seeded with **25 categories** and **661 products** from `foodkeeper.json`.
-
-### 2.3 New API Endpoints
-
-#### `GET /foods/search?q=<query>`
-
-Searches both FoodKeeper products and user-created packaged foods by name.
-
-**Response**:
-```json
-{
-  "foodkeeper_results": [
-    { "id": 1, "name": "Apple", "category_name": "Fruits",
-      "fridge_days_min": 7, "fridge_days_max": 14,
-      "freezer_days_min": 120, "freezer_days_max": 365,
-      "pantry_days_min": 3, "pantry_days_max": 7 }
-  ],
-  "packaged_results": [
-    { "id": 5, "name": "Organic Apple Juice", "barcode": "930060..." }
-  ]
-}
-```
-
-#### `POST /foods/add-to-inventory`
-
-Unified endpoint that accepts both FoodKeeper and packaged food sources in one call.
-
-**Request**:
-```json
-{
-  "household_id": "ABC123",
-  "added_by_member_id": 1,
-  "source": "foodkeeper",
-  "source_id": 42,
-  "storage_location": "fridge",
-  "quantity": 2.5,
-  "unit": "kg",
-  "expiry_date": "2026-06-15"
-}
-```
-
-**Behavior**:
-- `source: "foodkeeper"`: Automatically creates/reuses an `UnpackagedFood` record and creates a `FoodInventory` entry
-- `source: "packaged"`: Directly creates a `FoodInventory` entry referencing the existing `PackagedFood`
-- Replaces 2-4 round trips that were previously needed from the frontend
-
-#### `GET /households/{household_id}/inventory`
-
-Returns flattened inventory items with food name, brand, image, category, and source type pre-joined.
-
-**Response**:
-```json
-[
-  {
-    "id": 1,
-    "food_name": "Apple",
-    "food_brand": null,
-    "food_image": null,
-    "food_category": "Fruits",
-    "source_type": "foodkeeper",
-    "quantity": 2.5,
-    "unit": "kg",
-    "storage_location": "fridge",
-    "expiry_date": "2026-06-15",
-    "date_added": "2026-05-30T10:00:00",
-    "added_by_member_id": 1
-  }
-]
-```
-
-Replaces 3 separate frontend requests that were manually joining data.
-
-### 2.4 Frontend Hooks Rewritten
-
-#### `useSearch.js`
-
-**Before**: Imported `foodkeeper.json` (617 KB) via webpack `import`, filtered client-side, then fetched OpenFoodFacts separately.
-
-**After**: Calls `GET /foods/search?q=` for local results, still fetches OpenFoodFacts for barcode/brand data. Returns `{ results, loading }` instead of raw array. Bundle size reduced from ~1.2 MB to ~587 KB.
-
-#### `useAddFood.js`
-
-**Before**: Separate code paths for each food source:
-- OpenFoodFacts: 2-4 API calls (check existing → create PackagedFood → create FoodInventory)
-- FoodKeeper: manual inventory creation
-
-**After**: Unified `POST /foods/add-to-inventory` for FoodKeeper and packaged sources (OpenFoodFacts path preserved for barcode scanning).
-
-#### `useInventory.js`
-
-**Before**: Three separate requests to fetch inventory items, then attempt to join with food names client-side.
-
-**After**: Single `GET /households/{id}/inventory` call that returns fully joined data.
-
----
-
-## 3. Frontend Usability Improvements
-
-### P0 (Critical — Blocking the User Flow)
-
-#### P0-1: FoodDetail Missing Required Fields
-
-**File**: [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx)
-
-**Before**: Only a `quantity` input field and a raw `JSON.stringify` preview. The backend requires `unit` and `storage_location`, causing 422 errors on every add attempt.
+**Before**: Inventory displayed in insertion order with no organization. Expiring food looked identical to fresh food.
 
 **After**:
-- Replaced raw JSON with structured food info card (name, brand, category, recommended storage days)
-- Added **Unit** dropdown (`kg`, `g`, `L`, `mL`, `pcs`, `item`)
-- Added **Storage Location** toggle buttons (Refrigerator / Freezer / Pantry)
-- Added **Expiry Date** date picker (optional)
-- Success toast "Added to fridge!" with 800ms auto-close
-- Button shows "Add more to existing" when updating existing inventory
+- **Sort**: Dropdown with "Recently Added", "Name A–Z", "Expiring Soon"
+- **Filter**: Tab bar with "All", "🧊 Fridge", "❄️ Freezer", "📦 Pantry"
+- **Expiry visual status** (left border):
+  - **Expired** → Red border + grey background
+  - **≤2 days** → Red border
+  - **≤7 days** → Yellow border
+  - **OK** → Green border
+  - **No expiry** → Grey border
 
-#### P0-2: Search Has No Loading Indicator
+#### P0-4: Household Code Display
 
-**Files**: [useSearch.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useSearch.js), [NewFood.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/NewFood.jsx)
+**Files created**: [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx)
 
-**Before**: `useSearch` returned a plain array. During the 400ms debounce delay, the list was blank with no feedback.
+**Files modified**: [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx), [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
 
-**After**: `useSearch` returns `{ results, loading }`. NewFood displays "Searching..." text while loading is true.
-
-#### P0-3: Onboarding "Log In" Misleading
-
-**File**: [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)
-
-**Before**: The "Log In" button actually just looked up a username via `GET /users/`. If the username wasn't found, it threw an error with no way to go back.
+**Before**: After creating a household, the code was hidden in localStorage with no way for users to share it.
 
 **After**:
-- "Log In" → **"Find User"** (honest label)
-- Added **"Back"** button on both Sign Up/Find User and Create/Join Household forms
-- Error messages now display in red (`text-red-600`)
+- **Household creation flow**: Shows large household code with Copy button before navigating to the fridge
+- **Header**: Displays household code (click to copy) and current member name
+- `localStorage` now stores `member_name` for display
 
-### P1 (Severe — Recommended for This Sprint)
+### P1: Feature Enhancements
 
-#### P1-1: No Success/Failure Feedback After Adding Food
+#### P1-1: Header / Navigation Bar
 
-**File**: [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx)
+**Files created**: [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx)
 
-**Before**: On success, the drawer closed immediately with no confirmation. On failure, the error was hidden once the drawer closed.
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
 
-**After**: Shows "Added to fridge!" green toast before auto-closing after 800ms. Errors remain visible in the drawer.
+**Before**: Main screen had no title, household info, or logout mechanism.
 
-#### P1-2: Empty Inventory Shows Nothing
+**After**: Header displays "FridgePeace" title, household code (tappable to copy), member name, and Logout button.
 
-**File**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+#### P1-2: RecentFood Add-More Clarity
 
-**Before**: New users completing onboarding saw only a "New Food" button and blank space below.
+**Files modified**: [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx), [RecentFood.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/RecentFood.jsx)
 
-**After**: Shows "Your fridge is empty! Tap 'New Food' to add your first item." when inventory is empty. Also shows "Loading inventory..." while fetching.
+**Before**: Clicking a RecentFood item to "add more" showed the same form as adding new food, with no indication of existing quantity.
 
-Also fixed the `isSetUp` check to require `household_member_id` (not just `member_id`), preventing a stale-state edge case.
+**After**: A yellow info banner shows "Currently in fridge: X kg. How many more do you want to add?" RecentFood list also shows current quantity per item.
 
-#### P1-3: FoodCard Shows Too Little Info
+#### P1-3: Search Source Badges
 
-**File**: [FoodCard.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodCard.jsx)
+**Files modified**: [NewFood.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/NewFood.jsx)
 
-**Before**: Only showed food name and "Expires X days ago" text.
+**Before**: Search results showed only product names with no source distinction.
 
-**After**: Shows:
+**After**: Each result shows a coloured badge:
+- 🟢 **FoodKeeper** (green) — USDA database
+- 🟣 **Packaged** (purple) — User-created packaged foods
+- 🟠 **OpenFoodFacts** (orange) — Crowd-sourced data
+
+#### P1-4: Expiry Visual Warnings on FoodCard
+
+*Implemented as part of P0-3 above.*
+
+#### P1-5: Barcode Input for OpenFoodFacts
+
+**Files modified**: [NewFood.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/NewFood.jsx)
+
+**Before**: Only text-based search was available; no barcode support.
+
+**After**: Inputting an 8, 12, or 13 digit number triggers automatic barcode lookup. Tries backend search first, then falls back to OpenFoodFacts proxy API.
+
+#### P1-6: Skeleton Loading State
+
+**Files created**: [SkeletonCard.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/SkeletonCard.jsx)
+
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+
+**Before**: Loading state showed a blank screen.
+
+**After**: Three animated skeleton cards (pulse animation) matching FoodCard dimensions while inventory loads.
+
+#### P1-7: Inventory Error State
+
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+
+**Before**: Backend failures resulted in a blank list with no explanation.
+
+**After**: Shows "Could not load inventory." with a **Retry** button that calls `refresh()`.
+
+### New Files (v0.3)
+
+| File | Purpose |
+|------|---------|
+| `client/hooks/useDeleteFood.js` | Delete inventory item hook |
+| `client/components/Header.jsx` | Top navigation bar |
+| `client/components/inventory/FoodEditForm.jsx` | Inline edit form for inventory items |
+| `client/components/inventory/SkeletonCard.jsx` | Skeleton loading placeholder |
+
+### Modified Files (v0.3)
+
+| File | Changes |
+|------|---------|
+| `client/index.jsx` | Header integration, sort/filter, delete/edit handlers, skeleton loading, error state |
+| `client/components/inventory/FoodCard.jsx` | Delete/Edit buttons, expiry visual border colours |
+| `client/components/inventory/FoodDetail.jsx` | "Currently in fridge" banner for add-more |
+| `client/components/inventory/NewFood.jsx` | Source badges, barcode detection, dual lookup |
+| `client/components/inventory/RecentFood.jsx` | Quantity display per item, section label |
+| `client/components/Onboarding.jsx` | Household code display screen, `member_name` storage |
+
+---
+
+## v0.2 — Backend Search Migration & Integration Fixes
+
+### Overview
+
+Migrated 617 KB of FoodKeeper data from the frontend bundle to the backend database, added unified search and inventory APIs, and fixed critical backend-frontend integration bugs.
+
+### Backend Changes
+
+See [API_DOCUMENTATION.md](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/API_DOCUMENTATION.md) for full endpoint details.
+
+- **New DB tables**: `foodkeeper_category` (25 rows) and `foodkeeper_product` (661 rows) seeded from `foodkeeper.json`
+- **New endpoints**: Food search, unified add-to-inventory, flattened household inventory listing
+- **Bug fix**: Added trailing slashes to `/member/join/` and `/member/leave/` routes to prevent FastAPI 301 redirects
+- **Files**: `models.py`, `schemas.py`, `routers.py`, `main.py`, `seed_foodkeeper.py`, `API_DOCUMENTATION.md`
+
+### Frontend Changes
+
+#### `useSearch.js` — Rewritten
+
+**Before**: Imported `foodkeeper.json` (617 KB) via webpack `import`, filtered client-side with O(n) linear scan, then fetched OpenFoodFacts separately. Returned a plain array.
+
+**After**: Calls `GET /foods/search?q=` for FoodKeeper + PackagedFood results from backend. Still fetches OpenFoodFacts for barcode/brand data. Returns `{ results, loading }` object instead of raw array. Bundle size reduced from ~1.2 MB to ~587 KB.
+
+#### `useAddFood.js` — Rewritten
+
+**Before**: Separate code paths per food source — OpenFoodFacts required 2–4 API calls (check existing → create PackagedFood → create FoodInventory), FoodKeeper used manual inventory creation.
+
+**After**: Unified `POST /foods/add-to-inventory` for FoodKeeper and packaged sources. OpenFoodFacts path preserved for barcode scanning flow. `updateFood()` kept for adding quantity to existing inventory items.
+
+#### `useInventory.js` — Rewritten
+
+**Before**: Made 3 separate requests to fetch `food_inventory` → `packaged_food` / `unpackaged_food`, then manually joined data client-side.
+
+**After**: Single `GET /households/{household_id}/inventory` call returning fully joined data with `food_name`, `food_brand`, `food_category`, `source_type` pre-populated. Filters items by current member's `household_member_id`.
+
+#### `useHousehold.js` — Fixed `member_id` / `household_member_id` Confusion
+
+**Before**: Only stored `member_id` (which was `user.id`). Inventory queries used this value to filter `added_by_member_id`, which references `household_member.id` — causing all queries to return empty results.
+
+**After**: Now stores `household_member_id` separately via `localStorage.setItem('household_member_id', ...)` after each `/member/join/` response. `useAddFood` and `useInventory` both read from the correct key.
+
+#### `FoodDetail.jsx` — Rewritten
+
+**Before**: Only had a `quantity` input field and a raw `JSON.stringify` preview. Missing `unit` and `storage_location` fields caused 422 errors on every add attempt. No success or error feedback.
+
+**After**:
+- Structured food info card showing name, brand, category, and USDA recommended storage days
+- **Unit** dropdown: `kg`, `g`, `L`, `mL`, `pcs`, `item`
+- **Storage Location** toggle buttons: Refrigerator / Freezer / Pantry
+- **Expiry Date** date picker (optional)
+- Green success toast "Added to fridge!" with 800ms auto-close
+- Button shows "Add more to existing" when updating vs "Add to fridge" for new items
+
+#### `FoodCard.jsx` — Rewritten
+
+**Before**: Displayed only food name and "Expires X days ago" text with no visual structure.
+
+**After**:
 - Food name (title) + brand (subtitle, if available)
 - Quantity badge (e.g. "2.5 kg" in a blue pill)
 - Storage location with emoji icons (🧊 Fridge / ❄️ Freezer / 📦 Pantry)
-- Expiry countdown or "No expiry set"
+- Expiry countdown or "No expiry set" fallback
 
-#### P1-4: RecentFood Shows Empty Area
+#### `Onboarding.jsx` — Modified
 
-**File**: [RecentFood.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/RecentFood.jsx)
+**Before**: "Log In" button misleadingly only looked up username via `GET /users/`. No Back navigation — if username wasn't found, the app was stuck on the error screen. Error text had no visible colour.
 
-**Before**: The RecentFood list area was always rendered, showing nothing when there were no recent items.
+**After**:
+- "Log In" → **"Find User"** (accurate label)
+- **Back buttons** on both Sign Up / Find User and Create / Join Household forms, with error reset logic
+- Error messages now render in red (`text-red-600` class)
 
-**After**: Returns `null` when `recentFoods` is empty, hiding the entire section.
+#### `index.jsx` — Modified
 
-#### P1-5: Update/Add Button Ambiguity
+**Before**: New users completing onboarding saw only a "New Food" button and blank space. `isSetUp` only checked `member_id`, missing `household_member_id` edge case.
 
-**File**: [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx)
+**After**: Shows "Your fridge is empty! Tap 'New Food' to add your first item." when inventory is empty. Shows "Loading inventory..." while fetching. `isSetUp` now requires `household_member_id` in addition to `member_id` and `household_id`.
 
-**Before**: Both "add new" and "add more to existing" used the same button text "Add to fridge".
+#### `NewFood.jsx` — Modified
 
-**After**: Button shows **"Add more to existing"** when modifying an existing inventory item (from RecentFood), and **"Add to fridge"** for new items.
+**Before**: Directly used `useSearch` return value as an array, with no loading awareness.
 
----
+**After**: Adapted to `{ results, loading }` destructured return. Shows "Searching..." text during debounce/API wait.
 
-## 4. Files Modified
+#### `RecentFood.jsx` — Modified
 
-### Backend (6 files)
+**Before**: Always rendered the RecentFood list area, showing nothing when empty.
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `backend/models.py` | Modified | Added `FoodKeeperCategory` and `FoodKeeperProduct` tables |
-| `backend/schemas.py` | Modified | Added 6 Pydantic models for search, add-to-inventory, inventory listing |
-| `backend/routers.py` | Modified | Added `GET /foods/search`, `POST /foods/add-to-inventory`, `GET /households/{id}/inventory`; fixed trailing slash on `/member/join/` and `/member/leave/` |
-| `backend/seed_foodkeeper.py` | Created | Imports 661 products + 25 categories from `foodkeeper.json` into SQLite |
-| `backend/main.py` | Modified | Added startup event to auto-seed FoodKeeper data |
-| `backend/API_DOCUMENTATION.md` | Modified | Documented all 3 new endpoints |
+**After**: Returns `null` when `recentFoods.length === 0`, hiding the entire section.
 
-### Frontend (8 files)
+### Files Created (v0.2)
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `client/hooks/useMembership.js` | Modified | Stores `member_id` (user.id) only |
-| `client/hooks/useHousehold.js` | Modified | Now stores `household_member_id` separately from `member_id` |
-| `client/hooks/useSearch.js` | Rewritten | Calls backend `GET /foods/search` instead of importing 617KB JSON; returns `{ results, loading }` |
-| `client/hooks/useAddFood.js` | Rewritten | Unified `POST /foods/add-to-inventory` for foodkeeper/packaged sources |
-| `client/hooks/useInventory.js` | Rewritten | Single `GET /households/{id}/inventory` replaces 3 manual requests |
-| `client/components/inventory/FoodDetail.jsx` | Rewritten | Added unit, storage location, expiry date inputs; structured display; success toast; button text disambiguation |
-| `client/components/inventory/NewFood.jsx` | Modified | Adapted to `{ results, loading }` return; shows "Searching..." indicator |
-| `client/components/inventory/FoodCard.jsx` | Rewritten | Shows brand, quantity badge, storage location icons, expiry info |
-| `client/components/inventory/RecentFood.jsx` | Modified | Hidden when empty (returns null) |
-| `client/components/Onboarding.jsx` | Modified | "Log In" → "Find User"; added Back buttons; red error text |
-| `client/index.jsx` | Modified | Empty inventory hint; loading indicator; strict `isSetUp` check |
+| File | Purpose |
+|------|---------|
+| `backend/seed_foodkeeper.py` | Imports FoodKeeper data from JSON to SQLite |
+| `backend/foodkeeper.json` | Copied from client source data for backend seeding |
 
-### Config / Data (2 files)
+### Files Modified (v0.2)
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `backend/foodkeeper.json` | Copied | Copied from `client/source/food-data/` for backend seeding |
-| `frontend_improvement_plan.md` | Created | Audit document identifying all frontend issues and priorities |
-| `search_migration_plan.md` | Created | Analysis document for the search migration strategy |
-| `project_overview.md` | Created | Initial project audit overview |
-| `CHANGE_LOG.md` | Created | This document |
-
----
-
-## Summary
-
-- **3 critical backend-frontend bugs** fixed (member_id confusion, trailing slash, missing error UI)
-- **3 new API endpoints** created for search, unified food addition, and pre-joined inventory listing
-- **617 KB removed** from frontend bundle by migrating FoodKeeper search to the backend
-- **3 frontend hooks** rewritten to use the new backend APIs
-- **7 usability issues** fixed in the frontend (3 P0 critical, 5 P1 severe)
-- **19 files** modified or created across the full stack
+| File | Purpose |
+|------|---------|
+| `backend/models.py` | Added `FoodKeeperCategory` and `FoodKeeperProduct` tables |
+| `backend/schemas.py` | Added 6 Pydantic models for search, add-to-inventory, inventory listing |
+| `backend/routers.py` | Added 3 endpoints; fixed trailing slash bug |
+| `backend/main.py` | Added startup event for FoodKeeper seeding |
+| `backend/API_DOCUMENTATION.md` | Documented all new endpoints |
+| `client/hooks/useSearch.js` | Backend API call instead of local JSON import |
+| `client/hooks/useAddFood.js` | Unified add-to-inventory endpoint |
+| `client/hooks/useInventory.js` | Single flattened inventory endpoint |
+| `client/hooks/useHousehold.js` | Fixed member_id/household_member_id |
+| `client/components/inventory/FoodDetail.jsx` | Complete form rewrite with unit/storage/expiry inputs |
+| `client/components/inventory/FoodCard.jsx` | Rich card display with brand, quantity badge, icons |
+| `client/components/inventory/NewFood.jsx` | Loading state support |
+| `client/components/inventory/RecentFood.jsx` | Empty state handling |
+| `client/components/Onboarding.jsx` | Button labels, back navigation, red error text |
+| `client/index.jsx` | Empty state, loading indicator, strict setup check |
