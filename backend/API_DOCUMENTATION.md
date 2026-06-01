@@ -1143,6 +1143,40 @@ DELETE /food-events/{event_id}
 
 ---
 
+#### 7.6 List Events by Inventory Item (with Member Names)
+
+```
+GET /food-events/by-inventory/{inventory_item_id}/with-members
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| inventory_item_id | int | Inventory item ID |
+
+**Response 200:**
+```json
+[
+  {
+    "id": 1,
+    "inventory_item_id": 1,
+    "member_id": 1,
+    "event_type": "added",
+    "date_occurred": "2026-05-23T12:00:00",
+    "member_display_name": "Alice"
+  }
+]
+```
+
+**Additional Fields (beyond standard `FoodEventResponse`):**
+| Field | Type | Description |
+|-------|------|-------------|
+| member_display_name | string or null | Display name of the member who triggered the event |
+
+> Events are sorted by `date_occurred` descending (newest first).
+
+---
+
 ### 8. Food Ownerships
 
 #### 8.1 List All Ownerships
@@ -1438,7 +1472,9 @@ GET /households/{household_id}/inventory
     "food_image": null,
     "food_brand": "Coca-Cola",
     "food_category": "Drinks",
-    "source_type": "packaged"
+    "source_type": "packaged",
+    "owner_id": 1,
+    "owner_display_name": "Alice"
   },
   {
     "id": 2,
@@ -1456,7 +1492,9 @@ GET /households/{household_id}/inventory
     "food_image": null,
     "food_brand": null,
     "food_category": null,
-    "source_type": "unpackaged"
+    "source_type": "unpackaged",
+    "owner_id": 2,
+    "owner_display_name": "Bob"
   }
 ]
 ```
@@ -1469,6 +1507,8 @@ GET /households/{household_id}/inventory
 | food_brand | string or null | Brand name (packaged foods only) |
 | food_category | string or null | Product category |
 | source_type | string or null | Either `"packaged"`, `"unpackaged"`, or `null` (should not be null for valid records) |
+| owner_id | int or null | Member ID of the first owner assigned to this item |
+| owner_display_name | string or null | Display name of the first owner |
 
 > Items are sorted by `date_added` descending (newest first).
 
@@ -1527,6 +1567,7 @@ GET /households/{household_id}/inventory
 | Event | GET | `/food-events/` | List all events |
 | Event | GET | `/food-events/{id}` | Get single event |
 | Event | GET | `/food-events/by-inventory/{id}` | List events by inventory item |
+| Event | GET | `/food-events/by-inventory/{id}/with-members` | List events by inventory item (with member names) |
 | Event | POST | `/food-events/` | Create event |
 | Event | DELETE | `/food-events/{id}` | Delete event |
 | Ownership | GET | `/food-ownerships/` | List all ownerships |
@@ -1536,4 +1577,4 @@ GET /households/{household_id}/inventory
 | Ownership | DELETE | `/food-ownerships/{inv_id}/{mem_id}` | Delete ownership |
 | **Search** | **GET** | **`/foods/search?q=...`** | **Unified FoodKeeper + PackagedFood search** |
 | **Add** | **POST** | **`/foods/add-to-inventory`** | **Unified add to inventory (1 call)** |
-| **Inventory** | **GET** | **`/households/{id}/inventory`** | **Household inventory with resolved names** |
+| **Inventory** | **GET** | **`/households/{id}/inventory`** | **Household inventory with resolved names and owner info** |
