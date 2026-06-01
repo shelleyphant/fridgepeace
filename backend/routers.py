@@ -21,6 +21,7 @@ from schemas import (
     FoodAddToInventoryResponse,
     FoodEventCreate,
     FoodEventResponse,
+    FoodEventWithMemberResponse,
     FoodInventoryCreate,
     FoodInventoryDetailResponse,
     FoodInventoryResponse,
@@ -417,8 +418,18 @@ def update_inventory_item(item_id: int, payload: FoodInventoryCreate, db: Sessio
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Item must be either packaged or unpackaged (exactly one of packaged_food_id or unpackaged_food_id)",
         )
+    old_storage = item.storage_location
     for key, value in payload.model_dump().items():
         setattr(item, key, value)
+
+    if payload.storage_location and payload.storage_location != old_storage:
+        event = FoodEvent(
+            inventory_item_id=item.id,
+            member_id=payload.added_by_member_id,
+            event_type="moved",
+        )
+        db.add(event)
+
     db.commit()
     db.refresh(item)
     return item
@@ -453,6 +464,28 @@ def get_event(event_id: int, db: Session = Depends(get_db)):
 @router.get("/food-events/by-inventory/{inventory_item_id}", response_model=list[FoodEventResponse])
 def list_events_by_inventory(inventory_item_id: int, db: Session = Depends(get_db)):
     return db.query(FoodEvent).filter(FoodEvent.inventory_item_id == inventory_item_id).all()
+
+
+@router.get("/food-events/by-inventory/{inventory_item_id}/with-members", response_model=list[FoodEventWithMemberResponse])
+def list_events_with_members(inventory_item_id: int, db: Session = Depends(get_db)):
+    events = (
+        db.query(FoodEvent)
+        .options(joinedload(FoodEvent.member))
+        .filter(FoodEvent.inventory_item_id == inventory_item_id)
+        .order_by(FoodEvent.date_occurred.desc())
+        .all()
+    )
+    return [
+        FoodEventWithMemberResponse(
+            id=e.id,
+            inventory_item_id=e.inventory_item_id,
+            member_id=e.member_id,
+            event_type=e.event_type,
+            date_occurred=e.date_occurred,
+            member_display_name=e.member.display_name,
+        )
+        for e in events
+    ]
 
 
 @router.post("/food-events/", response_model=FoodEventResponse, status_code=status.HTTP_201_CREATED)
@@ -616,6 +649,21 @@ def add_to_inventory(payload: FoodAddToInventoryRequest, db: Session = Depends(g
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid source type")
 
     db.add(inventory)
+    db.flush()
+
+    event = FoodEvent(
+        inventory_item_id=inventory.id,
+        member_id=payload.added_by_member_id,
+        event_type="added",
+    )
+    db.add(event)
+
+    ownership = FoodOwnership(
+        inventory_item_id=inventory.id,
+        member_id=payload.added_by_member_id,
+    )
+    db.add(ownership)
+
     db.commit()
     db.refresh(inventory)
 
@@ -642,6 +690,7 @@ def list_household_inventory(household_id: str, db: Session = Depends(get_db)):
         .options(
             joinedload(FoodInventory.packaged_food),
             joinedload(FoodInventory.unpackaged_food),
+            joinedload(FoodInventory.ownerships).joinedload(FoodOwnership.member),
         )
         .filter(FoodInventory.household_id == household_id)
         .order_by(FoodInventory.date_added.desc())
@@ -669,6 +718,10 @@ def list_household_inventory(household_id: str, db: Session = Depends(get_db)):
             food_category = None
             source_type = None
 
+        owner = item.ownerships[0] if item.ownerships else None
+        owner_id_val = owner.member_id if owner else None
+        owner_display_name_val = owner.member.display_name if owner else None
+
         result.append(InventoryItemWithNames(
             id=item.id,
             household_id=item.household_id,
@@ -686,6 +739,8 @@ def list_household_inventory(household_id: str, db: Session = Depends(get_db)):
             food_brand=food_brand,
             food_category=food_category,
             source_type=source_type,
+            owner_id=owner_id_val,
+            owner_display_name=owner_display_name_val,
         ))
 
     return result

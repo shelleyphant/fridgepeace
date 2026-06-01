@@ -255,6 +255,10 @@ class FoodEventResponse(BaseModel):
     date_occurred: datetime
 
 
+class FoodEventWithMemberResponse(FoodEventResponse):
+    member_display_name: Optional[str] = None
+
+
 # ─── Food Ownership ────────────────────────────────────────
 
 class FoodOwnershipCreate(BaseModel):
@@ -339,3 +343,5 @@ class InventoryItemWithNames(BaseModel):
     food_brand: Optional[str] = None
     food_category: Optional[str] = None
     source_type: Optional[str] = None
+    owner_id: Optional[int] = None
+    owner_display_name: Optional[str] = None

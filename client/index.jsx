@@ -24,6 +24,7 @@ const SORT_OPTIONS = [
 
 const FILTER_OPTIONS = [
   { value: 'all', label: 'All' },
+  { value: 'mine', label: '👤 Mine' },
   { value: 'fridge', label: '🧊 Fridge' },
   { value: 'freezer', label: '❄️ Freezer' },
   { value: 'pantry', label: '📦 Pantry' },
@@ -40,9 +41,13 @@ const App = () => {
 
   const items = localItems ?? inventory;
 
+  const currentMemberId = parseInt(localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID));
+
   const filtered = useMemo(() => {
     let result = [...items];
-    if (filterBy !== 'all') {
+    if (filterBy === 'mine') {
+      result = result.filter((i) => i.owner_id === currentMemberId);
+    } else if (filterBy !== 'all') {
       result = result.filter((i) => i.storage_location === filterBy);
     }
     result.sort((a, b) => {
@@ -55,7 +60,7 @@ const App = () => {
       return new Date(b.date_added) - new Date(a.date_added);
     });
     return result;
-  }, [items, sortBy, filterBy]);
+  }, [items, sortBy, filterBy, currentMemberId]);
 
   const handleDelete = (deletedId) => {
     setLocalItems((prev) => (prev ?? inventory).filter((i) => i.id !== deletedId));

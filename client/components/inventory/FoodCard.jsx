@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import moment from 'moment/moment';
 import { useDeleteFood } from '../../hooks/useDeleteFood';
+import OwnerBadge from './OwnerBadge';
 
 const STORAGE_LABEL = {
   fridge: '🧊 Fridge',
@@ -48,6 +49,9 @@ const FoodCard = ({ item, onDelete, onEdit }) => {
           {item.food_brand && (
             <span className="block text-sm text-gray-500">{item.food_brand}</span>
           )}
+          <div className="mt-1">
+            <OwnerBadge ownerName={item.owner_display_name} />
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {quantity && (

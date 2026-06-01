@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAddFood } from '../../hooks/useAddFood';
+import { useFoodEvents } from '../../hooks/useFoodEvents';
+import { useFoodOwnership } from '../../hooks/useFoodOwnership';
+import { STORAGE_KEYS } from '../../constants';
+import EventTimeline from './EventTimeline';
+import OwnerBadge from './OwnerBadge';
 
 const STORAGE_OPTIONS = [
   { value: 'fridge', label: 'Refrigerator' },
@@ -35,6 +40,46 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
   const [successMsg, setSuccessMsg] = useState('');
   const [touched, setTouched] = useState({});
   const { addFood, updateFood, loading, error } = useAddFood();
+  const { events, loading: eventsLoading, error: eventsError, fetchEvents } = useFoodEvents();
+  const { ownerships, fetchOwnerships, claimOwnership, removeOwnership } = useFoodOwnership();
+  const householdMemberId = parseInt(localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID));
+
+  const inventoryItemId = inventoryItem?.id ?? null;
+  const isOwner = inventoryItemId && ownerships.some((o) => o.member_id === householdMemberId);
+  const [unclaiming, setUnclaiming] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+
+  useEffect(() => {
+    if (inventoryItemId) {
+      fetchEvents(inventoryItemId);
+      fetchOwnerships(inventoryItemId);
+    }
+  }, [inventoryItemId]);
+
+  const handleSetAsShared = async () => {
+    setUnclaiming(true);
+    const success = await removeOwnership(inventoryItemId, householdMemberId);
+    if (success) {
+      fetchOwnerships(inventoryItemId);
+    }
+    setUnclaiming(false);
+  };
+
+  const handleClaim = async () => {
+    setClaiming(true);
+    const success = await claimOwnership(inventoryItemId, householdMemberId);
+    if (success) {
+      fetchOwnerships(inventoryItemId);
+    }
+    setClaiming(false);
+  };
+
+  let ownerDisplayName = null;
+  if (isOwner) {
+    ownerDisplayName = 'You';
+  } else if (inventoryItem?.owner_display_name) {
+    ownerDisplayName = inventoryItem.owner_display_name;
+  }
 
   const quantityError = touched.quantity ? validateQuantity(quantity) : null;
   const expiryError = touched.expiryDate ? validateExpiryDate(expiryDate) : null;
@@ -67,6 +112,11 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         <p className="text-lg font-semibold">{foodName}</p>
         {foodBrand && <p className="text-sm text-gray-600">{foodBrand}</p>}
         {foodCategory && <p className="text-sm text-gray-500">{foodCategory}</p>}
+        {inventoryItemId && (
+          <div className="mt-1">
+            <OwnerBadge ownerName={ownerDisplayName} />
+          </div>
+        )}
         {food.fridge_days_min != null && (
           <p className="mt-1 text-xs text-gray-400">
             Recommended storage:{' '}
@@ -179,6 +229,30 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
       >
         {loading ? 'Adding...' : isUpdate ? 'Add more to existing' : 'Add to fridge'}
       </button>
+
+      {inventoryItemId && (
+        <EventTimeline events={events} loading={eventsLoading} error={eventsError} />
+      )}
+
+      {isOwner && (
+        <button
+          className="w-full rounded-full border border-amber-300 px-6 py-2 text-center text-sm font-medium text-amber-700 disabled:opacity-50 hover:bg-amber-50"
+          disabled={unclaiming}
+          onClick={handleSetAsShared}
+        >
+          {unclaiming ? 'Setting...' : 'Set as shared'}
+        </button>
+      )}
+
+      {!isOwner && inventoryItemId && (
+        <button
+          className="w-full rounded-full border border-emerald-300 px-6 py-2 text-center text-sm font-medium text-emerald-700 disabled:opacity-50 hover:bg-emerald-50"
+          disabled={claiming}
+          onClick={handleClaim}
+        >
+          {claiming ? 'Claiming...' : 'Claim as mine'}
+        </button>
+      )}
     </div>
   );
 };

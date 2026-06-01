@@ -4,6 +4,142 @@
 
 ---
 
+
+## v0.9 — Ownership Fixes & Sharing Enhancement
+
+### Overview
+
+Fixed core ownership logic defects and completed the full sharing workflow. All food additions now correctly create ownership records (including OpenFoodFacts), the "Mine" filter is based on actual ownership rather than "added by," and users can claim shared food or release ownership in both FoodDetail and FoodEditForm views.
+
+### P0 Fix: "Mine" Filter Uses Ownership
+
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+
+**Before**: The "👤 Mine" filter used `added_by_member_id` — showing items the current user *added*, even if they had released ownership or the item was shared.
+
+**After**: Filter uses `owner_id === currentMemberId`, matching actual ownership. Releasing ownership (Set as shared) immediately removes the item from the "Mine" view, and claiming an item adds it.
+
+```diff
+- result = result.filter((i) => i.added_by_member_id === currentMemberId);
++ result = result.filter((i) => i.owner_id === currentMemberId);
+```
+
+### P0 Fix: OpenFoodFacts Creates Ownership
+
+**Files modified**: [useAddFood.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useAddFood.js)
+
+**Before**: The OpenFoodFacts (barcode scan / search) path called `POST /food-inventory/` directly, which does not create a `FoodOwnership` record. All items added via this path were permanently "Shared" with no owner.
+
+**After**: Changed to call `POST /foods/add-to-inventory` with `source=packaged`, which automatically creates both a `FoodEvent("added")` and a `FoodOwnership` linking the item to the adding member.
+
+### Feature: Claim Shared Food
+
+**Files modified**: [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx)
+
+**Before**: Only "Set as shared" existed — ownership release was a one-way operation. Shared food could never be claimed by another member.
+
+**After**: Added a green **"Claim as mine"** button in FoodDetail, visible when the viewer is not an owner of the item. Calls `POST /food-ownerships/` to claim ownership, then refreshes the display. The item label changes from green "Shared" to blue "👤 You" immediately.
+
+### Feature: Auto-Claim on Quantity Add
+
+**Files modified**: [useAddFood.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useAddFood.js)
+
+**Before**: `updateFood` only increased the `quantity` field. If the item was Shared or owned by someone else, the added quantity still belonged to the original owner (or no one).
+
+**After**: After updating quantity, `updateFood` now calls `POST /food-ownerships/` to add the current user as an owner. If the user already owns it (HTTP 400), the error is silently ignored — the user now has a claim on the item reflecting their additional contribution.
+
+### Feature: Ownership in FoodEditForm
+
+**Files modified**: [FoodEditForm.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodEditForm.jsx)
+
+**Before**: The Edit form only had quantity, unit, expiry date, and storage location fields — no ownership information or controls.
+
+**After**: Added `OwnerBadge` display at the top (showing "You", "Shared", or another member's name), plus **"Claim as mine"** (green) and **"Set as shared"** (amber) buttons with loading states, matching the functionality in FoodDetail.
+
+### OwnerBadge Visual Polish
+
+**Files modified**: [OwnerBadge.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/OwnerBadge.jsx), [FoodCard.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodCard.jsx), [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx)
+
+**Before**: OwnerBadge showed blue "👤 {name}" for owned items or gray "Unclaimed" label. FoodCard only displayed the badge conditionally. FoodDetail resolved display name with limited logic.
+
+**After**:
+- **OwnerBadge**: No owner → green `bg-emerald-100` **"Shared"** label. Current user → blue "👤 **You**". Other member → blue "👤 {name}".
+- **FoodCard**: Badge now always visible on every card — shows "Shared" for unclaimed, "👤 You" for your items, or the owner's name.
+- **FoodDetail**: Resolves display name with full logic: current owner → "You", other owner → `inventoryItem.owner_display_name`, no owner → `null` (renders "Shared").
+
+### Modified Files (v0.9)
+
+| File | Changes |
+|------|---------|
+| `client/index.jsx` | "Mine" filter: `added_by_member_id` → `owner_id` |
+| `client/hooks/useAddFood.js` | OpenFoodFacts uses `/foods/add-to-inventory`; `updateFood` auto-claims ownership |
+| `client/components/inventory/FoodDetail.jsx` | Added "Claim as mine" button; `ownerDisplayName` resolution logic |
+| `client/components/inventory/FoodEditForm.jsx` | Added OwnerBadge + Claim / Set as shared buttons |
+| `client/components/inventory/OwnerBadge.jsx` | "Unclaimed" → green "Shared" label |
+| `client/components/inventory/FoodCard.jsx` | OwnerBadge always visible (unconditional render) |
+
+---
+
+## v0.8 — Operation History & Food Ownership
+
+### Overview
+
+Integrated the backend's existing `FoodEvent` and `FoodOwnership` modules into the frontend. Every food addition now auto-creates an event log entry and ownership record. Users can view the complete timeline of actions on any food item and filter inventory by "My items."
+
+### Backend: Auto-Create Events & Ownership on Add
+
+**Files modified**: [routers.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/routers.py), [schemas.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/schemas.py)
+
+**Before**: `POST /foods/add-to-inventory` only created an inventory record. `PUT /food-inventory/{id}` updated fields silently. The `FoodEvent` and `FoodOwnership` tables existed with full API endpoints but were never populated by the frontend.
+
+**After**:
+- **`add_to_inventory()`** — After creating the inventory record, automatically creates a `FoodEvent(event_type="added")` and a `FoodOwnership` linking the item to the adding member.
+- **`update_inventory_item()`** — Detects `storage_location` changes and auto-creates a `FoodEvent(event_type="moved")` when the location differs from the old value.
+- **New endpoint** — `GET /food-events/by-inventory/{id}/with-members` returns events joined with `HouseholdMember.display_name` for frontend display.
+- **New schema** — `FoodEventWithMemberResponse` extends `FoodEventResponse` with `member_display_name`.
+
+### Frontend: Event Timeline Component
+
+**Files created**: [useFoodEvents.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useFoodEvents.js), [EventTimeline.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/EventTimeline.jsx)
+
+**How it works**:
+- `useFoodEvents` hook fetches events for a specific inventory item via the new `/with-members` endpoint.
+- `EventTimeline` renders a vertical timeline with icons for each event type (➕ added, ✅ consumed, ⏰ expired, 📦 moved), showing who performed the action and when.
+- Integrated into `FoodDetail.jsx` — visible when viewing an existing inventory item (e.g., adding more quantity).
+
+### Frontend: Owner Badge
+
+**Files created**: [OwnerBadge.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/OwnerBadge.jsx), [useFoodOwnership.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useFoodOwnership.js)
+
+**How it works**:
+- `OwnerBadge` displays a blue "👤 {name}" badge or gray "Unclaimed" label.
+- Shown in `FoodDetail.jsx` for existing inventory items.
+- `FoodCard.jsx` has the badge wired up (requires `owner_display_name` field on the inventory item — ready for future schema extension).
+
+### Frontend: "Mine" Filter
+
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+
+**Before**: Filter options were All / Fridge / Freezer / Pantry — only by storage location.
+
+**After**: Added "👤 Mine" as the second filter option. When selected, only items where `added_by_member_id` matches the current user are shown. This lets users quickly find food they personally added.
+
+### Modified Files (v0.8)
+
+| File | Changes |
+|------|---------|
+| `backend/routers.py` | Auto-create FoodEvent + FoodOwnership on add; detect storage change on edit; new `/with-members` endpoint |
+| `backend/schemas.py` | New `FoodEventWithMemberResponse` schema |
+| `client/hooks/useFoodEvents.js` | **Created** — fetch events by inventory item |
+| `client/hooks/useFoodOwnership.js` | **Created** — fetch, claim, remove ownership |
+| `client/components/inventory/EventTimeline.jsx` | **Created** — vertical timeline UI with event icons |
+| `client/components/inventory/OwnerBadge.jsx` | **Created** — owner display badge |
+| `client/components/inventory/FoodDetail.jsx` | Integrated EventTimeline + OwnerBadge |
+| `client/components/inventory/FoodCard.jsx` | Added OwnerBadge placeholder |
+| `client/index.jsx` | Added "👤 Mine" filter option |
+
+---
+
 ## v0.7 — Search UX & Form Validation
 
 ### Overview

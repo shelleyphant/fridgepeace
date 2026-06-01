@@ -57,15 +57,15 @@ export function useAddFood() {
         }
 
         await axios.post(
-          `${API_URL}/food-inventory/`,
+          `${API_URL}/foods/add-to-inventory`,
           {
-            packaged_food_id,
-            unpackaged_food_id: null,
             household_id,
             added_by_member_id,
+            source: 'packaged',
+            source_id: packaged_food_id,
+            storage_location: inventoryDetails.storage_location ?? null,
             quantity: inventoryDetails.quantity,
             unit: inventoryDetails.unit ?? 'item',
-            storage_location: inventoryDetails.storage_location ?? null,
             expiry_date: inventoryDetails.expiry_date ?? null,
           },
           { headers: { 'content-type': 'application/json' } },
@@ -104,6 +104,17 @@ export function useAddFood() {
         },
         { headers: { 'content-type': 'application/json' } },
       );
+
+      const memberId = parseInt(localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID));
+      try {
+        await axios.post(`${API_URL}/food-ownerships/`, {
+          inventory_item_id: inventoryItem.id,
+          member_id: memberId,
+        });
+      } catch {
+        // 400 = already owned, which is fine
+      }
+
       return true;
     } catch (e) {
       setError(e);

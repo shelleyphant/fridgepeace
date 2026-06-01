@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { API_URL } from '../../constants';
+import { API_URL, STORAGE_KEYS } from '../../constants';
+import { useFoodOwnership } from '../../hooks/useFoodOwnership';
+import OwnerBadge from './OwnerBadge';
 
 const STORAGE_OPTIONS = [
   { value: 'fridge', label: 'Refrigerator' },
@@ -36,6 +38,32 @@ const FoodEditForm = ({ item, onSave, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [touched, setTouched] = useState({});
+  const { ownerships, fetchOwnerships, claimOwnership, removeOwnership } = useFoodOwnership();
+  const [claiming, setClaiming] = useState(false);
+  const [unclaiming, setUnclaiming] = useState(false);
+
+  const householdMemberId = parseInt(localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID));
+  const isOwner = item.id && ownerships.some((o) => o.member_id === householdMemberId);
+
+  useEffect(() => {
+    if (item.id) {
+      fetchOwnerships(item.id);
+    }
+  }, [item.id]);
+
+  const handleClaim = async () => {
+    setClaiming(true);
+    const success = await claimOwnership(item.id, householdMemberId);
+    if (success) fetchOwnerships(item.id);
+    setClaiming(false);
+  };
+
+  const handleSetAsShared = async () => {
+    setUnclaiming(true);
+    const success = await removeOwnership(item.id, householdMemberId);
+    if (success) fetchOwnerships(item.id);
+    setUnclaiming(false);
+  };
 
   const quantityError = touched.quantity ? validateQuantity(quantity) : null;
   const expiryError = touched.expiryDate ? validateExpiryDate(expiryDate) : null;
@@ -69,6 +97,9 @@ const FoodEditForm = ({ item, onSave, onCancel }) => {
   return (
     <div className="rounded-2xl bg-white p-4 shadow-sm mt-3 border-l-4 border-l-water-400">
       <p className="text-lg font-bold mb-3">Edit: {item.name}</p>
+      <div className="mb-3">
+        <OwnerBadge ownerName={isOwner ? 'You' : (item.owner_display_name ?? null)} />
+      </div>
 
       <div className="space-y-3">
         <div className="flex gap-2">
@@ -148,6 +179,26 @@ const FoodEditForm = ({ item, onSave, onCancel }) => {
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
+
+        {isOwner && (
+          <button
+            className="w-full rounded-full border border-amber-300 px-6 py-2 text-center text-sm font-medium text-amber-700 disabled:opacity-50 hover:bg-amber-50"
+            disabled={unclaiming}
+            onClick={handleSetAsShared}
+          >
+            {unclaiming ? 'Setting...' : 'Set as shared'}
+          </button>
+        )}
+
+        {!isOwner && (
+          <button
+            className="w-full rounded-full border border-emerald-300 px-6 py-2 text-center text-sm font-medium text-emerald-700 disabled:opacity-50 hover:bg-emerald-50"
+            disabled={claiming}
+            onClick={handleClaim}
+          >
+            {claiming ? 'Claiming...' : 'Claim as mine'}
+          </button>
+        )}
 
         <div className="flex gap-2">
           <button
