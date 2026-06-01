@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-
-const API = process.env.API_URL ?? '';
+import { API_URL, STORAGE_KEYS } from '../constants';
 
 export function useAddFood() {
   const [loading, setLoading] = useState(false);
@@ -11,12 +10,12 @@ export function useAddFood() {
     setLoading(true);
     setError(null);
     try {
-      const household_id = localStorage.getItem('household_id');
-      const added_by_member_id = parseInt(localStorage.getItem('household_member_id'));
+      const household_id = localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_ID);
+      const added_by_member_id = parseInt(localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID));
 
       if (selected._source === 'foodkeeper' || selected._source === 'packaged') {
         const { data } = await axios.post(
-          `${API}/foods/add-to-inventory`,
+          `${API_URL}/foods/add-to-inventory`,
           {
             household_id,
             added_by_member_id,
@@ -33,7 +32,7 @@ export function useAddFood() {
       }
 
       if (selected._source === 'openfoodfacts') {
-        const { data: existing } = await axios.get(`${API}/packaged-foods/`);
+        const { data: existing } = await axios.get(`${API_URL}/packaged-foods/`);
         const match = existing.find((f) => f.barcode === selected.code);
         let packaged_food_id;
 
@@ -41,7 +40,7 @@ export function useAddFood() {
           packaged_food_id = match.id;
         } else {
           const { data: created } = await axios.post(
-            `${API}/packaged-foods/`,
+            `${API_URL}/packaged-foods/`,
             {
               barcode: selected.code ?? null,
               name: selected.product_name,
@@ -58,7 +57,7 @@ export function useAddFood() {
         }
 
         await axios.post(
-          `${API}/food-inventory/`,
+          `${API_URL}/food-inventory/`,
           {
             packaged_food_id,
             unpackaged_food_id: null,
@@ -92,7 +91,7 @@ export function useAddFood() {
       const newQuantity =
         parseFloat(inventoryItem.quantity) + parseFloat(additionalQuantity);
       await axios.put(
-        `${API}/food-inventory/${inventoryItem.id}`,
+        `${API_URL}/food-inventory/${inventoryItem.id}`,
         {
           household_id: inventoryItem.household_id,
           added_by_member_id: inventoryItem.added_by_member_id,

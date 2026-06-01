@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-
-const API = process.env.API_URL ?? '';
+import { API_URL, STORAGE_KEYS } from '../constants';
 
 export function useInventory() {
   const [inventory, setInventory] = useState([]);
@@ -12,22 +11,19 @@ export function useInventory() {
     setLoading(true);
     setError(null);
     try {
-      const householdId = localStorage.getItem('household_id');
-      const memberId = parseInt(localStorage.getItem('household_member_id'));
+      const householdId = localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_ID);
 
       if (!householdId) {
         setInventory([]);
         return;
       }
 
-      const { data } = await axios.get(`${API}/households/${householdId}/inventory`);
+      const { data } = await axios.get(`${API_URL}/households/${householdId}/inventory`);
 
-      const items = data
-        .filter((item) => item.added_by_member_id === memberId)
-        .map((item) => ({
-          ...item,
-          name: item.food_name ?? 'Unknown',
-        }));
+      const items = data.map((item) => ({
+        ...item,
+        name: item.food_name ?? 'Unknown',
+      }));
 
       setInventory(items);
     } catch (e) {

@@ -4,6 +4,77 @@
 
 ---
 
+## v0.6 — Basic Functionality Fixes: Shared Inventory & Code Quality
+
+### Overview
+
+Fixed a critical bug where household members couldn't see each other's food items, and extracted all hardcoded API URL and localStorage key references into a shared constant file. This is a foundational refactor to ensure basic "shared kitchen" functionality works before adding more features.
+
+### P0 Bug: Shared Inventory Visibility
+
+**Files modified**: [useInventory.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useInventory.js)
+
+**Problem**: The `useInventory` hook filtered inventory items by `added_by_member_id`, so each member could only see food they personally added — defeating the purpose of a shared household inventory.
+
+**Fix**: Removed the `.filter((item) => item.added_by_member_id === memberId)` line. All household members now see the complete shared inventory.
+
+```diff
+- const items = data
+-   .filter((item) => item.added_by_member_id === memberId)
+-   .map((item) => ({ ...item, name: item.food_name ?? 'Unknown' }));
++ const items = data.map((item) => ({
++   ...item,
++   name: item.food_name ?? 'Unknown',
++ }));
+```
+
+### Code Quality: Constants Extraction
+
+**Files created**: [constants.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/constants.js)
+
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx), [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx), [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx), [FoodEditForm.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodEditForm.jsx), [useInventory.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useInventory.js), [useAddFood.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useAddFood.js), [useDeleteFood.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useDeleteFood.js), [useSearch.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useSearch.js), [useMembership.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useMembership.js), [useHousehold.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useHousehold.js)
+
+**Problem**: `process.env.API_URL` and localStorage key strings were duplicated across 10+ files, making the codebase fragile and hard to maintain.
+
+**Fix**: Created `client/constants.js` as the single source of truth:
+
+```javascript
+export const API_URL = process.env.API_URL ?? '';
+
+export const STORAGE_KEYS = {
+  MEMBER_ID: 'member_id',
+  MEMBER_NAME: 'member_name',
+  HOUSEHOLD_ID: 'household_id',
+  HOUSEHOLD_MEMBER_ID: 'household_member_id',
+};
+```
+
+All 10 existing files updated to import and use these constants. No functional changes.
+
+### What Was NOT Changed (by design)
+
+- **`NewFood.jsx`** — Contains barcode-related logic only; excluded per scope decision.
+- **Backend code** — No backend changes in this version.
+- **UI/UX styling** — Only functional bug fixes and code quality improvements.
+
+### Modified Files (v0.6)
+
+| File | Changes |
+|------|---------|
+| `client/constants.js` | **Created** — API_URL and STORAGE_KEYS constants |
+| `client/hooks/useInventory.js` | Removed `added_by_member_id` filter; imported constants |
+| `client/index.jsx` | Imported constants; replaced all hardcoded keys |
+| `client/components/Header.jsx` | Imported API_URL; replaced hardcoded references |
+| `client/components/Onboarding.jsx` | Imported constants; replaced all hardcoded keys |
+| `client/components/inventory/FoodEditForm.jsx` | Imported API_URL; replaced hardcoded reference |
+| `client/hooks/useAddFood.js` | Imported constants; replaced all hardcoded keys |
+| `client/hooks/useDeleteFood.js` | Imported API_URL; replaced hardcoded reference |
+| `client/hooks/useSearch.js` | Imported API_URL; replaced hardcoded references |
+| `client/hooks/useMembership.js` | Imported constants; replaced all hardcoded keys |
+| `client/hooks/useHousehold.js` | Imported constants; replaced all hardcoded keys |
+
+---
+
 ## v0.5 — UX Improvements: FAB Button & Household Management
 
 ### Overview

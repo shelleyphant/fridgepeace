@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-
-const API = process.env.API_URL ?? '';
+import { API_URL } from '../constants';
 
 export function useDeleteFood() {
   const [loading, setLoading] = useState(false);
@@ -11,7 +10,7 @@ export function useDeleteFood() {
     setLoading(true);
     setError(null);
     try {
-      await axios.delete(`${API}/food-inventory/${itemId}`);
+      await axios.delete(`${API_URL}/food-inventory/${itemId}`);
       return true;
     } catch (e) {
       setError(e);

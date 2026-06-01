@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-
-const API = process.env.API_URL ?? '';
+import { API_URL } from '../constants';
 
 export function useSearch(query) {
   const [results, setResults] = useState([]);
@@ -17,7 +16,7 @@ export function useSearch(query) {
       let local = [];
 
       try {
-        const { data } = await axios.get(`${API}/foods/search`, {
+        const { data } = await axios.get(`${API_URL}/foods/search`, {
           params: { q: query },
         });
 
@@ -32,7 +31,7 @@ export function useSearch(query) {
       let remote = [];
       try {
         let json;
-        if (API) {
+        if (API_URL) {
           const params = new URLSearchParams({
             q: query,
             countries_tags_en: 'australia',

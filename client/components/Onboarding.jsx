@@ -3,11 +3,10 @@ import axios from 'axios';
 import { addMembership, setMembership } from '../hooks/useMembership';
 import Button from './Button';
 import { addHousehold, joinHousehold } from '../hooks/useHousehold';
-
-const API = process.env.API_URL ?? '';
+import { API_URL, STORAGE_KEYS } from '../constants';
 
 const Onboarding = ({ onComplete }) => {
-  const [member_id, setMemberId] = useState(localStorage.getItem('member_id'));
+  const [member_id, setMemberId] = useState(localStorage.getItem(STORAGE_KEYS.MEMBER_ID));
   const [memberFormType, setMemberFormType] = useState(null);
   const [houseFormType, setHouseFormType] = useState(null);
   const [input, setInput] = useState('');
@@ -19,17 +18,17 @@ const Onboarding = ({ onComplete }) => {
       memberFormType === 'signup'
         ? await addMembership(input)
         : await setMembership(input);
-      localStorage.setItem('member_name', input);
-      const userId = localStorage.getItem('member_id');
+      localStorage.setItem(STORAGE_KEYS.MEMBER_NAME, input);
+      const userId = localStorage.getItem(STORAGE_KEYS.MEMBER_ID);
 
-      const { data: households } = await axios.get(`${API}/member/${userId}/households`);
+      const { data: households } = await axios.get(`${API_URL}/member/${userId}/households`);
       if (households.length > 0) {
         const household = households[0];
-        localStorage.setItem('household_id', household.id);
-        const { data: members } = await axios.get(`${API}/member/${household.id}/members`);
+        localStorage.setItem(STORAGE_KEYS.HOUSEHOLD_ID, household.id);
+        const { data: members } = await axios.get(`${API_URL}/member/${household.id}/members`);
         const myMembership = members.find((m) => String(m.user_id) === String(userId));
         if (myMembership) {
-          localStorage.setItem('household_member_id', String(myMembership.id));
+          localStorage.setItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID, String(myMembership.id));
         }
         onComplete();
         return;
@@ -47,7 +46,7 @@ const Onboarding = ({ onComplete }) => {
     try {
       if (houseFormType === 'create') {
         await addHousehold(member_id, input);
-        setHouseholdCode(localStorage.getItem('household_id'));
+        setHouseholdCode(localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_ID));
       } else {
         await joinHousehold(member_id, input);
         onComplete();

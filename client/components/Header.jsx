@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-
-const API = process.env.API_URL ?? '';
+import { API_URL } from '../constants';
 
 const Header = ({ householdId, memberName, userId, onLogout, onLeaveHousehold, onSwitchHousehold }) => {
   const [showPanel, setShowPanel] = useState(false);
@@ -22,8 +21,8 @@ const Header = ({ householdId, memberName, userId, onLogout, onLeaveHousehold, o
     setConfirmLeave(false);
     try {
       const [membersRes, householdsRes] = await Promise.all([
-        axios.get(`${API}/member/${householdId}/members`),
-        userId ? axios.get(`${API}/member/${userId}/households`) : Promise.resolve({ data: [] }),
+        axios.get(`${API_URL}/member/${householdId}/members`),
+        userId ? axios.get(`${API_URL}/member/${userId}/households`) : Promise.resolve({ data: [] }),
       ]);
       setMembers(membersRes.data);
       setHouseholds(householdsRes.data);
@@ -36,7 +35,7 @@ const Header = ({ householdId, memberName, userId, onLogout, onLeaveHousehold, o
 
   const handleLeave = async () => {
     try {
-      await axios.post(`${API}/member/leave/`, {
+      await axios.post(`${API_URL}/member/leave/`, {
         user_id: parseInt(userId),
         household_id: householdId,
       });

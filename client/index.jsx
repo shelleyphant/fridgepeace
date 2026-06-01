@@ -9,11 +9,12 @@ import FoodCard from './components/inventory/FoodCard';
 import FoodEditForm from './components/inventory/FoodEditForm';
 import SkeletonCard from './components/inventory/SkeletonCard';
 import { useInventory } from './hooks/useInventory';
-
-const API = process.env.API_URL ?? '';
+import { API_URL, STORAGE_KEYS } from './constants';
 
 const isSetUp = () =>
-  localStorage.getItem('member_id') && localStorage.getItem('household_id') && localStorage.getItem('household_member_id');
+  localStorage.getItem(STORAGE_KEYS.MEMBER_ID) &&
+  localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_ID) &&
+  localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID);
 
 const SORT_OPTIONS = [
   { value: 'recent', label: 'Recently Added' },
@@ -73,19 +74,19 @@ const App = () => {
   };
 
   const handleLeaveHousehold = () => {
-    localStorage.removeItem('household_id');
-    localStorage.removeItem('household_member_id');
+    localStorage.removeItem(STORAGE_KEYS.HOUSEHOLD_ID);
+    localStorage.removeItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID);
     setReady(false);
   };
 
   const handleSwitchHousehold = async (newHouseholdId) => {
-    localStorage.setItem('household_id', newHouseholdId);
+    localStorage.setItem(STORAGE_KEYS.HOUSEHOLD_ID, newHouseholdId);
     try {
-      const memberId = localStorage.getItem('member_id');
-      const { data: members } = await axios.get(`${API}/member/${newHouseholdId}/members`);
+      const memberId = localStorage.getItem(STORAGE_KEYS.MEMBER_ID);
+      const { data: members } = await axios.get(`${API_URL}/member/${newHouseholdId}/members`);
       const myMembership = members.find((m) => String(m.user_id) === memberId);
       if (myMembership) {
-        localStorage.setItem('household_member_id', String(myMembership.id));
+        localStorage.setItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID, String(myMembership.id));
       }
     } catch (e) {
       console.error('Failed to switch household', e);
@@ -95,9 +96,9 @@ const App = () => {
 
   if (!ready) return <Onboarding onComplete={() => setReady(true)} />;
 
-  const householdId = localStorage.getItem('household_id');
-  const memberName = localStorage.getItem('member_name');
-  const userId = localStorage.getItem('member_id');
+  const householdId = localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_ID);
+  const memberName = localStorage.getItem(STORAGE_KEYS.MEMBER_NAME);
+  const userId = localStorage.getItem(STORAGE_KEYS.MEMBER_ID);
 
   return (
     <>

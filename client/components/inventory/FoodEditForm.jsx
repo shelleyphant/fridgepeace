@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-
-const API = process.env.API_URL ?? '';
+import { API_URL } from '../../constants';
 
 const STORAGE_OPTIONS = [
   { value: 'fridge', label: 'Refrigerator' },
@@ -24,7 +23,7 @@ const FoodEditForm = ({ item, onSave, onCancel }) => {
     setLoading(true);
     setError(null);
     try {
-      await axios.put(`${API}/food-inventory/${item.id}`, {
+      await axios.put(`${API_URL}/food-inventory/${item.id}`, {
         household_id: item.household_id,
         added_by_member_id: item.added_by_member_id,
         packaged_food_id: item.packaged_food_id ?? null,
