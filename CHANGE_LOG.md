@@ -4,6 +4,177 @@
 
 ---
 
+## v1.3 — FoodKeeper Data Deep Integration & Context-Aware Shelf Life Engine
+
+### Overview
+
+This release is a comprehensive upgrade to the shelf life recommendation system. The FoodKeeper database model is expanded from ~10 to 38 fields, the seed script imports 661 full products plus 91 cooking tips and 88 cooking methods, and the shelf life engine becomes context-aware — supporting 3 storage scenarios (dop/after_open/after_thaw) × 3 storage locations (fridge/freezer/pantry) with a 5-level fallback strategy. The API, search, and frontend are all updated to consume the enriched data.
+
+### P0: Data Model Extension
+
+**File modified**: [backend/models.py](./backend/models.py)
+
+**FoodKeeperProduct** — Extended from ~10 columns to 38 columns covering all FoodKeeper source fields:
+
+| Category | Columns |
+|----------|---------|
+| **Identification** | `id`, `external_id`, `name`, `name_subtitle`, `keywords` (comma-separated synonyms) |
+| **Fridge (fresh)** | `fridge_min`, `fridge_max`, `fridge_metric`, `fridge_tips` |
+| **Freezer** | `freeze_min`, `freeze_max`, `freeze_metric`, `freeze_tips` |
+| **Pantry** | `pantry_min`, `pantry_max`, `pantry_metric`, `pantry_tips` |
+| **After Open (fridge)** | `fridge_after_open_min`, `fridge_after_open_max`, `fridge_after_open_metric` |
+| **After Open (pantry)** | `pantry_after_open_min`, `pantry_after_open_max`, `pantry_after_open_metric` |
+| **After Thaw (fridge)** | `fridge_after_thaw_min`, `fridge_after_thaw_max`, `fridge_after_thaw_metric` |
+| **Metadata** | `category_id` (FK), `is_child`, `website_url` |
+
+**FoodKeeperCategory** — Added `subcategory_name` column for secondary category grouping.
+
+**New Tables**:
+
+| Table | Key Columns |
+|-------|-------------|
+| `FoodKeeperCookingTip` | `id`, `product_id` (FK), `tips`, `safe_min_temp` |
+| `FoodKeeperCookingMethod` | `id`, `product_id` (FK), `method`, `temperature` |
+
+### P1: Seed Data Rewrite
+
+**File rewritten**: [backend/seed_foodkeeper.py](./backend/seed_foodkeeper.py)
+
+**Before**: Imported ~10 basic fields from `foodkeeper.json`.
+
+**After**: Full 38-field import with intelligent unit conversion:
+- **Unit normalisation** — All time values converted to **days** (Weeks × 7, Months × 30, Years × 365).
+- **661 products** imported with full shelf life data.
+- **91 cooking tips** imported with safe minimum temperature guidance.
+- **88 cooking methods** imported with cooking temperature references.
+- **25 categories** with subcategory names.
+- **660 products** tagged with searchable keywords (synonyms for improved discoverability).
+
+### P2: Context-Aware Shelf Life Engine
+
+**File rewritten**: [backend/shelf_life.py](./backend/shelf_life.py)
+
+**Before**: Simple 15-category dictionary mapping. No support for different consumption contexts (fresh / after opening / after thawing).
+
+**After**: Full context-aware engine with 5-level fallback hierarchy:
+
+```
+L1 — Exact product match (product_id + context + storage)
+  ↓ (if no data)
+L2 — Category aggregate (median of all products in same category)
+  ↓ (if no data)
+L3 — Subcategory aggregate (median of products with same subcategory_name)
+  ↓ (if no data)
+L4 — Category name aggregate (median of products with same category.name)
+  ↓ (if no data)
+L5 — Hardcoded fallback (pantry=365d, fridge=14d, freezer=180d)
+```
+
+**Context matrix** — 3 contexts × 3 storage locations:
+
+| Context | Fridge | Freezer | Pantry |
+|---------|--------|---------|--------|
+| **dop** (Date of Purchase) | `fridge_min/max` | `freeze_min/max` | `pantry_min/max` |
+| **after_open** (After Opening) | `fridge_after_open_min/max` | unsupported | `pantry_after_open_min/max` |
+| **after_thaw** (After Thawing) | `fridge_after_thaw_min/max` | unsupported | unsupported |
+
+**Key functions**:
+- `compute_shelf_life(db, product_id, context, storage)` — Returns a `ShelfLifeResult` with `min_days`, `max_days`, `source` (exact/CategoryAggregate/fallback, etc.).
+- `compute_all_storage_recommendations(db, product_id, context)` — Returns recommendations for all 3 storage locations.
+- `get_storage_recommendations(db, foodkeeper_data, packaged_category, context)` — Unified entry point used by API endpoints.
+
+### P3: Schema Updates
+
+**File modified**: [backend/schemas.py](./backend/schemas.py)
+
+**New models**:
+
+| Model | Fields |
+|-------|--------|
+| `CookingTipResponse` | `id`, `tips`, `safe_min_temp` |
+| `CookingMethodResponse` | `id`, `method`, `temperature` |
+| `ShelfLifeDetail` | `min_days`, `max_days`, `source`, `storage_location`, `context` |
+
+**Extended models**:
+
+| Model | New Fields |
+|-------|------------|
+| `FoodKeeperProductResponse` | `keywords`, `name_subtitle`, `cooking_tips[]`, `cooking_methods[]`, `fridge_min/max/metric`, `freeze_min/max/metric`, `pantry_min/max/metric`, `after_open/after_thaw` variants |
+| `FoodAddToInventoryRequest` | `context` (optional, default `"dop"`) |
+| `FoodAddToInventoryResponse` | `shelf_life_info` (dict of `ShelfLifeDetail`), `recommended_expiry` |
+| `InventoryItemWithNames` | `fridge_days_min/max`, `freezer_days_min/max`, `pantry_days_min/max` |
+
+### P4: API Endpoint Enrichment
+
+**File modified**: [backend/routers.py](./backend/routers.py)
+
+| Endpoint | Changes |
+|----------|---------|
+| `GET /foods/search` | Now matches **both** `name` **and** `keywords` (OR logic). Results include `keywords`, `cooking_tips[]`, `cooking_methods[]` via `joinedload`. |
+| `POST /foods/add-to-inventory` | Accepts optional `context` field. Response includes `shelf_life_info` (all storage recs) and `recommended_expiry` calculated from the selected storage + context. |
+| `GET /households/{id}/inventory` | Each item enriched with `fridge_days_min/max`, `freezer_days_min/max`, `pantry_days_min/max` sourced from the DB-backed FoodKeeper engine. |
+
+### P5: Auto Schema Migration
+
+**File modified**: [backend/main.py](./backend/main.py)
+
+Added automatic schema migration on startup:
+
+1. **Detection** — Checks if `foodkeeper_product` table has the `keywords` column.
+2. **Migration** — If old schema detected, drops all FoodKeeper tables, recreates them with the new schema, and re-seeds all data.
+3. **User impact** — Zero manual steps. The old database is automatically upgraded on next restart.
+
+```python
+@app.on_event("startup")
+def on_startup():
+    if _needs_migration():
+        _run_migration()    # drops old tables → recreates → re-seeds
+    seed_foodkeeper()
+```
+
+### P6: Frontend Robustness
+
+**File modified**: [client/index.jsx](./client/index.jsx), [client/hooks/useFridgeState.js](./client/hooks/useFridgeState.js)
+
+Added automatic 404 detection for stale household data:
+
+- When the inventory API returns `404 Not Found` (e.g., after database reset), the app now:
+  1. Clears all `localStorage` keys.
+  2. Automatically redirects to the Onboarding screen.
+  3. Waits for the user to create/join a new household.
+
+This prevents the "Could not load inventory" error from appearing when the database has been rebuilt.
+
+### P7: Test Suite
+
+**File created**: [backend/test_improvements.py](./backend/test_improvements.py)
+
+Comprehensive 73-test suite covering all new functionality:
+
+| Module | Tests | Scope |
+|--------|-------|-------|
+| Data Model | 31 | 5 tables, 20+ new columns, relationships, constraints |
+| Seed Data | 6 | Categories (25), Products (661), Tips (91), Methods (88) |
+| Shelf Life Engine | 12 | Exact match, category aggregate (median), fallback (L1–L5), contexts (dop/after_open/after_thaw) |
+| Keyword Search | 4 | Name match, keyword match, combined OR search |
+| API Endpoints | 20 | Health, CRUD, search with new fields, add-to-inventory with context and shelf_life_info |
+
+### Files Modified (v1.3)
+
+| File | Changes |
+|------|---------|
+| `backend/models.py` | Extended FoodKeeperProduct (35+ columns), FoodKeeperCategory (subcategory_name), **added** FoodKeeperCookingTip, FoodKeeperCookingMethod |
+| `backend/seed_foodkeeper.py` | **Rewritten** — full 38-field import, 661 products, 91 tips, 88 methods, unit conversion |
+| `backend/shelf_life.py` | **Rewritten** — context-aware engine, 3 contexts × 3 storage, 5-level fallback |
+| `backend/schemas.py` | **Added** CookingTipResponse, CookingMethodResponse, ShelfLifeDetail; extended FoodKeeperProductResponse, FoodAddToInventoryRequest/Response |
+| `backend/routers.py` | Enhanced search (keywords), add-to-inventory (context), inventory list (DB-backed recs) |
+| `backend/main.py` | **Added** auto schema migration logic on startup |
+| `backend/test_improvements.py` | **Created** — 73-test comprehensive suite |
+| `client/index.jsx` | **Added** 404 error detection → auto redirect to onboarding |
+| `client/hooks/useFridgeState.js` | **Added** 404 error passthrough for error boundary handling |
+
+---
+
 ## v1.2 — Storage Recommendation Engine & OFF API Stabilisation
 
 ### Overview

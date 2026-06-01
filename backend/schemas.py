@@ -275,11 +275,32 @@ class FoodOwnershipResponse(BaseModel):
 
 # ─── FoodKeeper Search ─────────────────────────────────────
 
+class CookingTipResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    tips: Optional[str] = None
+    safe_min_temp: Optional[str] = None
+    rest_time: Optional[int] = None
+    rest_time_metric: Optional[str] = None
+
+
+class CookingMethodResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    method: Optional[str] = None
+    temperature: Optional[str] = None
+    timing_from: Optional[int] = None
+    timing_to: Optional[int] = None
+    timing_metric: Optional[str] = None
+
+
 class FoodKeeperProductResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     category_id: Optional[int] = None
     name: str
+    name_subtitle: Optional[str] = None
+    keywords: Optional[str] = None
     fridge_days_min: Optional[int] = None
     fridge_days_max: Optional[int] = None
     freezer_days_min: Optional[int] = None
@@ -287,6 +308,8 @@ class FoodKeeperProductResponse(BaseModel):
     pantry_days_min: Optional[int] = None
     pantry_days_max: Optional[int] = None
     category_name: Optional[str] = None
+    cooking_tips: list[CookingTipResponse] = []
+    cooking_methods: list[CookingMethodResponse] = []
 
 
 class PackagedFoodSearchResponse(BaseModel):
@@ -321,6 +344,14 @@ class FoodAddToInventoryRequest(BaseModel):
     quantity: Decimal = Field(..., gt=0)
     unit: str
     expiry_date: Optional[date] = None
+    context: Literal['dop', 'after_open', 'after_thaw'] = 'dop'
+
+
+class ShelfLifeDetail(BaseModel):
+    min_days: Optional[int] = None
+    max_days: Optional[int] = None
+    tips: Optional[str] = None
+    source: Optional[str] = None
 
 
 class FoodAddToInventoryResponse(BaseModel):
@@ -328,7 +359,7 @@ class FoodAddToInventoryResponse(BaseModel):
     food_item: PackagedFoodResponse | UnpackagedFoodResponse
     is_new: bool
     recommended_expiry: Optional[dict[str, Optional[str]]] = None
-    shelf_life_info: Optional[dict[str, Optional[dict[str, Optional[int]]]]] = None
+    shelf_life_info: Optional[dict[str, Optional[ShelfLifeDetail]]] = None
 
 
 # ─── Household Inventory with Names ─────────────────────────

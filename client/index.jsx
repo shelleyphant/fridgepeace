@@ -22,6 +22,12 @@ const FridgeApp = ({ onLeaveHousehold }) => {
 
   const currentMemberId = parseInt(localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID));
 
+  useEffect(() => {
+    if (state.error && state.error.response?.status === 404) {
+      onLeaveHousehold();
+    }
+  }, [state.error, onLeaveHousehold]);
+
   const filtered = useMemo(() => {
     let result = [...state.items];
     if (state.filterBy === 'mine') {

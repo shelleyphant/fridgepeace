@@ -328,6 +328,7 @@ class FoodKeeperCategory(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     external_id: Mapped[Optional[int]] = mapped_column(nullable=True)
     category_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    subcategory_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
 
 class FoodKeeperProduct(Base):
@@ -339,12 +340,98 @@ class FoodKeeperProduct(Base):
         ForeignKey("foodkeeper_category.id"), nullable=True
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # --- 已使用的 DOP 字段 ---
     fridge_days_min: Mapped[Optional[int]] = mapped_column(nullable=True)
     fridge_days_max: Mapped[Optional[int]] = mapped_column(nullable=True)
     freezer_days_min: Mapped[Optional[int]] = mapped_column(nullable=True)
     freezer_days_max: Mapped[Optional[int]] = mapped_column(nullable=True)
     pantry_days_min: Mapped[Optional[int]] = mapped_column(nullable=True)
     pantry_days_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+
+    # --- 新增：基本冷藏（非 DOP）---
+    fridge_min: Mapped[Optional[int]] = mapped_column(nullable=True)
+    fridge_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+    fridge_metric: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    fridge_tips: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # --- 新增：基本冷冻（非 DOP）---
+    freeze_min: Mapped[Optional[int]] = mapped_column(nullable=True)
+    freeze_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+    freeze_metric: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    freeze_tips: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # --- 新增：开封后冷藏 ---
+    fridge_after_open_min: Mapped[Optional[int]] = mapped_column(nullable=True)
+    fridge_after_open_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+    fridge_after_open_metric: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    # --- 新增：开封后常温 ---
+    pantry_after_open_min: Mapped[Optional[int]] = mapped_column(nullable=True)
+    pantry_after_open_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+    pantry_after_open_metric: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    # --- 新增：解冻后冷藏 ---
+    fridge_after_thaw_min: Mapped[Optional[int]] = mapped_column(nullable=True)
+    fridge_after_thaw_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+    fridge_after_thaw_metric: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    # --- 新增：DOP 补充字段 ---
+    dop_fridge_metric: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    dop_fridge_tips: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    dop_pantry_min: Mapped[Optional[int]] = mapped_column(nullable=True)
+    dop_pantry_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+    dop_pantry_metric: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    dop_pantry_tips: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    dop_freeze_metric: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    dop_freeze_tips: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # --- 新增：搜索增强 ---
+    keywords: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    name_subtitle: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # --- 关系 ---
+    cooking_tips: Mapped[list["FoodKeeperCookingTip"]] = relationship(
+        "FoodKeeperCookingTip", back_populates="product", cascade="all, delete-orphan"
+    )
+    cooking_methods: Mapped[list["FoodKeeperCookingMethod"]] = relationship(
+        "FoodKeeperCookingMethod", back_populates="product", cascade="all, delete-orphan"
+    )
+
+
+class FoodKeeperCookingTip(Base):
+    __tablename__ = "foodkeeper_cooking_tip"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("foodkeeper_product.id", ondelete="CASCADE"), nullable=False
+    )
+    tips: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    safe_min_temp: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    rest_time: Mapped[Optional[int]] = mapped_column(nullable=True)
+    rest_time_metric: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    product: Mapped["FoodKeeperProduct"] = relationship(
+        "FoodKeeperProduct", back_populates="cooking_tips"
+    )
+
+
+class FoodKeeperCookingMethod(Base):
+    __tablename__ = "foodkeeper_cooking_method"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("foodkeeper_product.id", ondelete="CASCADE"), nullable=False
+    )
+    method: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    temperature: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    timing_from: Mapped[Optional[int]] = mapped_column(nullable=True)
+    timing_to: Mapped[Optional[int]] = mapped_column(nullable=True)
+    timing_metric: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    product: Mapped["FoodKeeperProduct"] = relationship(
+        "FoodKeeperProduct", back_populates="cooking_methods"
+    )
 
 
 Base.metadata.create_all(bind=engine)
