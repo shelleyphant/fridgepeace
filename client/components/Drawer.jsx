@@ -23,10 +23,12 @@ const Drawer = ({ isOpen, onClose, onSuccess }) => {
       className={`absolute bottom-0 left-0 h-11/12 w-full rounded-tl-3xl rounded-tr-3xl bg-white p-4 shadow transition-transform duration-300 ease-in-out ${show ? 'translate-y-0' : 'translate-y-full'}`}
     >
       <hr
-        className="m-auto h-1 w-16 rounded border-0 bg-gray-300 hover:cursor-pointer"
+        className="m-auto mb-8 h-1 w-16 rounded border-0 bg-gray-300 hover:cursor-pointer"
         onClick={onClose}
       ></hr>
-      <AddFood onClose={onClose} onSuccess={onSuccess} />
+      <div className="m-auto max-w-md p-4">
+        <AddFood onClose={onClose} onSuccess={onSuccess} />
+      </div>
     </div>
   );
 };
