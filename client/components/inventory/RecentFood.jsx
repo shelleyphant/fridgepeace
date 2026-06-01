@@ -8,6 +8,7 @@ const RecentFood = ({ onSuccess }) => {
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Failed to load recent foods.</div>;
+  if (recentFoods.length === 0) return null;
 
   return (
     <div>

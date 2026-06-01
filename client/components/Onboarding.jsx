@@ -40,7 +40,7 @@ const Onboarding = ({ onComplete }) => {
       return (
         <div>
           <Button title="Sign Up" action={() => setMemberFormType('signup')} />
-          <Button title="Log In" action={() => setMemberFormType('login')} />
+          <Button title="Find User" action={() => setMemberFormType('login')} />
         </div>
       );
     return (
@@ -53,8 +53,11 @@ const Onboarding = ({ onComplete }) => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
         />
-        {error && <p>{error}</p>}
+        {error && <p className="text-red-600">{error}</p>}
         <Button title="Submit" action={handleMembership} />
+        <button className="mt-2 text-sm text-gray-500 underline" onClick={() => { setMemberFormType(null); setError(null); setInput(''); }}>
+          Back
+        </button>
       </div>
     );
   }
@@ -81,8 +84,11 @@ const Onboarding = ({ onComplete }) => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
         />
-        {error && <p>{error}</p>}
+        {error && <p className="text-red-600">{error}</p>}
         <Button title="Submit" action={handleHousehold} />
+        <button className="mt-2 text-sm text-gray-500 underline" onClick={() => { setHouseFormType(null); setError(null); setInput(''); }}>
+          Back
+        </button>
       </div>
     );
   }

@@ -11,7 +11,7 @@ const DISPLAY_NAME = {
 const NewFood = ({ onSuccess }) => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
-  const results = useSearch(search);
+  const { results, loading } = useSearch(search);
 
   return (
     <div>
@@ -24,7 +24,10 @@ const NewFood = ({ onSuccess }) => {
         }}
         value={search}
       />
-      {!selected && results.length > 0 && (
+      {!selected && loading && (
+        <p className="mt-1 text-sm text-gray-500">Searching...</p>
+      )}
+      {!selected && !loading && results.length > 0 && (
         <ul className="mt-1 border">
           {results.map((p, i) => (
             <li

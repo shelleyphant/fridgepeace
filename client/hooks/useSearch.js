@@ -5,11 +5,13 @@ const API = process.env.API_URL ?? '';
 
 export function useSearch(query) {
   const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!query) { setResults([]); return; }
+    if (!query) { setResults([]); setLoading(false); return; }
 
     let cancelled = false;
+    setLoading(true);
 
     const timer = setTimeout(async () => {
       let local = [];
@@ -60,11 +62,11 @@ export function useSearch(query) {
         console.error('OFF search failed:', e);
       }
 
-      if (!cancelled) setResults([...local, ...remote]);
+      if (!cancelled) { setResults([...local, ...remote]); setLoading(false); }
     }, 400);
 
     return () => { cancelled = true; clearTimeout(timer); };
   }, [query]);
 
-  return results;
+  return { results, loading };
 }
