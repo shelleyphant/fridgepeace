@@ -3,6 +3,60 @@
 > **Date**: 2026-06-01
 
 ---
+## v1.1 — CORS Fix, OFF Proxy & Frontend State Management Refactor
+
+### Overview
+
+This release resolves cross-origin issues in both backend and frontend, and refactors the frontend inventory page from a monolithic component into modular, single-responsibility units with centralized state management.
+
+### P0: CORS & Cross-Origin Fixes
+
+#### P0-1: Backend CORS Middleware
+
+**File modified**: [backend/main.py](./backend/main.py)
+
+**Before**: No CORS middleware configured. The FastAPI backend rejected all cross-origin requests from the frontend dev server (`localhost:4040`), causing API calls to fail silently.
+
+**After**: Added `CORSMiddleware` with `allow_origins=["*"]`, `allow_methods=["*"]`, `allow_headers=["*"]`, and `allow_credentials=True`. All cross-origin requests from any frontend origin are now accepted.
+
+#### P0-2: OpenFoodFacts Proxy for Frontend
+
+**File modified**: [client/hooks/useSearch.js](./client/hooks/useSearch.js)
+
+**Before**: `useSearch.js` sent requests directly to `https://world.openfoodfacts.org/cgi/search.pl` from the browser. Because the frontend is served from `localhost:4040`, browsers block these cross-origin requests, causing OFF search results to always fail.
+
+**After**: The function now dynamically constructs a `proxyPath` based on `window.location.origin` and routes OFF search requests through the webpack dev server proxy at `/off-proxy`. The webpack config rewrites `/off-proxy → /` and proxies to `https://world.openfoodfacts.org`. Error messages now read "OFF proxy returned" instead of "OpenFoodFacts API returned".
+
+**Webpack config** ([webpack.config.js](./webpack.config.js)) — Added dev server proxy rule for `/off-proxy` → `https://world.openfoodfacts.org` with path rewrite and `changeOrigin: true`.
+
+### P1: Frontend State Management Refactor
+
+#### Files Created
+
+| File | Purpose |
+|------|---------|
+| [useFridgeState.js](./client/hooks/useFridgeState.js) | Centralized reducer (`fridgeReducer`) with actions: `FETCH_START`, `FETCH_SUCCESS`, `FETCH_ERROR`, `OPEN_DRAWER`, `CLOSE_DRAWER`, `EDIT_ITEM`, `CLEAR_EDIT`, `SET_SORT`, `SET_FILTER`, `DELETE_ITEM`. Exports `INITIAL_STATE` and `useFridgeState` hook. |
+| [FilterBar.jsx](./client/components/inventory/FilterBar.jsx) | Storage-location filter ("All", "Fridge", "Freezer", "Pantry"). Receives `filterBy` + `onChange` as props. |
+| [SortSelector.jsx](./client/components/inventory/SortSelector.jsx) | Sort dropdown ("Recent", "Name", "Expiry"). Receives `sortBy` + `onChange` as props. |
+| [InventoryList.jsx](./client/components/inventory/InventoryList.jsx) | Handles all three inventory states: **loading** (skeleton grid), **empty** ("Your fridge is empty!" message), and **populated** (item cards grid). Receives `items`, `loading`, `error` + refresh/edit callbacks. |
+| [FloatingAddButton.jsx](./client/components/inventory/FloatingAddButton.jsx) | Sticky floating action button that calls `onOpenDrawer`. |
+
+#### Files Modified
+
+| File | Purpose |
+|------|---------|
+| [index.jsx](./client/index.jsx) | Replaced direct `useInventory` hook + inline skeleton/card rendering with imports from the 4 new sub-components (`FilterBar`, `SortSelector`, `InventoryList`, `FloatingAddButton`). State logic now flows through `useFridgeState` dispatch instead of local `useState` setters. |
+
+**Before**: `index.jsx` contained ~250 lines of monolithic inventory logic including inline skeleton loaders, food card grid rendering, filter/sort state, drawer open/close, and edit-item state — all managed with individual `useState` hooks.
+
+**After**: `index.jsx` is reduced to orchestration only: it imports `useFridgeState` for centralized state, passes slices of state + dispatch callbacks to the 4 sub-components, which each own a single responsibility. Adding new filter types or sort modes no longer requires touching the main page component.
+
+### P2: Cleanup
+
+- **Empty `api/` directory removed** — Deleted `api/.gitkeep`. The directory served no purpose and caused confusion about the project's backend location.
+- **`CHANGE_LOG.md` path sanitization** — Replaced all `file:///c:/Users/...` absolute paths with project-relative `./path/...` links, ensuring the changelog renders correctly on any machine.
+
+---
 
 ## v1.0 — Production Hardening: Multi-Owner, Inventory Tracking, Search Stability & Clipboard Fix
 
@@ -14,17 +68,17 @@ This release hardens the application for production use. It introduces true mult
 
 **Bugs Fixed**:
 
-- **`delete_event` missing `db.commit()`** ([routers.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/routers.py)) — Deleting an event called `db.commit()` only inside the `if event_id` branch but not at the function's end. Events appeared deleted in the API response but were still in the database on reload. Moved `db.commit()` to the end of the success path so it always executes.
-- **`FoodEvent.event_type` missing CheckConstraint** ([models.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/models.py)) — The `event_type` column had no database-level validation. Added `CheckConstraint("event_type IN ('consume', 'expire')")` to reject invalid values at the database level.
-- **Foreign keys use `RESTRICT` instead of `CASCADE`** ([models.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/models.py)) — Deleting an inventory item failed with foreign key violations because `ownership`, `event`, and `food_event` tables used `RESTRICT` on delete. Changed to `CASCADE` so deleting an item cascades to all related records.
-- **Storage location comparison mismatch** ([routers.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/routers.py)) — Filtering by storage location failed for mixed-case input (e.g. "Fridge" vs "fridge"). Normalised comparison to lowercase + strip.
+- **`delete_event` missing `db.commit()`** ([routers.py](./backend/routers.py)) — Deleting an event called `db.commit()` only inside the `if event_id` branch but not at the function's end. Events appeared deleted in the API response but were still in the database on reload. Moved `db.commit()` to the end of the success path so it always executes.
+- **`FoodEvent.event_type` missing CheckConstraint** ([models.py](./backend/models.py)) — The `event_type` column had no database-level validation. Added `CheckConstraint("event_type IN ('consume', 'expire')")` to reject invalid values at the database level.
+- **Foreign keys use `RESTRICT` instead of `CASCADE`** ([models.py](./backend/models.py)) — Deleting an inventory item failed with foreign key violations because `ownership`, `event`, and `food_event` tables used `RESTRICT` on delete. Changed to `CASCADE` so deleting an item cascades to all related records.
+- **Storage location comparison mismatch** ([routers.py](./backend/routers.py)) — Filtering by storage location failed for mixed-case input (e.g. "Fridge" vs "fridge"). Normalised comparison to lowercase + strip.
 - **Duplicate `requirements.txt`** — Removed the duplicate file at project root; only `backend/requirements.txt` is authoritative.
 - **Duplicate `foodkeeper.json`** — Removed from client assets; only `backend/foodkeeper.json` is authoritative.
-- **FoodKeeper seed data** ([seed_foodkeeper.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/seed_foodkeeper.py)) — Fixed field mapping to match updated model schema.
+- **FoodKeeper seed data** ([seed_foodkeeper.py](./backend/seed_foodkeeper.py)) — Fixed field mapping to match updated model schema.
 
 ### Phase 2 — Core Feature: Inventory Tracking via Events
 
-**Automatic Inventory Deduction** ([routers.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/routers.py)):
+**Automatic Inventory Deduction** ([routers.py](./backend/routers.py)):
 
 - **`POST /event/create` with `event_type=consume`** — Deducts `quantity_change` from the referenced inventory item. If the item runs out (quantity ≤ 0), it stays at 0 rather than going negative.
 - **`POST /event/create` with `event_type=expire`** — Sets the referenced inventory item's quantity to 0 immediately.
@@ -36,7 +90,7 @@ This release hardens the application for production use. It introduces true mult
 - **`FoodDetail.jsx`** — "Claim Ownership" button only appears when `inventoryItem` has no current owner (`owner_id` is null).
 - **`FoodEditForm.jsx`** — Removed incorrect hardcoded "You" label; now shows actual owner via `OwnerBadge`.
 
-**Leave Household Flow** ([Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx), [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)):
+**Leave Household Flow** ([Header.jsx](./client/components/Header.jsx), [index.jsx](./client/index.jsx)):
 
 - Clicking "Leave Household" now clears all localStorage keys and returns the user to the Onboarding screen. Previously, stale keys caused inconsistent state.
 
@@ -44,10 +98,10 @@ This release hardens the application for production use. It introduces true mult
 
 **Backend — Schema & API**:
 
-- **[schemas.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/schemas.py)** — Added `owner_ids: list[int]` and `owner_display_names: list[str]` to `InventoryItemWithNames`, preserving the legacy single-owner fields for backward compatibility.
-- **[routers.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/routers.py)** — `list_household_inventory` now maps all ownership records into the new array fields (`owner_ids_val`, `owner_display_names_val`).
+- **[schemas.py](./backend/schemas.py)** — Added `owner_ids: list[int]` and `owner_display_names: list[str]` to `InventoryItemWithNames`, preserving the legacy single-owner fields for backward compatibility.
+- **[routers.py](./backend/routers.py)** — `list_household_inventory` now maps all ownership records into the new array fields (`owner_ids_val`, `owner_display_names_val`).
 
-**Frontend — OwnerBadge Component** ([OwnerBadge.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/OwnerBadge.jsx)):
+**Frontend — OwnerBadge Component** ([OwnerBadge.jsx](./client/components/inventory/OwnerBadge.jsx)):
 
 - **New signature**: `ownerNames` prop accepts an array of display names.
 - **Empty array** → displays "Shared" badge (green).
@@ -59,18 +113,18 @@ This release hardens the application for production use. It introduces true mult
 - `FoodDetail.jsx` — passes `owner_display_names` from inventory item.
 - `FoodEditForm.jsx` — same pattern; removed incorrect "You" hardcode.
 
-**"👤 Mine" Filter** ([index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)):
+**"👤 Mine" Filter** ([index.jsx](./client/index.jsx)):
 
 - **Before**: Used `item.owner_id === currentMemberId` (single owner only).
 - **After**: Uses `(item.owner_ids ?? []).includes(currentMemberId)` — matches if the current member is *any* owner of the item.
 
-**Timing Fix — FridgeApp Sub-component** ([index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)):
+**Timing Fix — FridgeApp Sub-component** ([index.jsx](./client/index.jsx)):
 
 - Extracted the main fridge UI into a `FridgeApp` component, rendered only after Onboarding completes. This ensures `useInventory()` only mounts when household context exists, eliminating race conditions where the hook fires before localStorage is populated.
 
 ### Phase 4 — Search Race-Condition Elimination
 
-**[useSearch.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useSearch.js)** — Two independent mechanisms prevent stale search results:
+**[useSearch.js](./client/hooks/useSearch.js)** — Two independent mechanisms prevent stale search results:
 
 1. **`AbortController`** — Each new search call aborts the previous in-flight request (both axios and `window.fetch`). Aborted requests throw `AbortError` which is silently caught.
 2. **Request ID counter** — A monotonically increasing `requestIdRef` is incremented per call. After both local and remote responses arrive, the hook checks `currentRequestId !== requestIdRef.current` and discards results if a newer search has superseded them.
@@ -79,7 +133,7 @@ This release hardens the application for production use. It introduces true mult
 
 ### Bug Fix: Clipboard in Non-HTTPS Context
 
-**[Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx)** & **[Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)**:
+**[Header.jsx](./client/components/Header.jsx)** & **[Onboarding.jsx](./client/components/Onboarding.jsx)**:
 
 - The Copy button previously used `navigator.clipboard.writeText()` directly. In non-HTTPS contexts (e.g. preview iframe), this throws `NotAllowedError: Write permission denied`.
 - **Fix**: Introduced a two-tier fallback:
@@ -117,7 +171,7 @@ Fixed core ownership logic defects and completed the full sharing workflow. All 
 
 ### P0 Fix: "Mine" Filter Uses Ownership
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+**Files modified**: [index.jsx](./client/index.jsx)
 
 **Before**: The "👤 Mine" filter used `added_by_member_id` — showing items the current user *added*, even if they had released ownership or the item was shared.
 
@@ -130,7 +184,7 @@ Fixed core ownership logic defects and completed the full sharing workflow. All 
 
 ### P0 Fix: OpenFoodFacts Creates Ownership
 
-**Files modified**: [useAddFood.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useAddFood.js)
+**Files modified**: [useAddFood.js](./client/hooks/useAddFood.js)
 
 **Before**: The OpenFoodFacts (barcode scan / search) path called `POST /food-inventory/` directly, which does not create a `FoodOwnership` record. All items added via this path were permanently "Shared" with no owner.
 
@@ -138,7 +192,7 @@ Fixed core ownership logic defects and completed the full sharing workflow. All 
 
 ### Feature: Claim Shared Food
 
-**Files modified**: [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx)
+**Files modified**: [FoodDetail.jsx](./client/components/inventory/FoodDetail.jsx)
 
 **Before**: Only "Set as shared" existed — ownership release was a one-way operation. Shared food could never be claimed by another member.
 
@@ -146,7 +200,7 @@ Fixed core ownership logic defects and completed the full sharing workflow. All 
 
 ### Feature: Auto-Claim on Quantity Add
 
-**Files modified**: [useAddFood.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useAddFood.js)
+**Files modified**: [useAddFood.js](./client/hooks/useAddFood.js)
 
 **Before**: `updateFood` only increased the `quantity` field. If the item was Shared or owned by someone else, the added quantity still belonged to the original owner (or no one).
 
@@ -154,7 +208,7 @@ Fixed core ownership logic defects and completed the full sharing workflow. All 
 
 ### Feature: Ownership in FoodEditForm
 
-**Files modified**: [FoodEditForm.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodEditForm.jsx)
+**Files modified**: [FoodEditForm.jsx](./client/components/inventory/FoodEditForm.jsx)
 
 **Before**: The Edit form only had quantity, unit, expiry date, and storage location fields — no ownership information or controls.
 
@@ -162,7 +216,7 @@ Fixed core ownership logic defects and completed the full sharing workflow. All 
 
 ### OwnerBadge Visual Polish
 
-**Files modified**: [OwnerBadge.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/OwnerBadge.jsx), [FoodCard.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodCard.jsx), [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx)
+**Files modified**: [OwnerBadge.jsx](./client/components/inventory/OwnerBadge.jsx), [FoodCard.jsx](./client/components/inventory/FoodCard.jsx), [FoodDetail.jsx](./client/components/inventory/FoodDetail.jsx)
 
 **Before**: OwnerBadge showed blue "👤 {name}" for owned items or gray "Unclaimed" label. FoodCard only displayed the badge conditionally. FoodDetail resolved display name with limited logic.
 
@@ -192,7 +246,7 @@ Integrated the backend's existing `FoodEvent` and `FoodOwnership` modules into t
 
 ### Backend: Auto-Create Events & Ownership on Add
 
-**Files modified**: [routers.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/routers.py), [schemas.py](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/schemas.py)
+**Files modified**: [routers.py](./backend/routers.py), [schemas.py](./backend/schemas.py)
 
 **Before**: `POST /foods/add-to-inventory` only created an inventory record. `PUT /food-inventory/{id}` updated fields silently. The `FoodEvent` and `FoodOwnership` tables existed with full API endpoints but were never populated by the frontend.
 
@@ -204,7 +258,7 @@ Integrated the backend's existing `FoodEvent` and `FoodOwnership` modules into t
 
 ### Frontend: Event Timeline Component
 
-**Files created**: [useFoodEvents.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useFoodEvents.js), [EventTimeline.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/EventTimeline.jsx)
+**Files created**: [useFoodEvents.js](./client/hooks/useFoodEvents.js), [EventTimeline.jsx](./client/components/inventory/EventTimeline.jsx)
 
 **How it works**:
 - `useFoodEvents` hook fetches events for a specific inventory item via the new `/with-members` endpoint.
@@ -213,7 +267,7 @@ Integrated the backend's existing `FoodEvent` and `FoodOwnership` modules into t
 
 ### Frontend: Owner Badge
 
-**Files created**: [OwnerBadge.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/OwnerBadge.jsx), [useFoodOwnership.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useFoodOwnership.js)
+**Files created**: [OwnerBadge.jsx](./client/components/inventory/OwnerBadge.jsx), [useFoodOwnership.js](./client/hooks/useFoodOwnership.js)
 
 **How it works**:
 - `OwnerBadge` displays a blue "👤 {name}" badge or gray "Unclaimed" label.
@@ -222,7 +276,7 @@ Integrated the backend's existing `FoodEvent` and `FoodOwnership` modules into t
 
 ### Frontend: "Mine" Filter
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+**Files modified**: [index.jsx](./client/index.jsx)
 
 **Before**: Filter options were All / Fridge / Freezer / Pantry — only by storage location.
 
@@ -252,7 +306,7 @@ Redesigned the search interaction from real-time (debounced) to explicit button-
 
 ### Search: Real-Time → Button-Triggered
 
-**Files modified**: [useSearch.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useSearch.js), [NewFood.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/NewFood.jsx)
+**Files modified**: [useSearch.js](./client/hooks/useSearch.js), [NewFood.jsx](./client/components/inventory/NewFood.jsx)
 
 **Before**: `useSearch` hook used `useEffect` with a 400ms debounce timer tied to the query string. Every keystroke triggered a backend API call and OpenFoodFacts fetch. Users had no control over when searches fired.
 
@@ -268,7 +322,7 @@ Redesigned the search interaction from real-time (debounced) to explicit button-
 
 ### Drawer: Backdrop Overlay
 
-**Files modified**: [Drawer.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Drawer.jsx)
+**Files modified**: [Drawer.jsx](./client/components/Drawer.jsx)
 
 **Before**: The Drawer (bottom sheet) had no backdrop/overlay. Users could only close it by dragging the handle bar or pressing the "+" FAB button again.
 
@@ -278,7 +332,7 @@ Redesigned the search interaction from real-time (debounced) to explicit button-
 
 #### FoodDetail.jsx & FoodEditForm.jsx
 
-**Files modified**: [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx), [FoodEditForm.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodEditForm.jsx)
+**Files modified**: [FoodDetail.jsx](./client/components/inventory/FoodDetail.jsx), [FoodEditForm.jsx](./client/components/inventory/FoodEditForm.jsx)
 
 **Before**: Quantity field accepted empty, zero, or negative values. Expiry date had no bounds checking. Submit button proceeded with invalid data, relying on backend rejection.
 
@@ -290,7 +344,7 @@ Redesigned the search interaction from real-time (debounced) to explicit button-
 
 #### Onboarding.jsx
 
-**Files modified**: [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)
+**Files modified**: [Onboarding.jsx](./client/components/Onboarding.jsx)
 
 **Before**: Username, household name, and household code inputs accepted empty or single-character values. Backend errors appeared but no client-side pre-validation.
 
@@ -321,7 +375,7 @@ Fixed a critical bug where household members couldn't see each other's food item
 
 ### P0 Bug: Shared Inventory Visibility
 
-**Files modified**: [useInventory.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useInventory.js)
+**Files modified**: [useInventory.js](./client/hooks/useInventory.js)
 
 **Problem**: The `useInventory` hook filtered inventory items by `added_by_member_id`, so each member could only see food they personally added — defeating the purpose of a shared household inventory.
 
@@ -339,9 +393,9 @@ Fixed a critical bug where household members couldn't see each other's food item
 
 ### Code Quality: Constants Extraction
 
-**Files created**: [constants.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/constants.js)
+**Files created**: [constants.js](./client/constants.js)
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx), [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx), [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx), [FoodEditForm.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodEditForm.jsx), [useInventory.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useInventory.js), [useAddFood.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useAddFood.js), [useDeleteFood.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useDeleteFood.js), [useSearch.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useSearch.js), [useMembership.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useMembership.js), [useHousehold.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useHousehold.js)
+**Files modified**: [index.jsx](./client/index.jsx), [Header.jsx](./client/components/Header.jsx), [Onboarding.jsx](./client/components/Onboarding.jsx), [FoodEditForm.jsx](./client/components/inventory/FoodEditForm.jsx), [useInventory.js](./client/hooks/useInventory.js), [useAddFood.js](./client/hooks/useAddFood.js), [useDeleteFood.js](./client/hooks/useDeleteFood.js), [useSearch.js](./client/hooks/useSearch.js), [useMembership.js](./client/hooks/useMembership.js), [useHousehold.js](./client/hooks/useHousehold.js)
 
 **Problem**: `process.env.API_URL` and localStorage key strings were duplicated across 10+ files, making the codebase fragile and hard to maintain.
 
@@ -392,7 +446,7 @@ Replaced the fixed bottom bar with a compact floating action button (FAB), added
 
 ### FAB: Bottom Bar → Floating Action Button
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+**Files modified**: [index.jsx](./client/index.jsx)
 
 **Before**: "+ New Food" was a full-width button inside a `fixed bottom-0` bar with border and shadow, occupying 56px of vertical space.
 
@@ -400,7 +454,7 @@ Replaced the fixed bottom bar with a compact floating action button (FAB), added
 
 ### Household Management Panel
 
-**Files modified**: [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx)
+**Files modified**: [Header.jsx](./client/components/Header.jsx)
 
 **Before**: Header showed household code with "copy" link. No way to view household details, switch households, or leave.
 
@@ -412,19 +466,19 @@ Replaced the fixed bottom bar with a compact floating action button (FAB), added
 
 ### Leave Household Flow
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx), [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx)
+**Files modified**: [index.jsx](./client/index.jsx), [Header.jsx](./client/components/Header.jsx)
 
 **New `handleLeaveHousehold`**: Clears `household_id` and `household_member_id` from localStorage, then resets app to onboarding state (`setReady(false)`) so user can create or join another household.
 
 ### Switch Household Flow
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx), [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx)
+**Files modified**: [index.jsx](./client/index.jsx), [Header.jsx](./client/components/Header.jsx)
 
 **New `handleSwitchHousehold`**: Updates `household_id` in localStorage, fetches members from the new household to find and store correct `household_member_id`, then refreshes inventory.
 
 ### Logout Confirmation
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+**Files modified**: [index.jsx](./client/index.jsx)
 
 **Before**: `handleLogout` called `localStorage.clear()` immediately with no warning.
 
@@ -447,7 +501,7 @@ Restructured the entire UI for mobile-first vertical layout. The toolbar was spl
 
 ### Layout: Mobile-First Vertical Stack
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx), [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx), [Drawer.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Drawer.jsx), [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)
+**Files modified**: [index.jsx](./client/index.jsx), [Header.jsx](./client/components/Header.jsx), [Drawer.jsx](./client/components/Drawer.jsx), [Onboarding.jsx](./client/components/Onboarding.jsx)
 
 **Before**: "New Food" button, sort dropdown, and filter tabs were crammed into a single horizontal row. On narrow mobile screens, controls overlapped and felt cluttered. The Drawer used `absolute` positioning (relative to the content container), so it could break on scroll. The Header was spacious (`text-2xl`, `py-1.5`), consuming precious vertical space.
 
@@ -471,7 +525,7 @@ Restructured the entire UI for mobile-first vertical layout. The toolbar was spl
 
 ### Button Text Alignment
 
-**Files modified**: [Button.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Button.jsx), [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx), [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx), [FoodCard.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodCard.jsx), [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx), [FoodEditForm.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodEditForm.jsx), [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)
+**Files modified**: [Button.jsx](./client/components/Button.jsx), [Header.jsx](./client/components/Header.jsx), [index.jsx](./client/index.jsx), [FoodCard.jsx](./client/components/inventory/FoodCard.jsx), [FoodDetail.jsx](./client/components/inventory/FoodDetail.jsx), [FoodEditForm.jsx](./client/components/inventory/FoodEditForm.jsx), [Onboarding.jsx](./client/components/Onboarding.jsx)
 
 **Before**: Raw `<button>` elements had no explicit `text-center` class. While short text like "Edit" or "Save" happened to appear centered, longer text or buttons at full width (`w-full`) appeared left-aligned, creating visual inconsistency.
 
@@ -481,7 +535,7 @@ Restructured the entire UI for mobile-first vertical layout. The toolbar was spl
 
 ### Onboarding: "Find User" → "Log In"
 
-**Files modified**: [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)
+**Files modified**: [Onboarding.jsx](./client/components/Onboarding.jsx)
 
 **Before**: The second option on the welcome screen read "Find User", which was technically accurate (the action queries `GET /users/` to find a user by username) but semantically confusing for end users who expected to see "Log In".
 
@@ -489,7 +543,7 @@ Restructured the entire UI for mobile-first vertical layout. The toolbar was spl
 
 ### Onboarding: Auto-Skip Household Screen for Returning Users
 
-**Files modified**: [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)
+**Files modified**: [Onboarding.jsx](./client/components/Onboarding.jsx)
 
 **Before**: After any sign-up or log-in, users were always shown the "Create a Household / Join a Household" screen — even if they already belonged to a household. This forced returning users through an unnecessary extra step every time.
 
@@ -538,9 +592,9 @@ Frontend was a "write-only" system — users could add food but had no way to ma
 
 #### P0-1: Delete Inventory Items
 
-**Files created**: [useDeleteFood.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useDeleteFood.js)
+**Files created**: [useDeleteFood.js](./client/hooks/useDeleteFood.js)
 
-**Files modified**: [FoodCard.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodCard.jsx), [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+**Files modified**: [FoodCard.jsx](./client/components/inventory/FoodCard.jsx), [index.jsx](./client/index.jsx)
 
 **Before**: FoodCards were read-only with no delete mechanism. Users could not remove items.
 
@@ -548,9 +602,9 @@ Frontend was a "write-only" system — users could add food but had no way to ma
 
 #### P0-2: Edit Inventory Items
 
-**Files created**: [FoodEditForm.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodEditForm.jsx)
+**Files created**: [FoodEditForm.jsx](./client/components/inventory/FoodEditForm.jsx)
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+**Files modified**: [index.jsx](./client/index.jsx)
 
 **Before**: No way to modify quantity, expiry date, storage location, or unit after adding.
 
@@ -558,7 +612,7 @@ Frontend was a "write-only" system — users could add food but had no way to ma
 
 #### P0-3: Inventory Sort, Filter, and Expiry Warnings
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx), [FoodCard.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodCard.jsx)
+**Files modified**: [index.jsx](./client/index.jsx), [FoodCard.jsx](./client/components/inventory/FoodCard.jsx)
 
 **Before**: Inventory displayed in insertion order with no organization. Expiring food looked identical to fresh food.
 
@@ -574,9 +628,9 @@ Frontend was a "write-only" system — users could add food but had no way to ma
 
 #### P0-4: Household Code Display
 
-**Files created**: [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx)
+**Files created**: [Header.jsx](./client/components/Header.jsx)
 
-**Files modified**: [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx), [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+**Files modified**: [Onboarding.jsx](./client/components/Onboarding.jsx), [index.jsx](./client/index.jsx)
 
 **Before**: After creating a household, the code was hidden in localStorage with no way for users to share it.
 
@@ -589,9 +643,9 @@ Frontend was a "write-only" system — users could add food but had no way to ma
 
 #### P1-1: Header / Navigation Bar
 
-**Files created**: [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx)
+**Files created**: [Header.jsx](./client/components/Header.jsx)
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+**Files modified**: [index.jsx](./client/index.jsx)
 
 **Before**: Main screen had no title, household info, or logout mechanism.
 
@@ -599,7 +653,7 @@ Frontend was a "write-only" system — users could add food but had no way to ma
 
 #### P1-2: RecentFood Add-More Clarity
 
-**Files modified**: [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx), [RecentFood.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/RecentFood.jsx)
+**Files modified**: [FoodDetail.jsx](./client/components/inventory/FoodDetail.jsx), [RecentFood.jsx](./client/components/inventory/RecentFood.jsx)
 
 **Before**: Clicking a RecentFood item to "add more" showed the same form as adding new food, with no indication of existing quantity.
 
@@ -607,7 +661,7 @@ Frontend was a "write-only" system — users could add food but had no way to ma
 
 #### P1-3: Search Source Badges
 
-**Files modified**: [NewFood.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/NewFood.jsx)
+**Files modified**: [NewFood.jsx](./client/components/inventory/NewFood.jsx)
 
 **Before**: Search results showed only product names with no source distinction.
 
@@ -622,7 +676,7 @@ Frontend was a "write-only" system — users could add food but had no way to ma
 
 #### P1-5: Barcode Input for OpenFoodFacts
 
-**Files modified**: [NewFood.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/NewFood.jsx)
+**Files modified**: [NewFood.jsx](./client/components/inventory/NewFood.jsx)
 
 **Before**: Only text-based search was available; no barcode support.
 
@@ -630,9 +684,9 @@ Frontend was a "write-only" system — users could add food but had no way to ma
 
 #### P1-6: Skeleton Loading State
 
-**Files created**: [SkeletonCard.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/SkeletonCard.jsx)
+**Files created**: [SkeletonCard.jsx](./client/components/inventory/SkeletonCard.jsx)
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+**Files modified**: [index.jsx](./client/index.jsx)
 
 **Before**: Loading state showed a blank screen.
 
@@ -640,7 +694,7 @@ Frontend was a "write-only" system — users could add food but had no way to ma
 
 #### P1-7: Inventory Error State
 
-**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+**Files modified**: [index.jsx](./client/index.jsx)
 
 **Before**: Backend failures resulted in a blank list with no explanation.
 
@@ -676,7 +730,7 @@ Migrated 617 KB of FoodKeeper data from the frontend bundle to the backend datab
 
 ### Backend Changes
 
-See [API_DOCUMENTATION.md](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/backend/API_DOCUMENTATION.md) for full endpoint details.
+See [API_DOCUMENTATION.md](./backend/API_DOCUMENTATION.md) for full endpoint details.
 
 - **New DB tables**: `foodkeeper_category` (25 rows) and `foodkeeper_product` (661 rows) seeded from `foodkeeper.json`
 - **New endpoints**: Food search, unified add-to-inventory, flattened household inventory listing
@@ -784,3 +838,5 @@ See [API_DOCUMENTATION.md](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/bac
 | `client/components/inventory/RecentFood.jsx` | Empty state handling |
 | `client/components/Onboarding.jsx` | Button labels, back navigation, red error text |
 | `client/index.jsx` | Empty state, loading indicator, strict setup check |
+
+---

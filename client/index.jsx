@@ -1,14 +1,15 @@
 import { createRoot } from 'react-dom/client';
 import './main.css';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import Header from './components/Header';
 import Drawer from './components/Drawer';
 import Onboarding from './components/Onboarding';
-import FoodCard from './components/inventory/FoodCard';
-import FoodEditForm from './components/inventory/FoodEditForm';
-import SkeletonCard from './components/inventory/SkeletonCard';
-import { useInventory } from './hooks/useInventory';
+import FilterBar from './components/inventory/FilterBar';
+import SortSelector from './components/inventory/SortSelector';
+import InventoryList from './components/inventory/InventoryList';
+import FloatingAddButton from './components/inventory/FloatingAddButton';
+import { useFridgeState } from './hooks/useFridgeState';
 import { API_URL, STORAGE_KEYS } from './constants';
 
 const isSetUp = () =>
@@ -16,39 +17,21 @@ const isSetUp = () =>
   localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_ID) &&
   localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID);
 
-const SORT_OPTIONS = [
-  { value: 'recent', label: 'Recently Added' },
-  { value: 'name', label: 'Name A-Z' },
-  { value: 'expiry', label: 'Expiring Soon' },
-];
-
-const FILTER_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'mine', label: '👤 Mine' },
-  { value: 'fridge', label: '🧊 Fridge' },
-  { value: 'freezer', label: '❄️ Freezer' },
-  { value: 'pantry', label: '📦 Pantry' },
-];
-
 const FridgeApp = ({ onLeaveHousehold }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [sortBy, setSortBy] = useState('recent');
-  const [filterBy, setFilterBy] = useState('all');
-  const [editingItem, setEditingItem] = useState(null);
-  const { inventory, loading, error, refresh } = useInventory();
+  const { state, dispatch, refresh } = useFridgeState();
 
   const currentMemberId = parseInt(localStorage.getItem(STORAGE_KEYS.HOUSEHOLD_MEMBER_ID));
 
   const filtered = useMemo(() => {
-    let result = [...inventory];
-    if (filterBy === 'mine') {
+    let result = [...state.items];
+    if (state.filterBy === 'mine') {
       result = result.filter((i) => (i.owner_ids ?? []).includes(currentMemberId));
-    } else if (filterBy !== 'all') {
-      result = result.filter((i) => i.storage_location === filterBy);
+    } else if (state.filterBy !== 'all') {
+      result = result.filter((i) => i.storage_location === state.filterBy);
     }
     result.sort((a, b) => {
-      if (sortBy === 'name') return (a.name ?? '').localeCompare(b.name ?? '');
-      if (sortBy === 'expiry') {
+      if (state.sortBy === 'name') return (a.name ?? '').localeCompare(b.name ?? '');
+      if (state.sortBy === 'expiry') {
         if (!a.expiry_date) return 1;
         if (!b.expiry_date) return -1;
         return new Date(a.expiry_date) - new Date(b.expiry_date);
@@ -56,21 +39,21 @@ const FridgeApp = ({ onLeaveHousehold }) => {
       return new Date(b.date_added) - new Date(a.date_added);
     });
     return result;
-  }, [inventory, sortBy, filterBy, currentMemberId]);
+  }, [state.items, state.sortBy, state.filterBy, currentMemberId]);
 
-  const handleDelete = useCallback((deletedId) => {
+  const handleDelete = useCallback(() => {
     refresh();
   }, [refresh]);
 
   const handleEditSave = useCallback(() => {
-    setEditingItem(null);
+    dispatch({ type: 'CLEAR_EDIT' });
     refresh();
-  }, [refresh]);
+  }, [dispatch, refresh]);
 
   const handleDrawerSuccess = useCallback(() => {
+    dispatch({ type: 'CLOSE_DRAWER' });
     refresh();
-    setIsOpen(false);
-  }, [refresh]);
+  }, [dispatch, refresh]);
 
   const handleLogout = () => {
     if (!window.confirm('Logout and clear local data?')) return;
@@ -109,91 +92,36 @@ const FridgeApp = ({ onLeaveHousehold }) => {
           onSwitchHousehold={handleSwitchHousehold}
         />
 
-        <div className="mb-3">
-          <div className="flex flex-wrap gap-1">
-            {FILTER_OPTIONS.map((o) => (
-              <button
-                key={o.value}
-                className={`rounded-full px-3 py-1 text-center text-sm border ${
-                  filterBy === o.value
-                    ? 'bg-water-600 text-white border-water-600'
-                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                }`}
-                onClick={() => setFilterBy(o.value)}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <FilterBar
+          value={state.filterBy}
+          onChange={(v) => dispatch({ type: 'SET_FILTER', payload: v })}
+        />
 
-        <div className="mb-3 flex justify-end">
-          <select
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
+        <SortSelector
+          value={state.sortBy}
+          onChange={(v) => dispatch({ type: 'SET_SORT', payload: v })}
+        />
 
-        {error && (
-          <div className="mt-4 rounded bg-red-50 p-4 text-center">
-            <p className="text-red-600">Could not load inventory.</p>
-            <button
-              className="mt-2 rounded-full bg-red-500 px-4 py-1.5 text-center text-sm text-white hover:bg-red-600"
-              onClick={() => refresh()}
-            >
-              Retry
-            </button>
-          </div>
-        )}
+        <InventoryList
+          items={filtered}
+          loading={state.loading}
+          error={state.error}
+          editingItem={state.editingItem}
+          onRetry={() => refresh()}
+          onDelete={handleDelete}
+          onEdit={(it) => dispatch({ type: 'EDIT_ITEM', payload: it })}
+          onEditSave={handleEditSave}
+          onEditCancel={() => dispatch({ type: 'CLEAR_EDIT' })}
+        />
 
-        {loading && !error && (
-          <div>
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
-        )}
-
-        {!loading && !error && filtered.length === 0 && (
-          <div className="mt-8 text-center text-gray-400">
-            <p className="text-lg">Your fridge is empty!</p>
-            <p className="mt-1 text-sm">Tap + to add your first item.</p>
-          </div>
-        )}
-
-        {!loading && !error && editingItem && (
-          <FoodEditForm
-            item={editingItem}
-            onSave={handleEditSave}
-            onCancel={() => setEditingItem(null)}
-          />
-        )}
-
-        {!loading && !error && filtered.map((item) =>
-          editingItem?.id === item.id ? null : (
-            <FoodCard
-              key={item.id}
-              item={item}
-              onDelete={handleDelete}
-              onEdit={(it) => setEditingItem(it)}
-            />
-          )
-        )}
-
-        <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)} onSuccess={handleDrawerSuccess} />
+        <Drawer
+          isOpen={state.isDrawerOpen}
+          onClose={() => dispatch({ type: 'CLOSE_DRAWER' })}
+          onSuccess={handleDrawerSuccess}
+        />
       </div>
 
-      <button
-        className="fixed bottom-6 right-6 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-water-600 text-2xl text-white shadow-lg hover:bg-water-700 active:scale-95"
-        onClick={() => setIsOpen(true)}
-      >
-        +
-      </button>
+      <FloatingAddButton onClick={() => dispatch({ type: 'OPEN_DRAWER' })} />
     </>
   );
 };

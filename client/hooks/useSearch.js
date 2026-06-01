@@ -48,16 +48,21 @@ export function useSearch() {
     let remote = [];
     try {
       const params = new URLSearchParams({
-        q: query,
-        countries_tags_en: 'australia',
+        action: 'process',
+        search_terms: query,
+        tagtype_0: 'countries',
+        tag_contains_0: 'contains',
+        tag_0: 'Australia',
         sort_by: 'unique_scans_n',
         page_size: '20',
+        json: '1',
       });
-      const res = await window.fetch(`https://world.openfoodfacts.org/api/v2/search?${params}`, {
+      const proxyPath = API_URL ? `${API_URL}/off-proxy` : '/off-proxy';
+      const res = await window.fetch(`${proxyPath}/cgi/search.pl?${params}`, {
         signal: controller.signal,
         headers: { 'User-Agent': 'FridgePeace/1.0 (university project)' },
       });
-      if (!res.ok) throw new Error(`OFF returned ${res.status}`);
+      if (!res.ok) throw new Error(`OFF proxy returned ${res.status}`);
       const json = await res.json();
       remote = (json?.products ?? []).map((p) => ({ ...p, _source: 'openfoodfacts' }));
     } catch (e) {
