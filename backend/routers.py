@@ -16,6 +16,11 @@ from models import (
     generate_household_code,
     get_db,
 )
+from shelf_life import (
+    compute_recommended_expiry,
+    get_shelf_life_for_category,
+    get_storage_recommendations,
+)
 from schemas import (
     FoodAddToInventoryRequest,
     FoodAddToInventoryResponse,
@@ -567,17 +572,26 @@ def search_foods(
         .limit(20)
         .all()
     )
-    pkg_results = [
-        PackagedFoodSearchResponse(
+    pkg_results = []
+    for p in packaged:
+        recs = get_storage_recommendations(packaged_category=p.category)
+        fridge = recs.get("fridge")
+        freezer = recs.get("freezer")
+        pantry = recs.get("pantry")
+        pkg_results.append(PackagedFoodSearchResponse(
             id=p.id,
             barcode=p.barcode,
             name=p.name,
             brand=p.brand,
             image_url=p.image_url,
             category=p.category,
-        )
-        for p in packaged
-    ]
+            fridge_days_min=fridge[0] if fridge else None,
+            fridge_days_max=fridge[1] if fridge else None,
+            freezer_days_min=freezer[0] if freezer else None,
+            freezer_days_max=freezer[1] if freezer else None,
+            pantry_days_min=pantry[0] if pantry else None,
+            pantry_days_max=pantry[1] if pantry else None,
+        ))
 
     return FoodSearchResponse(foodkeeper_results=fk_results, packaged_results=pkg_results)
 
@@ -675,10 +689,40 @@ def add_to_inventory(payload: FoodAddToInventoryRequest, db: Session = Depends(g
     db.commit()
     db.refresh(inventory)
 
+    foodkeeper_data = None
+    packaged_category = None
+    if payload.source == "foodkeeper" and fk:
+        foodkeeper_data = {
+            "fridge_days_min": fk.fridge_days_min,
+            "fridge_days_max": fk.fridge_days_max,
+            "freezer_days_min": fk.freezer_days_min,
+            "freezer_days_max": fk.freezer_days_max,
+            "pantry_days_min": fk.pantry_days_min,
+            "pantry_days_max": fk.pantry_days_max,
+        }
+    elif payload.source == "packaged" and pkg:
+        packaged_category = pkg.category
+
+    storage_recommendations = get_storage_recommendations(
+        foodkeeper_data=foodkeeper_data,
+        packaged_category=packaged_category,
+    )
+    recommended_expiry = {
+        loc: compute_recommended_expiry(range_val)
+        for loc, range_val in storage_recommendations.items()
+        if range_val is not None
+    }
+    shelf_life_info = {
+        k: {"min": v[0], "max": v[1]} if v else None
+        for k, v in storage_recommendations.items()
+    }
+
     return FoodAddToInventoryResponse(
         inventory_item=inventory,
         food_item=food_item,
         is_new=is_new,
+        recommended_expiry=recommended_expiry if recommended_expiry else None,
+        shelf_life_info=shelf_life_info,
     )
 
 
@@ -713,18 +757,32 @@ def list_household_inventory(household_id: str, db: Session = Depends(get_db)):
             food_brand = item.packaged_food.brand
             food_category = item.packaged_food.category
             source_type = "packaged"
+            recs = get_storage_recommendations(packaged_category=food_category)
+            fd_min = recs["fridge"][0] if recs.get("fridge") else None
+            fd_max = recs["fridge"][1] if recs.get("fridge") else None
+            fz_min = recs["freezer"][0] if recs.get("freezer") else None
+            fz_max = recs["freezer"][1] if recs.get("freezer") else None
+            pn_min = recs["pantry"][0] if recs.get("pantry") else None
+            pn_max = recs["pantry"][1] if recs.get("pantry") else None
         elif item.unpackaged_food is not None:
             food_name = item.unpackaged_food.name
             food_image = None
             food_brand = None
             food_category = item.unpackaged_food.category
             source_type = "unpackaged"
+            fd_min = item.unpackaged_food.fridge_days_min
+            fd_max = item.unpackaged_food.fridge_days_max
+            fz_min = item.unpackaged_food.freezer_days_min
+            fz_max = item.unpackaged_food.freezer_days_max
+            pn_min = item.unpackaged_food.pantry_days_min
+            pn_max = item.unpackaged_food.pantry_days_max
         else:
             food_name = None
             food_image = None
             food_brand = None
             food_category = None
             source_type = None
+            fd_min = fd_max = fz_min = fz_max = pn_min = pn_max = None
 
         owner_ids_val = [o.member_id for o in item.ownerships]
         owner_display_names_val = [o.member.display_name for o in item.ownerships]
@@ -753,6 +811,12 @@ def list_household_inventory(household_id: str, db: Session = Depends(get_db)):
             owner_display_name=owner_display_name_val,
             owner_ids=owner_ids_val,
             owner_display_names=owner_display_names_val,
+            fridge_days_min=fd_min,
+            fridge_days_max=fd_max,
+            freezer_days_min=fz_min,
+            freezer_days_max=fz_max,
+            pantry_days_min=pn_min,
+            pantry_days_max=pn_max,
         ))
 
     return result

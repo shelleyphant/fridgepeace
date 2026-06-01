@@ -28,7 +28,7 @@ export function useAddFood() {
           },
           { headers: { 'content-type': 'application/json' } },
         );
-        return true;
+        return data;
       }
 
       if (selected._source === 'openfoodfacts') {
@@ -56,7 +56,7 @@ export function useAddFood() {
           packaged_food_id = created.id;
         }
 
-        await axios.post(
+        const { data } = await axios.post(
           `${API_URL}/foods/add-to-inventory`,
           {
             household_id,
@@ -71,7 +71,7 @@ export function useAddFood() {
           { headers: { 'content-type': 'application/json' } },
         );
 
-        return true;
+        return data;
       }
 
       setError(new Error(`Unknown food source: ${selected._source}`));

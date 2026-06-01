@@ -48,11 +48,9 @@ export function useSearch() {
     let remote = [];
     try {
       const params = new URLSearchParams({
-        action: 'process',
         search_terms: query,
-        tagtype_0: 'countries',
-        tag_contains_0: 'contains',
-        tag_0: 'Australia',
+        search_simple: '1',
+        action: 'process',
         sort_by: 'unique_scans_n',
         page_size: '20',
         json: '1',

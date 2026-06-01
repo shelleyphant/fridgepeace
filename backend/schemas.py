@@ -297,6 +297,12 @@ class PackagedFoodSearchResponse(BaseModel):
     brand: Optional[str] = None
     image_url: Optional[str] = None
     category: Optional[str] = None
+    fridge_days_min: Optional[int] = None
+    fridge_days_max: Optional[int] = None
+    freezer_days_min: Optional[int] = None
+    freezer_days_max: Optional[int] = None
+    pantry_days_min: Optional[int] = None
+    pantry_days_max: Optional[int] = None
 
 
 class FoodSearchResponse(BaseModel):
@@ -321,6 +327,8 @@ class FoodAddToInventoryResponse(BaseModel):
     inventory_item: FoodInventoryResponse
     food_item: PackagedFoodResponse | UnpackagedFoodResponse
     is_new: bool
+    recommended_expiry: Optional[dict[str, Optional[str]]] = None
+    shelf_life_info: Optional[dict[str, Optional[dict[str, Optional[int]]]]] = None
 
 
 # ─── Household Inventory with Names ─────────────────────────
@@ -347,3 +355,9 @@ class InventoryItemWithNames(BaseModel):
     owner_display_name: Optional[str] = None
     owner_ids: list[int] = []
     owner_display_names: list[str] = []
+    fridge_days_min: Optional[int] = None
+    fridge_days_max: Optional[int] = None
+    freezer_days_min: Optional[int] = None
+    freezer_days_max: Optional[int] = None
+    pantry_days_min: Optional[int] = None
+    pantry_days_max: Optional[int] = None

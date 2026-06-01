@@ -3,6 +3,111 @@
 > **Date**: 2026-06-01
 
 ---
+
+## v1.2 — Storage Recommendation Engine & OFF API Stabilisation
+
+### Overview
+
+This release introduces an intelligent storage recommendation engine that automatically suggests storage locations (fridge/freezer/pantry) and recommended expiry dates when users add food. It leverages the existing FoodKeeper data for precise shelf-life values and falls back to category-based estimations for unlisted items. Also includes stabilisation of the OpenFoodFacts search API.
+
+### P0: Backend Shelf Life Engine
+
+#### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/shelf_life.py` | Shelf-life estimation core. Defines a 15-category mapping dictionary with storage location (fridge/freezer/pantry), min/max days, and unit. Exports three functions: `get_storage_recommendations()`, `compute_recommended_expiry()`, and `get_shelf_life_for_category()`. |
+
+#### How It Works
+
+- **FoodKeeper precision first** — If the item matches a FoodKeeper record with explicit `fridge_days_min` / `fridge_days_max` fields, those exact values are used.
+- **Category-based fallback** — For packaged foods without FoodKeeper data, the engine maps the item's `category` to the 15-category lookup table (e.g., `dairy` → 5–21 days fridge; `beverages` → 365–730 days pantry).
+- **Return value** — `get_storage_recommendations()` returns `{ storage_location, min_days, max_days, source }` where `source` is either `"foodkeeper"` or `"category_estimate"`.
+
+### P1: Schema Extensions (Backward Compatible)
+
+**File modified**: `backend/schemas.py`
+
+**Before**: `PackagedFoodSearchResponse`, `FoodAddToInventoryResponse`, and `InventoryItemWithNames` had no shelf-life fields.
+
+**After**: All three schemas now include the following optional fields (default `None` — zero breaking changes for existing clients):
+- `recommended_storage_location` — Suggested location (`"fridge"`, `"freezer"`, `"pantry"`)
+- `recommended_expiry_min` — Earliest recommended expiry date (ISO string)
+- `recommended_expiry_max` — Latest recommended expiry date (ISO string)
+- `shelf_life_min_days` — Minimum shelf life in days
+- `shelf_life_max_days` — Maximum shelf life in days
+- `shelf_life_source` — Data source (`"foodkeeper"` or `"category_estimate"`)
+- `shelf_life_info` (nested dict) — Contains all recommendation metadata for frontend display
+
+### P2: API Endpoint Enrichment
+
+**File modified**: `backend/routers.py`
+
+Three endpoints updated to compute and return shelf-life data:
+
+| Endpoint | Enrichment |
+|----------|-----------|
+| `POST /foods/search` packaged results | Each `PackagedFood` result is enriched via `get_storage_recommendations(packaged_category=p.category)` |
+| `POST /foods/add-to-inventory` response | After adding to inventory, response includes `recommended_expiry` and `shelf_life_info` computed from FoodKeeper or category estimate |
+| `GET /household/{id}/inventory` item list | Each `InventoryItemWithNames` enriched with all 6 shelf-life fields sourced from the item's FoodKeeper data or packaged category |
+
+### P3: Frontend UI Integration
+
+#### FoodDetail.jsx — Smart Add Flow
+
+**File modified**: `client/components/inventory/FoodDetail.jsx`
+
+**Before**: Adding a new food item required the user to manually select storage location and set an expiry date. The form provided no guidance on expected shelf life.
+
+**After** (6 edit areas):
+- **Storage auto-preselect** — When `recommended_storage_location` is present, that tab is pre-selected and highlighted with a subtle green ring.
+- **Expiry date auto-fill** — The "Best before" date field is pre-populated with `recommended_expiry_max` (the latest safe date), with a small "days from now" label (e.g., "~21 days").
+- **Shelf life source badge** — Shows a small badge next to the date: 🗄️ FoodKeeper (blue) or 📊 Estimate (amber).
+- **Suggest buttons** — Two buttons ("Use min: X days" / "Use max: Y days") appear above the date picker, letting users override the default.
+- **Deviation warning** — If the user picks a date beyond `recommended_expiry_max`, an amber warning appears: "This exceeds the recommended X–Y day shelf life."
+- **Expiry → Location sync** — Changing the expiry date re-evaluates the recommended location. Picking a short (<7 day) date auto-selects "Fridge", a long (>90 day) date auto-selects "Pantry".
+
+#### FoodEditForm.jsx — Same Sync Logic
+
+**File modified**: `client/components/inventory/FoodEditForm.jsx`
+
+Same auto-preselect and expiry-location sync logic applied for the edit form (5 edit areas), ensuring consistency between Add and Edit flows.
+
+#### useAddFood.js — Response Data Passthrough
+
+**File modified**: `client/hooks/useAddFood.js`
+
+**Before**: `addFood()` returned `{ success: true }` on completion.
+
+**After**: `addFood()` now returns the full API response `{ data }`, allowing callers to access the returned `recommended_expiry` and `shelf_life_info` fields for display in the UI.
+
+### P4: OpenFoodFacts Search Stabilisation
+
+**File modified**: `client/hooks/useSearch.js`
+
+**Problem**: The OFF v2 API endpoint (`/api/v2/search`) does not honour the `search_terms` filter — it returns the same default products regardless of query. The deprecated `cgi/search.pl` was initially replaced in v1.0 to fix a "not valid JSON" error, but v2 API could not perform actual searching.
+
+**Fix**: Reverted to `cgi/search.pl` with proper parameters:
+- `search_simple=1` + `action=process` — Required by the old CGI endpoint for text search
+- `sort_by=unique_scans_n` — Sort by popularity
+- `json=1` — JSON output format
+- `User-Agent: FridgePeace/1.0 (university project)` — Identifies the app to OFF and avoids bot detection
+
+**Rate limit awareness**: OFF enforces 10 search requests/min/IP on `cgi/search.pl`. Brief 503 responses may occur on rapid repeated searches; normal service resumes after ~1 minute. This is documented in the OFF API terms.
+
+### Files Modified (v1.2)
+
+| File | Changes |
+|------|---------|
+| `backend/shelf_life.py` | **Created** — 15-category shelf life mapping + 3 estimation functions |
+| `backend/schemas.py` | Added 7 optional shelf-life fields across 3 schemas |
+| `backend/routers.py` | Enriched 3 endpoints with shelf-life computation |
+| `client/components/inventory/FoodDetail.jsx` | 6 edit areas: auto-preselect, auto-fill, suggest buttons, deviation warning |
+| `client/components/inventory/FoodEditForm.jsx` | 5 edit areas: same auto-preselect + sync logic |
+| `client/hooks/useAddFood.js` | Returns full response data instead of `{ success: true }` |
+| `client/hooks/useSearch.js` | Reverted to `cgi/search.pl` with corrected parameters; added User-Agent header |
+
+---
 ## v1.1 — CORS Fix, OFF Proxy & Frontend State Management Refactor
 
 ### Overview

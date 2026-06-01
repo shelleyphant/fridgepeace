@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { API_URL, STORAGE_KEYS } from '../../constants';
 import { useFoodOwnership } from '../../hooks/useFoodOwnership';
@@ -51,6 +51,27 @@ const FoodEditForm = ({ item, onSave, onCancel }) => {
     }
   }, [item.id]);
 
+  const shelfLife = useMemo(() => {
+    const fk = ['fridge_days_min', 'fridge_days_max', 'freezer_days_min', 'freezer_days_max', 'pantry_days_min', 'pantry_days_max'];
+    if (fk.some((k) => item[k] != null)) {
+      return {
+        fridge: { min: item.fridge_days_min, max: item.fridge_days_max },
+        freezer: { min: item.freezer_days_min, max: item.freezer_days_max },
+        pantry: { min: item.pantry_days_min, max: item.pantry_days_max },
+      };
+    }
+    return null;
+  }, [item]);
+
+  const suggestedExpiryDate = useMemo(() => {
+    if (!shelfLife || !storageLocation) return null;
+    const locData = shelfLife[storageLocation];
+    if (!locData || locData.max == null) return null;
+    const d = new Date();
+    d.setDate(d.getDate() + locData.max);
+    return d.toISOString().split('T')[0];
+  }, [shelfLife, storageLocation]);
+
   const handleClaim = async () => {
     setClaiming(true);
     const success = await claimOwnership(item.id, householdMemberId);
@@ -100,6 +121,20 @@ const FoodEditForm = ({ item, onSave, onCancel }) => {
       <div className="mb-3">
         <OwnerBadge ownerNames={item.owner_display_names ?? (item.owner_display_name ? [item.owner_display_name] : [])} />
       </div>
+      {shelfLife && (
+        <div className="mb-3 space-y-0.5 rounded-lg bg-gray-50 p-2">
+          <p className="text-xs font-medium text-gray-500">Recommended storage:</p>
+          {shelfLife.fridge?.max != null && (
+            <p className="text-xs text-gray-400">🧊 Fridge: {shelfLife.fridge.min}–{shelfLife.fridge.max} days</p>
+          )}
+          {shelfLife.freezer?.max != null && (
+            <p className="text-xs text-gray-400">❄️ Freezer: {shelfLife.freezer.min}–{shelfLife.freezer.max} days</p>
+          )}
+          {shelfLife.pantry?.max != null && (
+            <p className="text-xs text-gray-400">📦 Pantry: {shelfLife.pantry.min}–{shelfLife.pantry.max} days</p>
+          )}
+        </div>
+      )}
 
       <div className="space-y-3">
         <div className="flex gap-2">
@@ -142,39 +177,76 @@ const FoodEditForm = ({ item, onSave, onCancel }) => {
           <label className="block text-sm font-medium">Storage Location <span className="text-red-500">*</span></label>
           <div className="mt-1 flex gap-2">
             {STORAGE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                className={`flex-1 rounded-full px-3 py-1.5 text-center text-sm border ${
-                storageLocation === opt.value
-                  ? 'bg-water-600 text-white border-water-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-              }`}
-                onClick={() => setStorageLocation(opt.value)}
-                disabled={loading}
-              >
-                {opt.label}
-              </button>
+              <div key={opt.value} className="flex-1">
+                <button
+                  type="button"
+                  className={`w-full rounded-full px-3 py-1.5 text-center text-sm border ${
+                  storageLocation === opt.value
+                    ? 'bg-water-600 text-white border-water-600'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+                  onClick={() => setStorageLocation(opt.value)}
+                  disabled={loading}
+                >
+                  {opt.label}
+                </button>
+                {shelfLife?.[opt.value]?.max != null && (
+                  <p className="mt-0.5 text-[10px] text-gray-400 text-center">
+                    ~{shelfLife[opt.value].max} days
+                  </p>
+                )}
+                {shelfLife?.[opt.value] == null && (
+                  <p className="mt-0.5 text-[10px] text-gray-300 text-center">—</p>
+                )}
+              </div>
             ))}
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium">Expiry Date</label>
-          <input
-            className={`w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-1 ${
-              expiryError
-                ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
-                : 'border-gray-300 focus:border-water-500 focus:ring-water-500'
-            }`}
-            type="date"
-            value={expiryDate}
-            onChange={(e) => setExpiryDate(e.target.value)}
-            onBlur={() => setTouched((prev) => ({ ...prev, expiryDate: true }))}
-            disabled={loading}
-          />
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <input
+                className={`w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-1 ${
+                  expiryError
+                    ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
+                    : 'border-gray-300 focus:border-water-500 focus:ring-water-500'
+                }`}
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+                onBlur={() => setTouched((prev) => ({ ...prev, expiryDate: true }))}
+                disabled={loading}
+              />
+            </div>
+            {suggestedExpiryDate && (
+              <button
+                className={`mb-0.5 rounded-full px-3 py-2 text-xs whitespace-nowrap ${
+                  expiryDate === suggestedExpiryDate
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-water-50 text-water-600 hover:bg-water-100'
+                }`}
+                onClick={() => setExpiryDate(suggestedExpiryDate)}
+                disabled={loading}
+              >
+                {expiryDate === suggestedExpiryDate ? '✓ Suggested' : 'Use suggested'}
+              </button>
+            )}
+          </div>
           {expiryError && (
             <p className="mt-0.5 text-xs text-red-500">{expiryError}</p>
+          )}
+          {suggestedExpiryDate && expiryDate && expiryDate !== suggestedExpiryDate && (
+            <p className="mt-0.5 text-xs text-amber-600">
+              Recommended: {suggestedExpiryDate}
+              <button
+                className="ml-1 text-water-600 underline"
+                onClick={() => setExpiryDate(suggestedExpiryDate)}
+              >
+                Apply
+              </button>
+            </p>
           )}
         </div>
 
