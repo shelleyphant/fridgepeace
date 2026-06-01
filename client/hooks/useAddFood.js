@@ -25,18 +25,31 @@ export function useAddFood() {
         if (match) {
           unpackaged_food_id = match.id;
         } else {
+          const toDays = (value, metric) => {
+            if (value == null || metric == null) return null;
+            switch (metric.toLowerCase()) {
+              case 'weeks': return value * 7;
+              case 'months': return value * 30;
+              case 'years': return value * 365;
+              default: return value;
+            }
+          };
+          const maxDays = (value, metric, dopValue, dopMetric) =>
+            Math.max(
+              ...[toDays(value, metric), toDays(dopValue, dopMetric)].filter((v) => v != null),
+            ) || null;
           const { data: created } = await axios.post(
             `${API}/unpackaged-foods/`,
             {
               foodkeeper_id: selected.ID?.toString() ?? null,
               category: categories[selected.Category_ID] ?? null,
               name: selected.Name,
-              fridge_days_min: selected.Refrigerate_Min ?? null,
-              fridge_days_max: selected.Refrigerate_Max ?? null,
-              freezer_days_min: selected.Freeze_Min ?? null,
-              freezer_days_max: selected.Freeze_Max ?? null,
-              pantry_days_min: selected.Pantry_Min ?? null,
-              pantry_days_max: selected.Pantry_Max ?? null,
+              fridge_days_min: toDays(selected.Refrigerate_Min, selected.Refrigerate_Metric) ?? toDays(selected.DOP_Refrigerate_Min, selected.DOP_Refrigerate_Metric) ?? null,
+              fridge_days_max: maxDays(selected.Refrigerate_Max, selected.Refrigerate_Metric, selected.DOP_Refrigerate_Max, selected.DOP_Refrigerate_Metric),
+              freezer_days_min: toDays(selected.Freeze_Min, selected.Freeze_Metric) ?? toDays(selected.DOP_Freeze_Min, selected.DOP_Freeze_Metric) ?? null,
+              freezer_days_max: maxDays(selected.Freeze_Max, selected.Freeze_Metric, selected.DOP_Freeze_Max, selected.DOP_Freeze_Metric),
+              pantry_days_min: toDays(selected.Pantry_Min, selected.Pantry_Metric) ?? toDays(selected.DOP_Pantry_Min, selected.DOP_Pantry_Metric) ?? null,
+              pantry_days_max: maxDays(selected.Pantry_Max, selected.Pantry_Metric, selected.DOP_Pantry_Max, selected.DOP_Pantry_Metric),
             },
             { headers: { 'content-type': 'application/json' } },
           );
@@ -93,7 +106,7 @@ export function useAddFood() {
     }
   }
 
-  async function updateFood(inventoryItem, additionalQuantity) {
+  async function updateFood(inventoryItem, additionalQuantity, expiry_date) {
     setLoading(true);
     setError(null);
     try {
@@ -109,7 +122,7 @@ export function useAddFood() {
           storage_location: inventoryItem.storage_location,
           quantity: newQuantity,
           unit: inventoryItem.unit,
-          expiry_date: inventoryItem.expiry_date,
+          expiry_date: expiry_date ?? inventoryItem.expiry_date,
         },
         { headers: { 'content-type': 'application/json' } },
       );

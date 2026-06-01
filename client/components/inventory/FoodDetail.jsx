@@ -5,9 +5,36 @@ import { useAddFood } from '../../hooks/useAddFood';
 const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
   const [quantity, setQuantity] = useState('');
   const [date, setDate] = useState(
-    food._source === 'foodkeeper' ? moment().format('YYYY-MM-DD') : '',
+    food._source === 'foodkeeper' || food.unpackaged_food_id ? moment().format('YYYY-MM-DD') : '',
   );
   const { addFood, updateFood } = useAddFood();
+
+  const calcExpiryDate = (date) => {
+    if (food._source !== 'foodkeeper' || food.packaged_food_id) return date;
+    const toDays = (value, metric) => {
+      if (value == null || metric == null) return null;
+      switch (metric.toLowerCase()) {
+        case 'weeks': return value * 7;
+        case 'months': return value * 30;
+        case 'years': return value * 365;
+        default: return value;
+      }
+    };
+    const maxDays = Math.max(
+      ...[
+        toDays(food.Pantry_Max, food.Pantry_Metric),
+        toDays(food.DOP_Pantry_Max, food.DOP_Pantry_Metric),
+        toDays(food.Pantry_After_Opening_Max, food.Pantry_After_Opening_Metric),
+        toDays(food.Refrigerate_Max, food.Refrigerate_Metric),
+        toDays(food.DOP_Refrigerate_Max, food.DOP_Refrigerate_Metric),
+        toDays(food.Refrigerate_After_Opening_Max, food.Refrigerate_After_Opening_Metric),
+        toDays(food.Freeze_Max, food.Freeze_Metric),
+        toDays(food.DOP_Freeze_Max, food.DOP_Freeze_Metric),
+      ].filter((v) => v != null),
+    );
+    if (!isFinite(maxDays)) return date;
+    return moment(date).add(maxDays, 'days').format('YYYY-MM-DD');
+  };
 
   return (
     <div>
@@ -21,7 +48,11 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         value={quantity}
         type="number"
       />
-      <label>Use By Date</label>
+      <label>
+        {food._source === 'foodkeeper' || food.unpackaged_food_id
+          ? 'Purchase Date'
+          : 'Use By Date'}
+      </label>
       <input
         className="border"
         onChange={(e) => setDate(e.target.value)}
@@ -32,8 +63,8 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         className="mt-2 bg-blue-500 px-4 py-2 text-white"
         onClick={async () => {
           const success = inventoryItem
-            ? await updateFood(inventoryItem, quantity)
-            : await addFood(food, { quantity, expiry_date: date });
+            ? await updateFood(inventoryItem, quantity, calcExpiryDate(date))
+            : await addFood(food, { quantity, expiry_date: calcExpiryDate(date) });
           if (success) onSuccess?.();
         }}
       >
