@@ -36,7 +36,7 @@ pyvenv.cfg
 
 # Databases
 local_settings.py
-fridgepeace.db
+*.db
 db.sqlite3
 db.sqlite3-journal
 

@@ -20,7 +20,11 @@ const Onboarding = ({ onComplete }) => {
       setError(null);
     } catch (e) {
       const detail = e.response?.data?.detail;
-      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : detail ?? e.message);
+      setError(
+        Array.isArray(detail)
+          ? detail.map((d) => d.msg).join(', ')
+          : (detail ?? e.message),
+      );
     }
   };
   const handleHousehold = async () => {
@@ -31,7 +35,11 @@ const Onboarding = ({ onComplete }) => {
       onComplete();
     } catch (e) {
       const detail = e.response?.data?.detail;
-      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : detail ?? e.message);
+      setError(
+        Array.isArray(detail)
+          ? detail.map((d) => d.msg).join(', ')
+          : (detail ?? e.message),
+      );
     }
   };
 
@@ -59,7 +67,7 @@ const Onboarding = ({ onComplete }) => {
     );
   }
   if (member_id) {
-    if (!houseFormType)
+    if (!houseFormType) {
       return (
         <div>
           <Button
@@ -69,22 +77,24 @@ const Onboarding = ({ onComplete }) => {
           <Button title="Join a Household" action={() => setHouseFormType('join')} />
         </div>
       );
-    return (
-      <div>
-        <label>
-          {houseFormType === 'create'
-            ? 'Enter a name for your household'
-            : 'Enter the unique House ID'}
-        </label>
-        <input
-          className="w-full border"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-        />
-        {error && <p>{error}</p>}
-        <Button title="Submit" action={handleHousehold} />
-      </div>
-    );
+    } else {
+      return (
+        <div>
+          <label>
+            {houseFormType === 'create'
+              ? 'Enter a name for your household'
+              : 'Enter the unique House ID'}
+          </label>
+          <input
+            className="w-full border"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+          />
+          {error && <p>{error}</p>}
+          <Button title="Submit" action={handleHousehold} />
+        </div>
+      );
+    }
   }
 };
 

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
+import { CircleNotch } from '@phosphor-icons/react';
 import { useSearch } from '../../hooks/useSearch';
 import FoodDetail from './FoodDetail';
 
 const NewFood = ({ onSuccess }) => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
-  const results = useSearch(search);
+  const { results, loading } = useSearch(search);
 
   return (
     <div>
@@ -18,7 +19,8 @@ const NewFood = ({ onSuccess }) => {
         }}
         value={search}
       />
-      {!selected && results.length > 0 && (
+      {loading && <CircleNotch size={32} className="animate-spin" />}
+      {!selected && !loading && results.length > 0 && (
         <ul className="mt-1 border">
           {results.map((p, i) => (
             <li
@@ -26,7 +28,9 @@ const NewFood = ({ onSuccess }) => {
               className="cursor-pointer p-1 hover:bg-gray-100"
               onClick={() => setSelected(p)}
             >
-              {p._source === 'foodkeeper' ? p.Name : p.product_name}
+              {p._source === 'foodkeeper'
+                ? `${p.Name} (${p.Name_subtitle}) `
+                : `${p.product_name} (${p.brands})`}
             </li>
           ))}
         </ul>

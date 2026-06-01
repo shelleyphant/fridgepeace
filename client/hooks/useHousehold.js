@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const API = process.env.API_URL ?? '';
@@ -17,4 +18,15 @@ export async function joinHousehold(member_id, household_id) {
     household_id,
   });
   localStorage.setItem('household_id', household_id);
+}
+
+export function useHousehold(household_id) {
+  const [household, setHousehold] = useState(null);
+
+  useEffect(() => {
+    if (!household_id) return;
+    axios.get(`${API}/households/${household_id}`).then((r) => setHousehold(r.data));
+  }, [household_id]);
+
+  return household;
 }
