@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import './main.css';
 import { useState, useMemo } from 'react';
+import axios from 'axios';
 import Header from './components/Header';
 import Drawer from './components/Drawer';
 import Onboarding from './components/Onboarding';
@@ -8,6 +9,8 @@ import FoodCard from './components/inventory/FoodCard';
 import FoodEditForm from './components/inventory/FoodEditForm';
 import SkeletonCard from './components/inventory/SkeletonCard';
 import { useInventory } from './hooks/useInventory';
+
+const API = process.env.API_URL ?? '';
 
 const isSetUp = () =>
   localStorage.getItem('member_id') && localStorage.getItem('household_id') && localStorage.getItem('household_member_id');
@@ -64,19 +67,49 @@ const App = () => {
   };
 
   const handleLogout = () => {
+    if (!window.confirm('Logout and clear local data?')) return;
     localStorage.clear();
     setReady(false);
+  };
+
+  const handleLeaveHousehold = () => {
+    localStorage.removeItem('household_id');
+    localStorage.removeItem('household_member_id');
+    setReady(false);
+  };
+
+  const handleSwitchHousehold = async (newHouseholdId) => {
+    localStorage.setItem('household_id', newHouseholdId);
+    try {
+      const memberId = localStorage.getItem('member_id');
+      const { data: members } = await axios.get(`${API}/member/${newHouseholdId}/members`);
+      const myMembership = members.find((m) => String(m.user_id) === memberId);
+      if (myMembership) {
+        localStorage.setItem('household_member_id', String(myMembership.id));
+      }
+    } catch (e) {
+      console.error('Failed to switch household', e);
+    }
+    refresh();
   };
 
   if (!ready) return <Onboarding onComplete={() => setReady(true)} />;
 
   const householdId = localStorage.getItem('household_id');
   const memberName = localStorage.getItem('member_name');
+  const userId = localStorage.getItem('member_id');
 
   return (
     <>
-      <div className="m-auto max-w-lg p-4 pb-24 min-h-screen">
-        <Header householdId={householdId} memberName={memberName} onLogout={handleLogout} />
+      <div className="m-auto max-w-lg p-4 pb-20 min-h-screen">
+        <Header
+          householdId={householdId}
+          memberName={memberName}
+          userId={userId}
+          onLogout={handleLogout}
+          onLeaveHousehold={handleLeaveHousehold}
+          onSwitchHousehold={handleSwitchHousehold}
+        />
 
         <div className="mb-3">
           <div className="flex flex-wrap gap-1">
@@ -131,7 +164,7 @@ const App = () => {
         {!loading && !error && filtered.length === 0 && (
           <div className="mt-8 text-center text-gray-400">
             <p className="text-lg">Your fridge is empty!</p>
-            <p className="mt-1 text-sm">Tap 'New Food' to add your first item.</p>
+            <p className="mt-1 text-sm">Tap + to add your first item.</p>
           </div>
         )}
 
@@ -157,16 +190,12 @@ const App = () => {
         <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)} onSuccess={() => { setLocalItems(null); refresh(); setIsOpen(false); }} />
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-white px-4 py-3 shadow">
-        <div className="m-auto max-w-lg">
-          <button
-            className="w-full rounded-full bg-water-600 px-6 py-3 text-center text-sm font-medium text-white hover:bg-water-700"
-            onClick={() => setIsOpen(true)}
-          >
-            + New Food
-          </button>
-        </div>
-      </div>
+      <button
+        className="fixed bottom-6 right-6 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-water-600 text-2xl text-white shadow-lg hover:bg-water-700 active:scale-95"
+        onClick={() => setIsOpen(true)}
+      >
+        +
+      </button>
     </>
   );
 };

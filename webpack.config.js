@@ -74,23 +74,17 @@ module.exports = {
   devServer: {
     proxy: [
       {
+        context: ['/off-proxy'],
+        target: 'https://world.openfoodfacts.org',
+        pathRewrite: { '^/off-proxy': '' },
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
+      {
         context: ['/'],
         target: 'http://localhost:8000',
       },
     ],
-    setupMiddlewares: (middlewares, devServer) => {
-      const { createProxyMiddleware } = require('http-proxy-middleware');
-      devServer.app.use(
-        '/off-proxy',
-        createProxyMiddleware({
-          target: 'https://world.openfoodfacts.org',
-          pathRewrite: { '^/off-proxy': '' },
-          changeOrigin: true,
-          cookieDomainRewrite: 'localhost',
-        }),
-      );
-      return middlewares;
-    },
     static: path.resolve(__dirname, 'build'),
     port: 4040,
     open: true,

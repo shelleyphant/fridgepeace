@@ -4,6 +4,61 @@
 
 ---
 
+## v0.5 — UX Improvements: FAB Button & Household Management
+
+### Overview
+
+Replaced the fixed bottom bar with a compact floating action button (FAB), added a household management panel with member listing, household switching, and leave household functionality, and added logout confirmation.
+
+### FAB: Bottom Bar → Floating Action Button
+
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+
+**Before**: "+ New Food" was a full-width button inside a `fixed bottom-0` bar with border and shadow, occupying 56px of vertical space.
+
+**After**: A `fixed bottom-6 right-6` circular button (`h-14 w-14`) with only "+" icon, following Material Design FAB pattern. Uses `shadow-lg` and `active:scale-95` for press feedback. Content area `pb-24` → `pb-20`.
+
+### Household Management Panel
+
+**Files modified**: [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx)
+
+**Before**: Header showed household code with "copy" link. No way to view household details, switch households, or leave.
+
+**After**: Clicking the household code opens a **bottom sheet panel** (`fixed inset-0 z-30`) with:
+- **Household code** display with Copy button
+- **Members list** — fetched from `GET /member/{household_id}/members`, shows green indicator dots
+- **Switch Household** dropdown — appears only if `GET /member/{user_id}/households` returns more than one household
+- **Leave Household** button — two-step confirmation, calls `POST /member/leave/`
+
+### Leave Household Flow
+
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx), [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx)
+
+**New `handleLeaveHousehold`**: Clears `household_id` and `household_member_id` from localStorage, then resets app to onboarding state (`setReady(false)`) so user can create or join another household.
+
+### Switch Household Flow
+
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx), [Header.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Header.jsx)
+
+**New `handleSwitchHousehold`**: Updates `household_id` in localStorage, fetches members from the new household to find and store correct `household_member_id`, then refreshes inventory.
+
+### Logout Confirmation
+
+**Files modified**: [index.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/index.jsx)
+
+**Before**: `handleLogout` called `localStorage.clear()` immediately with no warning.
+
+**After**: Added `window.confirm('Logout and clear local data?')` before clearing.
+
+### Modified Files (v0.5)
+
+| File | Changes |
+|------|---------|
+| `client/index.jsx` | FAB button, `pb-20`, added `axios` import + `API` constant, `handleLeaveHousehold`, `handleSwitchHousehold`, logout confirmation, pass `userId`/`onLeaveHousehold`/`onSwitchHousehold` to Header, updated empty state text |
+| `client/components/Header.jsx` | Added household management bottom sheet panel with members list, household switcher, and leave household flow |
+
+---
+
 ## v0.4 — Mobile-First Vertical Layout & Onboarding Refinements
 
 ### Overview
