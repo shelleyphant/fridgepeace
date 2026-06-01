@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { CircleNotch } from '@phosphor-icons/react';
+import { Loading02Icon } from '@hugeicons/core-free-icons';
 import { useSearch } from '../../hooks/useSearch';
 import FoodDetail from './FoodDetail';
+import { HugeiconsIcon } from '@hugeicons/react';
 
 const NewFood = ({ onSuccess }) => {
   const [search, setSearch] = useState('');
@@ -19,7 +20,7 @@ const NewFood = ({ onSuccess }) => {
         }}
         value={search}
       />
-      {loading && <CircleNotch size={32} className="animate-spin" />}
+      {loading && <HugeiconsIcon icon={Loading02Icon} className="animate-spin" />}
       {!selected && !loading && results.length > 0 && (
         <ul className="mt-1 border">
           {results.map((p, i) => (
