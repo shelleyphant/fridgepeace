@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import moment from 'moment';
 import { useAddFood } from '../../hooks/useAddFood';
+import Button from '../Button';
 
 const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
   const [quantity, setQuantity] = useState('');
   const [date, setDate] = useState(
-    food._source === 'foodkeeper' || food.unpackaged_food_id ? moment().format('YYYY-MM-DD') : '',
+    food._source === 'foodkeeper' || food.unpackaged_food_id
+      ? moment().format('YYYY-MM-DD')
+      : '',
   );
   const { addFood, updateFood } = useAddFood();
 
@@ -14,10 +17,14 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
     const toDays = (value, metric) => {
       if (value == null || metric == null) return null;
       switch (metric.toLowerCase()) {
-        case 'weeks': return value * 7;
-        case 'months': return value * 30;
-        case 'years': return value * 365;
-        default: return value;
+        case 'weeks':
+          return value * 7;
+        case 'months':
+          return value * 30;
+        case 'years':
+          return value * 365;
+        default:
+          return value;
       }
     };
     const maxDays = Math.max(
@@ -27,7 +34,10 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         toDays(food.Pantry_After_Opening_Max, food.Pantry_After_Opening_Metric),
         toDays(food.Refrigerate_Max, food.Refrigerate_Metric),
         toDays(food.DOP_Refrigerate_Max, food.DOP_Refrigerate_Metric),
-        toDays(food.Refrigerate_After_Opening_Max, food.Refrigerate_After_Opening_Metric),
+        toDays(
+          food.Refrigerate_After_Opening_Max,
+          food.Refrigerate_After_Opening_Metric,
+        ),
         toDays(food.Freeze_Max, food.Freeze_Metric),
         toDays(food.DOP_Freeze_Max, food.DOP_Freeze_Metric),
       ].filter((v) => v != null),
@@ -38,9 +48,10 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
 
   return (
     <div>
-      <pre className="mt-1 border p-2 text-xs whitespace-pre-wrap">
+      {/* <pre className="mt-1 border p-2 text-xs whitespace-pre-wrap">
         {JSON.stringify(food, null, 2)}
-      </pre>
+      </pre> */}
+      <span className="block">{food.Name ?? food.product_name}</span>
       <label>Quantity</label>
       <input
         className="border"
@@ -59,17 +70,16 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         value={date}
         type="date"
       />
-      <button
+      <Button
         className="mt-2 bg-blue-500 px-4 py-2 text-white"
-        onClick={async () => {
+        action={async () => {
           const success = inventoryItem
             ? await updateFood(inventoryItem, quantity, calcExpiryDate(date))
             : await addFood(food, { quantity, expiry_date: calcExpiryDate(date) });
           if (success) onSuccess?.();
         }}
-      >
-        Add to fridge
-      </button>
+        title={'Add to fridge'}
+      />
     </div>
   );
 };
