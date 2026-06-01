@@ -5,6 +5,23 @@ import Button from './Button';
 import { addHousehold, joinHousehold } from '../hooks/useHousehold';
 import { API_URL, STORAGE_KEYS } from '../constants';
 
+function validateUsername(value) {
+  if (!value || value.trim() === '') return 'Username is required';
+  if (value.trim().length < 2) return 'Username must be at least 2 characters';
+  return null;
+}
+
+function validateHouseholdName(value) {
+  if (!value || value.trim() === '') return 'Household name is required';
+  if (value.trim().length < 2) return 'Household name must be at least 2 characters';
+  return null;
+}
+
+function validateHouseholdCode(value) {
+  if (!value || value.trim() === '') return 'Household code is required';
+  return null;
+}
+
 const Onboarding = ({ onComplete }) => {
   const [member_id, setMemberId] = useState(localStorage.getItem(STORAGE_KEYS.MEMBER_ID));
   const [memberFormType, setMemberFormType] = useState(null);
@@ -12,8 +29,17 @@ const Onboarding = ({ onComplete }) => {
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
   const [householdCode, setHouseholdCode] = useState(null);
+  const [touched, setTouched] = useState(false);
+
+  const usernameError = (memberFormType && touched) ? validateUsername(input) : null;
+  const householdNameError = (houseFormType === 'create' && touched) ? validateHouseholdName(input) : null;
+  const householdCodeError = (houseFormType === 'join' && touched) ? validateHouseholdCode(input) : null;
+  const inputError = usernameError || householdNameError || householdCodeError;
 
   const handleMembership = async () => {
+    setTouched(true);
+    if (usernameError) return;
+
     try {
       memberFormType === 'signup'
         ? await addMembership(input)
@@ -37,12 +63,17 @@ const Onboarding = ({ onComplete }) => {
       setMemberId(userId);
       setInput('');
       setError(null);
+      setTouched(false);
     } catch (e) {
       const detail = e.response?.data?.detail;
       setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : detail ?? e.message);
     }
   };
+
   const handleHousehold = async () => {
+    setTouched(true);
+    if (inputError) return;
+
     try {
       if (houseFormType === 'create') {
         await addHousehold(member_id, input);
@@ -70,15 +101,22 @@ const Onboarding = ({ onComplete }) => {
       <div className="flex min-h-screen flex-col justify-center gap-3 p-4">
         <label className="text-sm font-medium">
           {memberFormType === 'signup' ? 'Choose a username' : 'Enter your username'}
+          <span className="text-red-500"> *</span>
         </label>
         <input
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
+          className={`w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-1 ${
+            usernameError
+              ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
+              : 'border-gray-300 focus:border-water-500 focus:ring-water-500'
+          }`}
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onBlur={() => setTouched(true)}
         />
+        {usernameError && <p className="text-xs text-red-500">{usernameError}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button title="Submit" action={handleMembership} />
-        <button className="w-full rounded-full bg-gray-100 px-4 py-1.5 text-center text-sm text-gray-600 hover:bg-gray-200" onClick={() => { setMemberFormType(null); setError(null); setInput(''); }}>
+        <button className="w-full rounded-full bg-gray-100 px-4 py-1.5 text-center text-sm text-gray-600 hover:bg-gray-200" onClick={() => { setMemberFormType(null); setError(null); setInput(''); setTouched(false); }}>
           Back
         </button>
       </div>
@@ -125,15 +163,22 @@ const Onboarding = ({ onComplete }) => {
           {houseFormType === 'create'
             ? 'Enter a name for your household'
             : 'Enter the unique House ID'}
+          <span className="text-red-500"> *</span>
         </label>
         <input
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
+          className={`w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-1 ${
+            inputError
+              ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
+              : 'border-gray-300 focus:border-water-500 focus:ring-water-500'
+          }`}
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onBlur={() => setTouched(true)}
         />
+        {inputError && <p className="text-xs text-red-500">{inputError}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button title="Submit" action={handleHousehold} />
-        <button className="w-full rounded-full bg-gray-100 px-4 py-1.5 text-center text-sm text-gray-600 hover:bg-gray-200" onClick={() => { setHouseFormType(null); setError(null); setInput(''); }}>
+        <button className="w-full rounded-full bg-gray-100 px-4 py-1.5 text-center text-sm text-gray-600 hover:bg-gray-200" onClick={() => { setHouseFormType(null); setError(null); setInput(''); setTouched(false); }}>
           Back
         </button>
       </div>

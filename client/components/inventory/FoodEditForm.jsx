@@ -10,6 +10,24 @@ const STORAGE_OPTIONS = [
 
 const UNIT_OPTIONS = ['kg', 'g', 'L', 'mL', 'pcs', 'item'];
 
+function validateQuantity(value) {
+  if (!value || String(value).trim() === '') return 'Quantity is required';
+  const num = parseFloat(value);
+  if (isNaN(num)) return 'Quantity must be a number';
+  if (num <= 0) return 'Quantity must be greater than 0';
+  return null;
+}
+
+function validateExpiryDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return 'Invalid date';
+  const maxFuture = new Date();
+  maxFuture.setFullYear(maxFuture.getFullYear() + 10);
+  if (date > maxFuture) return 'Expiry date is too far in the future';
+  return null;
+}
+
 const FoodEditForm = ({ item, onSave, onCancel }) => {
   const [quantity, setQuantity] = useState(item.quantity ?? '');
   const [unit, setUnit] = useState(item.unit ?? 'item');
@@ -17,9 +35,16 @@ const FoodEditForm = ({ item, onSave, onCancel }) => {
   const [expiryDate, setExpiryDate] = useState(item.expiry_date ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [touched, setTouched] = useState({});
+
+  const quantityError = touched.quantity ? validateQuantity(quantity) : null;
+  const expiryError = touched.expiryDate ? validateExpiryDate(expiryDate) : null;
+  const hasErrors = !!validateQuantity(quantity) || !!validateExpiryDate(expiryDate);
 
   const handleSave = async () => {
-    if (!quantity || parseFloat(quantity) <= 0) return;
+    setTouched({ quantity: true, expiryDate: true });
+    if (hasErrors) return;
+
     setLoading(true);
     setError(null);
     try {
@@ -48,19 +73,27 @@ const FoodEditForm = ({ item, onSave, onCancel }) => {
       <div className="space-y-3">
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="block text-sm font-medium">Quantity</label>
+            <label className="block text-sm font-medium">Quantity <span className="text-red-500">*</span></label>
             <input
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
+              className={`w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-1 ${
+                quantityError
+                  ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
+                  : 'border-gray-300 focus:border-water-500 focus:ring-water-500'
+              }`}
               type="number"
               min="0"
               step="any"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, quantity: true }))}
               disabled={loading}
             />
+            {quantityError && (
+              <p className="mt-0.5 text-xs text-red-500">{quantityError}</p>
+            )}
           </div>
           <div className="w-24">
-            <label className="block text-sm font-medium">Unit</label>
+            <label className="block text-sm font-medium">Unit <span className="text-red-500">*</span></label>
             <select
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
               value={unit}
@@ -75,7 +108,7 @@ const FoodEditForm = ({ item, onSave, onCancel }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Storage Location</label>
+          <label className="block text-sm font-medium">Storage Location <span className="text-red-500">*</span></label>
           <div className="mt-1 flex gap-2">
             {STORAGE_OPTIONS.map((opt) => (
               <button
@@ -96,14 +129,22 @@ const FoodEditForm = ({ item, onSave, onCancel }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Expiry Date (optional)</label>
+          <label className="block text-sm font-medium">Expiry Date</label>
           <input
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
+            className={`w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-1 ${
+              expiryError
+                ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
+                : 'border-gray-300 focus:border-water-500 focus:ring-water-500'
+            }`}
             type="date"
             value={expiryDate}
             onChange={(e) => setExpiryDate(e.target.value)}
+            onBlur={() => setTouched((prev) => ({ ...prev, expiryDate: true }))}
             disabled={loading}
           />
+          {expiryError && (
+            <p className="mt-0.5 text-xs text-red-500">{expiryError}</p>
+          )}
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}

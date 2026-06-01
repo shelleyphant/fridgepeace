@@ -1,9 +1,6 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSearch } from '../../hooks/useSearch';
 import FoodDetail from './FoodDetail';
-
-const API = process.env.API_URL ?? '';
 
 const DISPLAY_NAME = {
   foodkeeper: (p) => p.name,
@@ -26,107 +23,100 @@ const SOURCE_BADGE = {
   },
 };
 
-const BARCODE_LENGTHS = [8, 12, 13];
-
-const isBarcode = (text) => BARCODE_LENGTHS.includes(text.length) && /^\d+$/.test(text);
-
-const NewFood = ({ onSuccess }) => {
+const NewFood = ({ onSuccess, onClose }) => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
-  const [barcodeLoading, setBarcodeLoading] = useState(false);
-  const [barcodeError, setBarcodeError] = useState(null);
-  const { results, loading } = useSearch(isBarcode(search) ? '' : search);
+  const { results, loading, hasSearched, search: triggerSearch, clear } = useSearch();
+  const searchRef = useRef(null);
 
-  const handleSearch = (value) => {
-    setSearch(value);
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        clear();
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [clear]);
+
+  const handleSearch = () => {
+    const trimmed = search.trim();
+    if (!trimmed) return;
     setSelected(null);
-    setBarcodeError(null);
-    if (isBarcode(value)) {
-      setBarcodeLoading(true);
-      axios.get(`${API}/foods/search?q=${encodeURIComponent(value)}&source=barcode`)
-        .then((res) => {
-          const items = res.data.results ?? res.data;
-          if (items.length > 0) {
-            setSelected(items[0]);
-          } else {
-            axios.get(`/off-proxy/api/v0/product/${value}.json`)
-              .then((offRes) => {
-                const product = offRes.data?.product;
-                if (product) {
-                  setSelected({
-                    _source: 'openfoodfacts',
-                    name: product.product_name,
-                    food_name: product.product_name,
-                    food_brand: product.brands,
-                    food_category: product.categories_tags?.[0],
-                  });
-                } else {
-                  setBarcodeError('No product found for this barcode.');
-                }
-              })
-              .catch(() => setBarcodeError('Barcode lookup failed.'))
-              .finally(() => setBarcodeLoading(false));
-          }
-        })
-        .catch(() => {
-          axios.get(`/off-proxy/api/v0/product/${value}.json`)
-            .then((offRes) => {
-              const product = offRes.data?.product;
-              if (product) {
-                setSelected({
-                  _source: 'openfoodfacts',
-                  name: product.product_name,
-                  food_name: product.product_name,
-                  food_brand: product.brands,
-                  food_category: product.categories_tags?.[0],
-                });
-              } else {
-                setBarcodeError('No product found for this barcode.');
-              }
-            })
-            .catch(() => setBarcodeError('Barcode lookup failed.'))
-            .finally(() => setBarcodeLoading(false));
-        });
+    triggerSearch(trimmed);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
     }
   };
 
+  const handleClear = () => {
+    setSearch('');
+    clear();
+    setSelected(null);
+  };
+
   return (
-    <div>
-      <input
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
-        placeholder="Search food name or scan barcode"
-        onChange={(e) => handleSearch(e.target.value)}
-        value={search}
-      />
-      {barcodeLoading && (
-        <p className="mt-1 text-sm text-water-600">Looking up barcode...</p>
+    <div ref={searchRef}>
+      <div className="flex gap-2">
+        <input
+          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-water-500 focus:ring-1 focus:ring-water-500"
+          placeholder="Search food name"
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={handleKeyDown}
+          value={search}
+        />
+        <button
+          className="rounded-full bg-water-600 px-4 py-2 text-center text-sm text-white hover:bg-water-700 disabled:opacity-50"
+          onClick={handleSearch}
+          disabled={loading || !search.trim()}
+        >
+          {loading ? 'Searching...' : 'Search'}
+        </button>
+      </div>
+
+      {hasSearched && !selected && (
+        <div className="mt-2">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-gray-400">
+              {results.length > 0 ? `${results.length} results` : 'No results'}
+            </p>
+            <button
+              className="text-xs text-water-600 hover:text-water-700"
+              onClick={handleClear}
+            >
+              Clear
+            </button>
+          </div>
+          {results.length > 0 && (
+            <ul className="rounded-lg border border-gray-300 max-h-64 overflow-y-auto">
+              {results.map((p, i) => {
+                const badge = SOURCE_BADGE[p._source] ?? SOURCE_BADGE.openfoodfacts;
+                return (
+                  <li
+                    key={i}
+                    className="flex items-center justify-between cursor-pointer p-2 hover:bg-gray-100 border-b last:border-b-0"
+                    onClick={() => setSelected(p)}
+                  >
+                    <span>{(DISPLAY_NAME[p._source] ?? DISPLAY_NAME.openfoodfacts)(p)}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${badge.class}`}>
+                      {badge.label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       )}
-      {barcodeError && (
-        <p className="mt-1 text-sm text-red-600">{barcodeError}</p>
+
+      {loading && (
+        <p className="mt-2 text-sm text-gray-500">Searching...</p>
       )}
-      {!selected && !barcodeLoading && loading && (
-        <p className="mt-1 text-sm text-gray-500">Searching...</p>
-      )}
-      {!selected && !barcodeLoading && !loading && results.length > 0 && (
-        <ul className="mt-1 rounded-lg border border-gray-300">
-          {results.map((p, i) => {
-            const badge = SOURCE_BADGE[p._source] ?? SOURCE_BADGE.openfoodfacts;
-            return (
-              <li
-                key={i}
-                className="flex items-center justify-between cursor-pointer p-2 hover:bg-gray-100 border-b last:border-b-0"
-                onClick={() => setSelected(p)}
-              >
-                <span>{(DISPLAY_NAME[p._source] ?? DISPLAY_NAME.openfoodfacts)(p)}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${badge.class}`}>
-                  {badge.label}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {selected && <FoodDetail food={selected} onSuccess={onSuccess} />}
+
+      {selected && <FoodDetail food={selected} onSuccess={onSuccess ?? onClose} />}
     </div>
   );
 };

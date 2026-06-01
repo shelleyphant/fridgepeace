@@ -4,6 +4,75 @@
 
 ---
 
+## v0.7 — Search UX & Form Validation
+
+### Overview
+
+Redesigned the search interaction from real-time (debounced) to explicit button-triggered search, added backdrop dismiss for the drawer, and implemented comprehensive form validation across all data-entry screens.
+
+### Search: Real-Time → Button-Triggered
+
+**Files modified**: [useSearch.js](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/hooks/useSearch.js), [NewFood.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/NewFood.jsx)
+
+**Before**: `useSearch` hook used `useEffect` with a 400ms debounce timer tied to the query string. Every keystroke triggered a backend API call and OpenFoodFacts fetch. Users had no control over when searches fired.
+
+**After**:
+- **`useSearch.js`** — Rewritten from reactive (useEffect-based) to imperative (function-based). Exposes `search(query)` and `clear()` functions. Tracks `hasSearched` state for UI differentiation between "no results yet" and "searched but empty".
+- **`NewFood.jsx`** — Added a **Search** button alongside the input field. Search only triggers on button click or Enter key press. Added **Clear** link to dismiss results. Added `useRef` + `mousedown` event listener to auto-clear results when clicking outside the search area.
+
+```diff
+- const { results, loading } = useSearch(isBarcode(search) ? '' : search);
++ const { results, loading, hasSearched, search: triggerSearch, clear } = useSearch();
++ const searchRef = useRef(null);
+```
+
+### Drawer: Backdrop Overlay
+
+**Files modified**: [Drawer.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Drawer.jsx)
+
+**Before**: The Drawer (bottom sheet) had no backdrop/overlay. Users could only close it by dragging the handle bar or pressing the "+" FAB button again.
+
+**After**: Added a `fixed inset-0 bg-black/40` backdrop overlay with fade transition. Clicking the backdrop calls `onClose`. This gives users an intuitive "click outside to dismiss" interaction.
+
+### Form Validation
+
+#### FoodDetail.jsx & FoodEditForm.jsx
+
+**Files modified**: [FoodDetail.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodDetail.jsx), [FoodEditForm.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/inventory/FoodEditForm.jsx)
+
+**Before**: Quantity field accepted empty, zero, or negative values. Expiry date had no bounds checking. Submit button proceeded with invalid data, relying on backend rejection.
+
+**After**:
+- **Quantity**: Required field (marked with red `*`). Validates non-empty, must be numeric, must be > 0. Shows red border + inline error message on blur or submit.
+- **Expiry Date**: Optional field. If provided, validates as a valid date and rejects dates more than 10 years in the future. Shows red border + inline error on blur or submit.
+- **Touch tracking**: Errors only appear after the field is blurred (`onBlur`) or after submit is attempted — pristine fields show no errors.
+- **Submit guard**: `handleSubmit` calls `setTouched` on all required fields and aborts if validation fails.
+
+#### Onboarding.jsx
+
+**Files modified**: [Onboarding.jsx](file:///c:/Users/dell/Desktop/ITO5002/fridgepeace/client/components/Onboarding.jsx)
+
+**Before**: Username, household name, and household code inputs accepted empty or single-character values. Backend errors appeared but no client-side pre-validation.
+
+**After**:
+- **Username** (Sign Up / Log In): Required, minimum 2 characters.
+- **Household name** (Create): Required, minimum 2 characters.
+- **Household code** (Join): Required, non-empty.
+- All fields show red border + error message on blur or submit. Submit blocked until validation passes.
+
+### Modified Files (v0.7)
+
+| File | Changes |
+|------|---------|
+| `client/hooks/useSearch.js` | Rewritten: reactive → imperative (`search()`, `clear()`, `hasSearched`) |
+| `client/components/inventory/NewFood.jsx` | Search button, Enter key, Clear link, click-outside-to-dismiss |
+| `client/components/Drawer.jsx` | Added backdrop overlay (`bg-black/40`) with `onClick={onClose}` |
+| `client/components/inventory/FoodDetail.jsx` | Quantity + expiry validation, `touched` state, error indicators |
+| `client/components/inventory/FoodEditForm.jsx` | Quantity + expiry validation, `touched` state, error indicators |
+| `client/components/Onboarding.jsx` | Username, household name, household code validation |
+
+---
+
 ## v0.6 — Basic Functionality Fixes: Shared Inventory & Code Quality
 
 ### Overview
