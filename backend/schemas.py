@@ -267,3 +267,75 @@ class FoodOwnershipResponse(BaseModel):
     inventory_item_id: int
     member_id: int
     tagged_at: datetime
+
+
+# ─── FoodKeeper Search ─────────────────────────────────────
+
+class FoodKeeperProductResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    category_id: Optional[int] = None
+    name: str
+    fridge_days_min: Optional[int] = None
+    fridge_days_max: Optional[int] = None
+    freezer_days_min: Optional[int] = None
+    freezer_days_max: Optional[int] = None
+    pantry_days_min: Optional[int] = None
+    pantry_days_max: Optional[int] = None
+    category_name: Optional[str] = None
+
+
+class PackagedFoodSearchResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    barcode: Optional[str] = None
+    name: str
+    brand: Optional[str] = None
+    image_url: Optional[str] = None
+    category: Optional[str] = None
+
+
+class FoodSearchResponse(BaseModel):
+    foodkeeper_results: list[FoodKeeperProductResponse]
+    packaged_results: list[PackagedFoodSearchResponse]
+
+
+# ─── Unified Add to Inventory ──────────────────────────────
+
+class FoodAddToInventoryRequest(BaseModel):
+    household_id: str
+    added_by_member_id: int
+    source: Literal['packaged', 'foodkeeper']
+    source_id: int
+    storage_location: Optional[str] = None
+    quantity: Decimal = Field(..., gt=0)
+    unit: str
+    expiry_date: Optional[date] = None
+
+
+class FoodAddToInventoryResponse(BaseModel):
+    inventory_item: FoodInventoryResponse
+    food_item: PackagedFoodResponse | UnpackagedFoodResponse
+    is_new: bool
+
+
+# ─── Household Inventory with Names ─────────────────────────
+
+class InventoryItemWithNames(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    household_id: str
+    added_by_member_id: int
+    packaged_food_id: Optional[int] = None
+    unpackaged_food_id: Optional[int] = None
+    storage_location: Optional[str] = None
+    quantity: Decimal
+    unit: str
+    expiry_date: Optional[date] = None
+    date_added: datetime
+    date_updated: datetime
+    food_name: Optional[str] = None
+    food_image: Optional[str] = None
+    food_brand: Optional[str] = None
+    food_category: Optional[str] = None
+    source_type: Optional[str] = None

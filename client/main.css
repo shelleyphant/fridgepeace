@@ -1,0 +1,20 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-water-50: #f2f7fc;
+  --color-water-100: #e2edf7;
+  --color-water-200: #cfe2f3;
+  --color-water-300: #a7cce9;
+  --color-water-400: #7db0dd;
+  --color-water-500: #5f94d2;
+  --color-water-600: #4b7bc5;
+  --color-water-700: #4169b4;
+  --color-water-800: #3a5693;
+  --color-water-900: #334a75;
+  --color-water-950: #232f48;
+
+  --font-noto: 'Noto Sans', sans-serif;
+  --font-sansation: 'Sansation', sans-serif;
+
+  --shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+}

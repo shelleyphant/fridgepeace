@@ -309,4 +309,33 @@ class FoodOwnership(Base):
     )
 
 
+# ─── FoodKeeper Reference Data ────────────────────────────
+# Searchable catalog of FoodKeeper products, imported from
+# foodkeeper.json. Used as a local reference for fresh food
+# shelf-life estimates, separate from unpackaged_food records
+# that represent actual items added to household inventories.
+
+class FoodKeeperCategory(Base):
+    __tablename__ = "foodkeeper_category"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category_name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+
+class FoodKeeperProduct(Base):
+    __tablename__ = "foodkeeper_product"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("foodkeeper_category.id"), nullable=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    fridge_days_min: Mapped[Optional[int]] = mapped_column(nullable=True)
+    fridge_days_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+    freezer_days_min: Mapped[Optional[int]] = mapped_column(nullable=True)
+    freezer_days_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+    pantry_days_min: Mapped[Optional[int]] = mapped_column(nullable=True)
+    pantry_days_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+
+
 Base.metadata.create_all(bind=engine)

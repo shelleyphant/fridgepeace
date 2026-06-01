@@ -1,0 +1,118 @@
+import { useState } from 'react';
+import axios from 'axios';
+
+const API = process.env.API_URL ?? '';
+
+export function useAddFood() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function addFood(selected, inventoryDetails) {
+    setLoading(true);
+    setError(null);
+    try {
+      const household_id = localStorage.getItem('household_id');
+      const added_by_member_id = parseInt(localStorage.getItem('household_member_id'));
+
+      if (selected._source === 'foodkeeper' || selected._source === 'packaged') {
+        const { data } = await axios.post(
+          `${API}/foods/add-to-inventory`,
+          {
+            household_id,
+            added_by_member_id,
+            source: selected._source === 'foodkeeper' ? 'foodkeeper' : 'packaged',
+            source_id: selected.id,
+            storage_location: inventoryDetails.storage_location ?? null,
+            quantity: inventoryDetails.quantity,
+            unit: inventoryDetails.unit ?? 'item',
+            expiry_date: inventoryDetails.expiry_date ?? null,
+          },
+          { headers: { 'content-type': 'application/json' } },
+        );
+        return true;
+      }
+
+      if (selected._source === 'openfoodfacts') {
+        const { data: existing } = await axios.get(`${API}/packaged-foods/`);
+        const match = existing.find((f) => f.barcode === selected.code);
+        let packaged_food_id;
+
+        if (match) {
+          packaged_food_id = match.id;
+        } else {
+          const { data: created } = await axios.post(
+            `${API}/packaged-foods/`,
+            {
+              barcode: selected.code ?? null,
+              name: selected.product_name,
+              brand: selected.brands ?? null,
+              image_url: selected.image_front_url ?? null,
+              category: selected.categories ?? null,
+              nutrition: selected.nutriments
+                ? JSON.stringify(selected.nutriments)
+                : null,
+            },
+            { headers: { 'content-type': 'application/json' } },
+          );
+          packaged_food_id = created.id;
+        }
+
+        await axios.post(
+          `${API}/food-inventory/`,
+          {
+            packaged_food_id,
+            unpackaged_food_id: null,
+            household_id,
+            added_by_member_id,
+            quantity: inventoryDetails.quantity,
+            unit: inventoryDetails.unit ?? 'item',
+            storage_location: inventoryDetails.storage_location ?? null,
+            expiry_date: inventoryDetails.expiry_date ?? null,
+          },
+          { headers: { 'content-type': 'application/json' } },
+        );
+
+        return true;
+      }
+
+      setError(new Error(`Unknown food source: ${selected._source}`));
+      return false;
+    } catch (e) {
+      setError(e);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function updateFood(inventoryItem, additionalQuantity) {
+    setLoading(true);
+    setError(null);
+    try {
+      const newQuantity =
+        parseFloat(inventoryItem.quantity) + parseFloat(additionalQuantity);
+      await axios.put(
+        `${API}/food-inventory/${inventoryItem.id}`,
+        {
+          household_id: inventoryItem.household_id,
+          added_by_member_id: inventoryItem.added_by_member_id,
+          packaged_food_id: inventoryItem.packaged_food_id,
+          unpackaged_food_id: inventoryItem.unpackaged_food_id,
+          storage_location: inventoryItem.storage_location,
+          quantity: newQuantity,
+          unit: inventoryItem.unit,
+          expiry_date: inventoryItem.expiry_date,
+        },
+        { headers: { 'content-type': 'application/json' } },
+      );
+      return true;
+    } catch (e) {
+      setError(e);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return { addFood, updateFood, loading, error };
+}

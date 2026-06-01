@@ -1,0 +1,73 @@
+{
+  "name": "fridgepeace",
+  "version": "1.0.0",
+  "description": "PWA for managing shared kitchen spaces and food expiry",
+  "scripts": {
+    "dev": "webpack serve --mode=development",
+    "build": "webpack --mode=production"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shelleyphant/fridgepeace.git"
+  },
+  "keywords": [
+    "food waste",
+    "food management",
+    "shared kitchen"
+  ],
+  "contributors": [
+    {
+      "name": "Asad Ali"
+    },
+    {
+      "name": "Shelley Bassett",
+      "email": "hello@shelleybassett.com",
+      "url": "https://shelleybassett.com"
+    },
+    {
+      "name": "Max Jones"
+    },
+    {
+      "name": "Mingjun Lyu ",
+      "email": "mlyu0012@student.monash.edu"
+    },
+    {
+      "name": "Charlie (Zhaohua) Qi"
+    }
+  ],
+  "bugs": {
+    "url": "https://github.com/shelleyphant/fridgepeace/issues"
+  },
+  "homepage": "https://github.com/shelleyphant/fridgepeace#readme",
+  "devDependencies": {
+    "@babel/cli": "^7.28.6",
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.5",
+    "@babel/preset-react": "^7.28.5",
+    "autoprefixer": "^10.5.0",
+    "babel-jest": "^30.4.1",
+    "babel-loader": "^10.1.1",
+    "clean-webpack-plugin": "^4.0.0",
+    "css-loader": "^7.1.4",
+    "dotenv": "^17.4.2",
+    "html-webpack-plugin": "^5.6.7",
+    "jest": "^30.4.2",
+    "postcss": "^8.5.15",
+    "postcss-loader": "^8.2.1",
+    "prettier": "^3.8.3",
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.107.1",
+    "webpack-cli": "^7.0.2",
+    "webpack-dev-server": "^5.2.4"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "@tailwindcss/postcss": "^4.3.0",
+    "axios": "^1.16.1",
+    "moment": "^2.30.1",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "tailwindcss": "^4.3.0"
+  }
+}

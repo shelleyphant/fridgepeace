@@ -2,18 +2,20 @@
 
 ## Project Overview
 
-FridgePeace is a refrigerator food management system API that supports household management, member management, food inventory tracking (packaged/unpackaged), event logging, and ownership assignment.
+FridgePeace is a refrigerator food management system API that supports household management, member management, food inventory tracking (packaged/unpackaged), FoodKeeper reference data search, event logging, and ownership assignment.
 
 ## Project Structure
 
 ```
 backend/
-├── main.py           FastAPI entry point, router registration, health check
-├── models.py         SQLAlchemy ORM models (8 tables)
-├── schemas.py        Pydantic request/response models with validation (input trimming, length constraints, positive-only numeric fields, enum validation, and empty-string-to-null coercion for Optional[int] fields)
-├── routers.py        All API endpoint routes
-├── requirements.txt  Dependency list
-└── API_DOCUMENTATION.md   This file
+├── main.py                   FastAPI entry point, router registration, health check, FoodKeeper auto-seed
+├── models.py                 SQLAlchemy ORM models (10 tables)
+├── schemas.py                Pydantic request/response models with validation
+├── routers.py                All API endpoint routes
+├── seed_foodkeeper.py        FoodKeeper JSON → SQLite import script
+├── foodkeeper.json           USDA/FDA FoodKeeper reference data (661 products, 25 categories)
+├── requirements.txt          Dependency list
+└── API_DOCUMENTATION.md      This file
 ```
 
 ---
@@ -28,9 +30,11 @@ uvicorn main:app --reload --port 8000
 
 Swagger UI: `http://localhost:8000/docs`
 
+The first startup will automatically seed the FoodKeeper reference data (661 products, 25 categories) from `foodkeeper.json` into the database.
+
 ---
 
-## Database Schema (8 Tables)
+## Database Schema (10 Tables)
 
 ### 1. household
 
@@ -123,6 +127,31 @@ Swagger UI: `http://localhost:8000/docs`
 
 > **Composite Primary Key**: (inventory_item_id, member_id)
 
+### 9. foodkeeper_category (Reference Data)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT (PK) | Category ID (from FoodKeeper) |
+| category_name | VARCHAR(255) | Category display name |
+
+661 products from the USDA/FDA FoodKeeper database are grouped into 25 categories such as "Dairy Products & Eggs", "Vegetables", "Fruits", etc.
+
+### 10. foodkeeper_product (Reference Data)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT (PK) | Product ID (from FoodKeeper) |
+| category_id | INT (FK → foodkeeper_category, nullable) | Category reference |
+| name | VARCHAR(255) | Product name |
+| fridge_days_min | INT | Min recommended fridge storage (days) |
+| fridge_days_max | INT | Max recommended fridge storage (days) |
+| freezer_days_min | INT | Min recommended freezer storage (days) |
+| freezer_days_max | INT | Max recommended freezer storage (days) |
+| pantry_days_min | INT | Min recommended pantry storage (days) |
+| pantry_days_max | INT | Max recommended pantry storage (days) |
+
+> These tables hold the USDA/FDA FoodKeeper reference dataset. They are searchable via `GET /foods/search` and auto-seeded on first startup.
+
 ---
 
 ## Business Rules
@@ -138,6 +167,7 @@ Swagger UI: `http://localhost:8000/docs`
 | **Unique barcode** | Packaged food barcodes must be unique |
 | **Composite PK** | Food ownership uses (inventory_item_id, member_id) as composite key |
 | **SET NULL on food deletion** | Deleting a food reference sets it to NULL in inventory |
+| **FoodKeeper auto-seed** | Reference data is imported on startup if the tables are empty |
 | **Input validation** | String fields (`name`, `display_name`, `username`) are trimmed, must not be empty or whitespace-only, and must not exceed 255 characters. `quantity` must be greater than zero. `event_type` accepts only `added`, `consumed`, `expired`, or `moved`. All `Optional[int]` fields accept empty string `""` as input — it is automatically converted to `null` so frontend forms can send blank number inputs without triggering a 422 error |
 
 ---
@@ -419,7 +449,7 @@ DELETE /household-members/{member_id}
 #### 2.6 Join Household
 
 ```
-POST /member/join
+POST /member/join/
 ```
 
 **Request Body:**
@@ -452,7 +482,7 @@ POST /member/join
 #### 2.7 Leave Household
 
 ```
-POST /member/leave
+POST /member/leave/
 ```
 
 **Request Body:**
@@ -1209,6 +1239,241 @@ DELETE /food-ownerships/{inventory_item_id}/{member_id}
 
 ---
 
+### 9. Food Search (NEW)
+
+Unified search across **FoodKeeper reference data** (661 fresh food products with shelf-life estimates) and **previously stored PackagedFood** records. Search is case-insensitive and matches against food names. Returns both result sets in a single response, each capped at 20 items.
+
+#### 9.1 Search Foods
+
+```
+GET /foods/search?q={query}
+```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| q | string | Yes | Search query (min 1 character, whitespace-only values return empty results) |
+
+**Response 200:**
+```json
+{
+  "foodkeeper_results": [
+    {
+      "id": 3,
+      "category_id": 7,
+      "name": "Cheese",
+      "fridge_days_min": 6,
+      "fridge_days_max": 6,
+      "freezer_days_min": 6,
+      "freezer_days_max": 6,
+      "pantry_days_min": null,
+      "pantry_days_max": null,
+      "category_name": "Dairy Products & Eggs"
+    }
+  ],
+  "packaged_results": [
+    {
+      "id": 5,
+      "barcode": "123456789",
+      "name": "Cheese Slices",
+      "brand": "Kraft",
+      "image_url": null,
+      "category": "Dairy"
+    }
+  ]
+}
+```
+
+**foodkeeper_results** — Products from the USDA/FDA FoodKeeper reference database. Each result includes:
+| Field | Type | Description |
+|-------|------|-------------|
+| id | int | FoodKeeper product ID |
+| category_id | int or null | Reference to category |
+| name | string | Product name |
+| fridge_days_min | int or null | Min fridge storage (days) |
+| fridge_days_max | int or null | Max fridge storage (days) |
+| freezer_days_min | int or null | Min freezer storage (days) |
+| freezer_days_max | int or null | Max freezer storage (days) |
+| pantry_days_min | int or null | Min pantry storage (days) |
+| pantry_days_max | int or null | Max pantry storage (days) |
+| category_name | string or null | Human-readable category name |
+
+**packaged_results** — Previously stored PackagedFood records (barcoded items). Each result includes:
+| Field | Type | Description |
+|-------|------|-------------|
+| id | int | PackagedFood ID |
+| barcode | string or null | Product barcode |
+| name | string | Product name |
+| brand | string or null | Brand name |
+| image_url | string or null | Product image URL |
+| category | string or null | Product category |
+
+> **Note**: This endpoint replaces the previous frontend-only approach of bundling the 617KB FoodKeeper JSON into the webpack build. The search now runs entirely server-side using SQL `ILIKE` pattern matching.
+
+---
+
+### 10. Unified Add to Inventory (NEW)
+
+A single endpoint that creates a `food_inventory` record for either a **FoodKeeper** fresh food or a **PackagedFood** item in one API call. If the selected FoodKeeper product has never been added to this household before, it automatically creates the underlying `unpackaged_food` record.
+
+#### 10.1 Add Food to Inventory
+
+```
+POST /foods/add-to-inventory
+```
+
+**Request Body:**
+```json
+{
+  "household_id": "A1B2",
+  "added_by_member_id": 1,
+  "source": "foodkeeper",
+  "source_id": 3,
+  "storage_location": "fridge",
+  "quantity": "1.00",
+  "unit": "kg",
+  "expiry_date": "2026-06-15"
+}
+```
+
+**Fields:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| household_id | string | Yes | Target household code |
+| added_by_member_id | int | Yes | Household member who is adding |
+| source | enum | Yes | `"foodkeeper"` or `"packaged"` |
+| source_id | int | Yes | ID from search results (FoodKeeper `id` or PackagedFood `id`) |
+| storage_location | string or null | No | `"fridge"`, `"freezer"`, `"pantry"`, etc. |
+| quantity | decimal | Yes | Amount (must be > 0) |
+| unit | string | Yes | Unit of measurement (e.g. `"kg"`, `"L"`, `"pcs"`) |
+| expiry_date | date or null | No | Expiration date (ISO 8601 format `YYYY-MM-DD`) |
+
+**Behaviors by source type:**
+
+| Source | Behavior |
+|--------|----------|
+| `foodkeeper` | Looks up `FoodKeeperProduct` by ID. If an `unpackaged_food` record with the same `foodkeeper_id` already exists, reuses it. Otherwise, creates a new `unpackaged_food` record with shelf-life estimates copied from the FoodKeeper data (the `is_new` flag will be `true`). |
+| `packaged` | Looks up `PackagedFood` by ID. Uses the existing record directly. |
+
+**Response 201:**
+```json
+{
+  "inventory_item": {
+    "id": 10,
+    "household_id": "A1B2",
+    "added_by_member_id": 1,
+    "packaged_food_id": null,
+    "unpackaged_food_id": 5,
+    "storage_location": "fridge",
+    "quantity": "1.00",
+    "unit": "kg",
+    "expiry_date": "2026-06-15",
+    "date_added": "2026-06-01T10:00:00",
+    "date_updated": "2026-06-01T10:00:00"
+  },
+  "food_item": {
+    "id": 5,
+    "foodkeeper_id": "3",
+    "category": null,
+    "name": "Cheese",
+    "fridge_days_min": 6,
+    "fridge_days_max": 6,
+    "freezer_days_min": 6,
+    "freezer_days_max": 6,
+    "pantry_days_min": null,
+    "pantry_days_max": null
+  },
+  "is_new": true
+}
+```
+
+**Response Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| inventory_item | object | The created `food_inventory` record |
+| food_item | object | The `unpackaged_food` or `packaged_food` record used/created |
+| is_new | boolean | `true` only when a new `unpackaged_food` record was created (always `false` for packaged foods) |
+
+**Error Codes:**
+| Status | Description |
+|:------:|-------------|
+| 404 | Household, member, or source food not found |
+| 400 | Invalid `source` value (must be `"foodkeeper"` or `"packaged"`) |
+
+> **Note**: This endpoint replaces the previous frontend pattern of: 1) GET all foods → 2) POST create food → 3) POST create inventory. It reduces the add-to-fridge flow from up to 4 HTTP round-trips down to 1.
+
+---
+
+### 11. Household Inventory with Names (NEW)
+
+Returns all inventory items for a specific household, with food name, brand, image URL, and category resolved server-side in a single query. Each item includes a `source_type` field indicating whether it is `"packaged"` or `"unpackaged"`.
+
+#### 11.1 List Household Inventory
+
+```
+GET /households/{household_id}/inventory
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| household_id | string (4-char code) | Household code |
+
+**Response 200:**
+```json
+[
+  {
+    "id": 1,
+    "household_id": "A1B2",
+    "added_by_member_id": 1,
+    "packaged_food_id": 1,
+    "unpackaged_food_id": null,
+    "storage_location": "fridge",
+    "quantity": "2.50",
+    "unit": "L",
+    "expiry_date": "2026-06-01",
+    "date_added": "2026-05-23T12:00:00",
+    "date_updated": "2026-05-23T12:00:00",
+    "food_name": "Coca Cola",
+    "food_image": null,
+    "food_brand": "Coca-Cola",
+    "food_category": "Drinks",
+    "source_type": "packaged"
+  },
+  {
+    "id": 2,
+    "household_id": "A1B2",
+    "added_by_member_id": 2,
+    "packaged_food_id": null,
+    "unpackaged_food_id": 1,
+    "storage_location": "pantry",
+    "quantity": "1.00",
+    "unit": "kg",
+    "expiry_date": "2026-05-25",
+    "date_added": "2026-05-23T12:00:00",
+    "date_updated": "2026-05-23T12:00:00",
+    "food_name": "Tomato",
+    "food_image": null,
+    "food_brand": null,
+    "food_category": null,
+    "source_type": "unpackaged"
+  }
+]
+```
+
+**Additional Fields (beyond standard `FoodInventoryResponse`):**
+| Field | Type | Description |
+|-------|------|-------------|
+| food_name | string or null | Resolved food name (from `packaged_food.name` or `unpackaged_food.name`) |
+| food_image | string or null | Product image URL (packaged foods only) |
+| food_brand | string or null | Brand name (packaged foods only) |
+| food_category | string or null | Product category |
+| source_type | string or null | Either `"packaged"`, `"unpackaged"`, or `null` (should not be null for valid records) |
+
+> Items are sorted by `date_added` descending (newest first).
+
+---
+
 ## Error Codes Summary
 
 | Status | Meaning | Description |
@@ -1216,7 +1481,7 @@ DELETE /food-ownerships/{inventory_item_id}/{member_id}
 | 200 | OK | Request succeeded |
 | 201 | Created | Resource created successfully |
 | 204 | No Content | Deletion succeeded (no response body) |
-| 400 | Bad Request | Validation failed (e.g., duplicate barcode, invalid inventory type, missing required fields) |
+| 400 | Bad Request | Validation failed (e.g., duplicate barcode, invalid inventory type, missing required fields, invalid source) |
 | 404 | Not Found | Resource does not exist |
 | 422 | Unprocessable Entity | Request body failed Pydantic schema validation (e.g., required field missing, wrong type, invalid enum value, empty/whitespace-only string, string exceeds length limit, value out of range) |
 
@@ -1240,8 +1505,8 @@ DELETE /food-ownerships/{inventory_item_id}/{member_id}
 | Member | POST | `/household-members/` | Create member (low-level) |
 | Member | PUT | `/household-members/{id}` | Update member |
 | Member | DELETE | `/household-members/{id}` | Delete member |
-| Member | POST | `/member/join` | Join a household |
-| Member | POST | `/member/leave` | Leave a household |
+| Member | POST | `/member/join/` | Join a household |
+| Member | POST | `/member/leave/` | Leave a household |
 | Member | GET | `/member/{user_id}/households` | List user's households |
 | Member | GET | `/member/{household_id}/members` | List household members with user info |
 | Packaged Food | GET | `/packaged-foods/` | List all packaged foods |
@@ -1255,7 +1520,7 @@ DELETE /food-ownerships/{inventory_item_id}/{member_id}
 | Unpackaged Food | PUT | `/unpackaged-foods/{id}` | Update unpackaged food |
 | Unpackaged Food | DELETE | `/unpackaged-foods/{id}` | Delete unpackaged food |
 | Inventory | GET | `/food-inventory/` | List all inventory items |
-| Inventory | GET | `/food-inventory/{id}` | Get single inventory item |
+| Inventory | GET | `/food-inventory/{id}` | Get single inventory item (with food details) |
 | Inventory | POST | `/food-inventory/` | Create inventory item |
 | Inventory | PUT | `/food-inventory/{id}` | Update inventory item |
 | Inventory | DELETE | `/food-inventory/{id}` | Delete inventory item |
@@ -1269,3 +1534,6 @@ DELETE /food-ownerships/{inventory_item_id}/{member_id}
 | Ownership | GET | `/food-ownerships/by-member/{id}` | List ownerships by member |
 | Ownership | POST | `/food-ownerships/` | Create ownership |
 | Ownership | DELETE | `/food-ownerships/{inv_id}/{mem_id}` | Delete ownership |
+| **Search** | **GET** | **`/foods/search?q=...`** | **Unified FoodKeeper + PackagedFood search** |
+| **Add** | **POST** | **`/foods/add-to-inventory`** | **Unified add to inventory (1 call)** |
+| **Inventory** | **GET** | **`/households/{id}/inventory`** | **Household inventory with resolved names** |

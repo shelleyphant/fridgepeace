@@ -2,4 +2,8 @@
 
 ## Collaborators
 
-Mingjun Lyu (mlyu0012@student.monash.edu)
+Asad Ali
+Shelley (Michelle) Bassett
+Max Jones
+Mingjun Lyu
+Charlie (Zhaohua) Qi
