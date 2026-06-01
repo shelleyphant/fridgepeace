@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
+import moment from 'moment';
 import { useAddFood } from '../../hooks/useAddFood';
 
 const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
   const [quantity, setQuantity] = useState('');
+  const [date, setDate] = useState(
+    food._source === 'foodkeeper' ? moment().format('YYYY-MM-DD') : '',
+  );
   const { addFood, updateFood } = useAddFood();
 
   return (
@@ -17,12 +21,19 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         value={quantity}
         type="number"
       />
+      <label>Use By Date</label>
+      <input
+        className="border"
+        onChange={(e) => setDate(e.target.value)}
+        value={date}
+        type="date"
+      />
       <button
         className="mt-2 bg-blue-500 px-4 py-2 text-white"
         onClick={async () => {
           const success = inventoryItem
             ? await updateFood(inventoryItem, quantity)
-            : await addFood(food, { quantity });
+            : await addFood(food, { quantity, expiry_date: date });
           if (success) onSuccess?.();
         }}
       >
