@@ -2,9 +2,14 @@ import React, { useState } from 'react';
 import Button from './Button';
 import Drawer from './Drawer';
 import FoodCard from './inventory/FoodCard';
+import { useHousehold } from '../hooks/useHousehold';
+import { useInventory } from '../hooks/useInventory';
 
-const MainInventory = ({ household, inventory, loading }) => {
+const MainInventory = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { inventory, loading, refresh } = useInventory();
+  const household = useHousehold(localStorage.getItem('household_id'));
+
   return (
     <>
       <h1 className="text-water-800 font-sansation text-4xl font-bold">
