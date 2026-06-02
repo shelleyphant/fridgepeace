@@ -7,12 +7,12 @@ Hosted on Cloudflare with Render for backend
 
 This is a project for Monash University and will not be actively maintained.
 
-## Tech stack
+### Tech stack
 
 - **Frontend:** React, Tailwind CSS, Webpack
 - **Backend:** FastAPI, SQLAlchemy, SQLite
 
-## Setup
+## Running Locally
 
 ### Requirements
 
@@ -42,7 +42,7 @@ cp ./.env.example ./.env
 You will need to sign up for an [Open Food Facts](https://world.openfoodfacts.org) account. It's free, but helps them to manage the rate limits of their API.
 Populate the `OFF_USER` and `OFF_PASSWORD` with your account details.
 
-## Running locally
+### Starting
 
 We've included a simple command to run both the backend and frontend.
 
