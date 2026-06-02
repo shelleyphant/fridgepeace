@@ -1,48 +1,27 @@
 import { createRoot } from 'react-dom/client';
 import './main.css';
-import Button from './components/Button';
-import Drawer from './components/Drawer';
 import Onboarding from './components/Onboarding';
-import FoodCard from './components/inventory/FoodCard';
-import { useInventory } from './hooks/useInventory';
 import { useState } from 'react';
-import { useHousehold } from './hooks/useHousehold';
+import MainInventory from './components/MainInventory';
 
 const isSetUp = () =>
   localStorage.getItem('member_id') && localStorage.getItem('household_id');
 
 const App = () => {
   const [ready, setReady] = useState(isSetUp);
-  const [isOpen, setIsOpen] = useState(false);
-  const { inventory, loading, refresh } = useInventory();
-  const household = useHousehold(localStorage.getItem('household_id'));
-
-  if (!ready)
+  if (!ready) {
     return (
       <main className="m-auto max-w-md p-4">
         <Onboarding onComplete={() => setReady(true)} />
       </main>
     );
-
-  return (
-    <main className="m-auto max-w-md p-4">
-      <h1 className="text-water-800 font-sansation text-4xl font-bold">
-        {household?.name}
-      </h1>
-      <span>{household?.id}</span>
-      <hr className="h-8 border-0" />
-      <Button title="New Food" action={() => setIsOpen(true)} />
-      {!loading && inventory.map((item) => <FoodCard key={item.id} item={item} />)}
-      <Drawer
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        onSuccess={() => {
-          refresh();
-          setIsOpen(false);
-        }}
-      />
-    </main>
-  );
+  } else {
+    return (
+      <main className="m-auto max-w-md p-4">
+        <MainInventory />
+      </main>
+    );
+  }
 };
 
 const container = document.getElementById('root');
