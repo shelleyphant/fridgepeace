@@ -267,3 +267,108 @@ class FoodOwnershipResponse(BaseModel):
     inventory_item_id: int
     member_id: int
     tagged_at: datetime
+
+
+# ─── Open Food Facts Product (DISABLED) ────────────────────
+# off_data.db has been removed due to large file size.
+# The Australian subset (off_data_au.db) is used instead.
+
+# class OffProductSearchResult(BaseModel):
+#     ...
+
+
+class OffProductStats(BaseModel):
+    total_products: int
+    imported_at: Optional[str] = None
+
+
+# class OffProductSearchPage(BaseModel):
+#     ...
+
+
+# ─── Open Food Facts Australia Subset ──────────────────────
+
+class OffProductAuSearchResult(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    code: str
+    product_name: str
+    generic_name: Optional[str] = None
+    brands: Optional[str] = None
+    categories: Optional[str] = None
+    quantity: Optional[str] = None
+    image_url: Optional[str] = None
+    image_small_url: Optional[str] = None
+    nutriscore_grade: Optional[str] = None
+    nova_group: Optional[str] = None
+    unique_scans_n: Optional[str] = None
+    countries_en: Optional[str] = None
+
+
+class OffProductAuDetail(OffProductAuSearchResult):
+    # Brand & category tags
+    brands_tags: Optional[str] = None
+    categories_tags: Optional[str] = None
+    product_quantity: Optional[str] = None
+    serving_size: Optional[str] = None
+    stores: Optional[str] = None
+    countries_tags: Optional[str] = None
+    manufacturing_places: Optional[str] = None
+    # Ingredients & allergens
+    ingredients_text: Optional[str] = None
+    allergens: Optional[str] = None
+    allergens_en: Optional[str] = None
+    traces: Optional[str] = None
+    traces_en: Optional[str] = None
+    additives_n: Optional[str] = None
+    additives_tags: Optional[str] = None
+    # Labels & packaging
+    labels_tags: Optional[str] = None
+    packaging_tags: Optional[str] = None
+    # Scores
+    nutriscore_score: Optional[str] = None
+    # More images
+    image_nutrition_url: Optional[str] = None
+    image_ingredients_url: Optional[str] = None
+    # Full nutrition per 100g
+    energy_kcal_100g: Optional[str] = None
+    energy_100g: Optional[str] = None
+    energy_from_fat_100g: Optional[str] = None
+    fat_100g: Optional[str] = None
+    saturated_fat_100g: Optional[str] = None
+    trans_fat_100g: Optional[str] = None
+    cholesterol_100g: Optional[str] = None
+    carbohydrates_100g: Optional[str] = None
+    sugars_100g: Optional[str] = None
+    fiber_100g: Optional[str] = None
+    proteins_100g: Optional[str] = None
+    salt_100g: Optional[str] = None
+    sodium_100g: Optional[str] = None
+    # Vitamins & minerals
+    vitamin_a_100g: Optional[str] = None
+    vitamin_c_100g: Optional[str] = None
+    vitamin_d_100g: Optional[str] = None
+    calcium_100g: Optional[str] = None
+    iron_100g: Optional[str] = None
+    magnesium_100g: Optional[str] = None
+    potassium_100g: Optional[str] = None
+    zinc_100g: Optional[str] = None
+    fruits_vegetables_legumes_100g: Optional[str] = None
+    no_nutrition_data: Optional[str] = None
+    popularity_tags: Optional[str] = None
+    # URLs & metadata
+    url: Optional[str] = None
+    creator: Optional[str] = None
+    created_t: Optional[str] = None
+    last_modified_t: Optional[str] = None
+    owner: Optional[str] = None
+    brand_owner: Optional[str] = None
+    data_quality_errors_tags: Optional[str] = None
+
+
+class OffProductAuSearchPage(BaseModel):
+    items: list[OffProductAuSearchResult]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

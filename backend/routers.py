@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func as sa_func
 from sqlalchemy.orm import Session, joinedload
 
 from models import (
@@ -7,11 +8,13 @@ from models import (
     FoodOwnership,
     Household,
     HouseholdMember,
+    OffProductAu,
     PackagedFood,
     UnpackagedFood,
     User,
     generate_household_code,
     get_db,
+    get_off_au_db,
 )
 from schemas import (
     FoodEventCreate,
@@ -29,6 +32,9 @@ from schemas import (
     MemberLeaveRequest,
     MemberUserBrief,
     MemberWithUserResponse,
+    OffProductAuDetail,
+    OffProductAuSearchPage,
+    OffProductStats,
     PackagedFoodCreate,
     PackagedFoodResponse,
     UnpackagedFoodCreate,
@@ -520,3 +526,65 @@ def delete_ownership(inventory_item_id: int, member_id: int, db: Session = Depen
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ownership not found")
     db.delete(ownership)
     db.commit()
+
+
+# ─── Open Food Facts Product Search (DISABLED) ─────────────
+# off_data.db has been removed due to large file size.
+# The Australian subset (off_data_au.db) is used instead.
+# See /off-products-au/ endpoints below.
+
+# @router.get("/off-products/search", response_model=...)
+# ...
+
+
+# ─── Open Food Facts Australia Subset ─────────────────────
+# Full-field endpoints backed by off_data_au.db (~70K products).
+
+@router.get("/off-products-au/search", response_model=OffProductAuSearchPage)
+def search_off_products_au(
+    q: str = Query(..., min_length=1, description="Search term"),
+    page: int = Query(1, ge=1, description="Page number (1-based)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    db: Session = Depends(get_off_au_db),
+):
+    base_query = db.query(OffProductAu).filter(
+        OffProductAu.product_name.ilike(f"%{q}%")
+    )
+    total = base_query.count()
+    results = (
+        base_query
+        .order_by(OffProductAu.unique_scans_n.desc().nullslast())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    total_pages = (total + page_size - 1) // page_size
+    return OffProductAuSearchPage(
+        items=results,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@router.get("/off-products-au/by-barcode/{code}", response_model=OffProductAuDetail)
+def get_off_product_au_by_barcode(code: str, db: Session = Depends(get_off_au_db)):
+    product = db.query(OffProductAu).filter(OffProductAu.code == code).first()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    return product
+
+
+@router.get("/off-products-au/stats", response_model=OffProductStats)
+def get_off_products_au_stats(db: Session = Depends(get_off_au_db)):
+    count = db.query(sa_func.count(OffProductAu.id)).scalar() or 0
+    last = (
+        db.query(OffProductAu.imported_at)
+        .order_by(OffProductAu.imported_at.desc())
+        .first()
+    )
+    return OffProductStats(
+        total_products=count,
+        imported_at=last[0] if last else None,
+    )

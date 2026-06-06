@@ -24,13 +24,27 @@ from sqlalchemy.orm import (
 )
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./fridgepeace_v2.db"
+# OFF_DATABASE_URL = "sqlite:///./off_data.db"
+OFF_AU_DATABASE_URL = "sqlite:///./off_data_au.db"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},
 )
 
+# off_engine = create_engine(
+#     OFF_DATABASE_URL,
+#     connect_args={"check_same_thread": False},
+# )
+
+off_au_engine = create_engine(
+    OFF_AU_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# OffSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=off_engine)
+OffAuSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=off_au_engine)
 
 
 class Base(DeclarativeBase):
@@ -39,6 +53,22 @@ class Base(DeclarativeBase):
 
 def get_db():
     db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# def get_off_db():
+#     db = OffSessionLocal()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
+
+
+def get_off_au_db():
+    db = OffAuSessionLocal()
     try:
         yield db
     finally:
@@ -310,3 +340,89 @@ class FoodOwnership(Base):
 
 
 Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=off_engine)
+Base.metadata.create_all(bind=off_au_engine)
+
+
+# ─── Open Food Facts Product (DISABLED) ────────────────────
+# off_data.db has been removed due to large file size.
+# The Australian subset (off_data_au.db) is used instead.
+
+# class OffProduct(Base):
+#     __tablename__ = "off_product"
+#     __table_args__ = {"extend_existing": True}
+#     ...
+
+
+# ─── Open Food Facts Australia Subset ──────────────────────
+# Full-field read-only table in off_data_au.db. Contains all
+# useful fields from the OFF CSV for ~70K Australian products.
+
+class OffProductAu(Base):
+    __tablename__ = "off_product_au"
+    __table_args__ = {"extend_existing": True}
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    product_name: Mapped[str] = mapped_column(String(2000), nullable=False)
+    generic_name: Mapped[Optional[str]] = mapped_column(nullable=True)
+    brands: Mapped[Optional[str]] = mapped_column(nullable=True)
+    brands_tags: Mapped[Optional[str]] = mapped_column(nullable=True)
+    categories: Mapped[Optional[str]] = mapped_column(nullable=True)
+    categories_tags: Mapped[Optional[str]] = mapped_column(nullable=True)
+    quantity: Mapped[Optional[str]] = mapped_column(nullable=True)
+    product_quantity: Mapped[Optional[str]] = mapped_column(nullable=True)
+    serving_size: Mapped[Optional[str]] = mapped_column(nullable=True)
+    stores: Mapped[Optional[str]] = mapped_column(nullable=True)
+    countries_tags: Mapped[Optional[str]] = mapped_column(nullable=True)
+    countries_en: Mapped[Optional[str]] = mapped_column(nullable=True)
+    manufacturing_places: Mapped[Optional[str]] = mapped_column(nullable=True)
+    ingredients_text: Mapped[Optional[str]] = mapped_column(nullable=True)
+    allergens: Mapped[Optional[str]] = mapped_column(nullable=True)
+    allergens_en: Mapped[Optional[str]] = mapped_column(nullable=True)
+    traces: Mapped[Optional[str]] = mapped_column(nullable=True)
+    traces_en: Mapped[Optional[str]] = mapped_column(nullable=True)
+    additives_n: Mapped[Optional[str]] = mapped_column(nullable=True)
+    additives_tags: Mapped[Optional[str]] = mapped_column(nullable=True)
+    labels_tags: Mapped[Optional[str]] = mapped_column(nullable=True)
+    packaging_tags: Mapped[Optional[str]] = mapped_column(nullable=True)
+    nutriscore_grade: Mapped[Optional[str]] = mapped_column(nullable=True)
+    nutriscore_score: Mapped[Optional[str]] = mapped_column(nullable=True)
+    nova_group: Mapped[Optional[str]] = mapped_column(nullable=True)
+    image_url: Mapped[Optional[str]] = mapped_column(nullable=True)
+    image_small_url: Mapped[Optional[str]] = mapped_column(nullable=True)
+    image_nutrition_url: Mapped[Optional[str]] = mapped_column(nullable=True)
+    image_ingredients_url: Mapped[Optional[str]] = mapped_column(nullable=True)
+    energy_kcal_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    energy_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    energy_from_fat_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    fat_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    saturated_fat_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    trans_fat_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    cholesterol_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    carbohydrates_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    sugars_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    fiber_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    proteins_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    salt_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    sodium_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    vitamin_a_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    vitamin_c_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    vitamin_d_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    calcium_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    iron_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    magnesium_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    potassium_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    zinc_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    fruits_vegetables_legumes_100g: Mapped[Optional[str]] = mapped_column(nullable=True)
+    no_nutrition_data: Mapped[Optional[str]] = mapped_column(nullable=True)
+    unique_scans_n: Mapped[Optional[str]] = mapped_column(nullable=True)
+    popularity_tags: Mapped[Optional[str]] = mapped_column(nullable=True)
+    url: Mapped[Optional[str]] = mapped_column(nullable=True)
+    creator: Mapped[Optional[str]] = mapped_column(nullable=True)
+    created_t: Mapped[Optional[str]] = mapped_column(nullable=True)
+    last_modified_t: Mapped[Optional[str]] = mapped_column(nullable=True)
+    owner: Mapped[Optional[str]] = mapped_column(nullable=True)
+    brand_owner: Mapped[Optional[str]] = mapped_column(nullable=True)
+    data_quality_errors_tags: Mapped[Optional[str]] = mapped_column(nullable=True)
+    imported_at: Mapped[str] = mapped_column(String(30), nullable=False)
