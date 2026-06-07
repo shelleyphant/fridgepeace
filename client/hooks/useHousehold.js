@@ -12,6 +12,15 @@ export async function addHousehold(member_id, housename) {
   localStorage.setItem('household_id', String(resultCreate.data.id));
 }
 
+export async function getMemberHousehold(member_id) {
+  const { data } = await axios.get(`${API}/member/${member_id}/households`);
+  if (data?.length) {
+    localStorage.setItem('household_id', String(data[0].id));
+    return true;
+  }
+  return false;
+}
+
 export async function joinHousehold(member_id, household_id) {
   const result = await axios.post(`${API}/member/join/`, {
     user_id: member_id,

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { addMembership, setMembership } from '../hooks/useMembership';
 import Button from './Button';
-import { addHousehold, joinHousehold } from '../hooks/useHousehold';
-import Toast from './Toast';
+import { addHousehold, joinHousehold, getMemberHousehold } from '../hooks/useHousehold';
 
 const Onboarding = ({ onComplete }) => {
   const [member_id, setMemberId] = useState(localStorage.getItem('member_id'));
@@ -18,11 +17,21 @@ const Onboarding = ({ onComplete }) => {
       memberFormType === 'signup'
         ? await addMembership(input)
         : await setMembership(input);
-      setMemberId(localStorage.getItem('member_id'));
+      const memberId = localStorage.getItem('member_id');
+      setMemberId(memberId);
+      setInput('');
       setError(null);
+      if (memberFormType === 'login') {
+        const hasHousehold = await getMemberHousehold(memberId);
+        if (hasHousehold) onComplete();
+      }
     } catch (e) {
       const detail = e.response?.data?.detail;
-      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail ?? e.message));
+      setError(
+        Array.isArray(detail)
+          ? detail.map((d) => d.msg).join(', ')
+          : (detail ?? e.message),
+      );
       setErrorKey((k) => k + 1);
     }
   };
@@ -35,7 +44,11 @@ const Onboarding = ({ onComplete }) => {
       onComplete();
     } catch (e) {
       const detail = e.response?.data?.detail;
-      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail ?? e.message));
+      setError(
+        Array.isArray(detail)
+          ? detail.map((d) => d.msg).join(', ')
+          : (detail ?? e.message),
+      );
       setErrorKey((k) => k + 1);
     }
   };
@@ -44,6 +57,8 @@ const Onboarding = ({ onComplete }) => {
     if (!memberFormType)
       return (
         <div>
+          <span>Welcome To</span>
+          <h1>FridgePeace</h1>
           <Button title="Sign Up" action={() => setMemberFormType('signup')} />
           <Button title="Log In" action={() => setMemberFormType('login')} />
         </div>
