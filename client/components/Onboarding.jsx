@@ -51,11 +51,29 @@ const Onboarding = ({ onComplete }) => {
   if (!member_id) {
     if (!memberFormType)
       return (
-        <div>
-          <span>Welcome To</span>
-          <h1>FridgePeace</h1>
-          <Button title="Sign Up" action={() => setMemberFormType('signup')} />
+        <div className="box-border flex flex-grow flex-col justify-center">
+          <div className="mb-6">
+            <span className="text-water-900">Welcome To</span>
+            <h1 className="font-sansation text-water-800 mb-4 text-5xl font-bold">
+              FridgePeace
+            </h1>
+
+            <h2>Shared pantry management</h2>
+            <p>
+              We're pretty cool. You can{' '}
+              <a className="text-water-600 text-center underline hover:cursor-pointer">
+                learn more here
+              </a>
+            </p>
+          </div>
+          <h2 className="text-water-700 text-xl font-medium">Let's get started!</h2>
           <Button title="Log In" action={() => setMemberFormType('login')} />
+          <a
+            className="text-water-600 text-center text-sm underline hover:cursor-pointer"
+            onClick={() => setMemberFormType('signup')}
+          >
+            Or sign up
+          </a>
         </div>
       );
     return (

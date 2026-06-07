@@ -11,7 +11,7 @@ const App = () => {
   const [ready, setReady] = useState(isSetUp);
   if (!ready) {
     return (
-      <main className="m-auto max-w-md p-4">
+      <main className="m-auto block flex min-h-screen max-w-md flex-col p-6">
         <Onboarding onComplete={() => setReady(true)} />
       </main>
     );
