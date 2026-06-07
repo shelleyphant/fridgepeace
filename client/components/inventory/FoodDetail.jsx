@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import moment from 'moment';
 import { useAddFood } from '../../hooks/useAddFood';
-import Button from '../Button';
-import Toast from '../Toast';
+import Button from '../UI/Button';
 
 const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
   const [quantity, setQuantity] = useState('');
@@ -102,7 +101,9 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         }}
         title={'Add to fridge'}
       />
-      {validationError && <Toast key={validationKey} level="warning" message={validationError} />}
+      {validationError && (
+        <Toast key={validationKey} level="warning" message={validationError} />
+      )}
       {apiError && <Toast key={apiError} level="error" message={apiError} />}
     </div>
   );

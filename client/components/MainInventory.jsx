@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Button from './Button';
+import Button from './UI/Button';
 import Drawer from './Drawer';
 import FoodCard from './inventory/FoodCard';
 import Toast from './Toast';
