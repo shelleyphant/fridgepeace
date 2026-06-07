@@ -14,7 +14,7 @@ backend/
 ├── routers.py                All API endpoint routes
 ├── requirements.txt          Dependency list
 ├── API_DOCUMENTATION.md      This file
-└── off_data_au.db            Australian OFF subset (SQLite, ~70K products, full-field)
+└── off_data_au.db            Australian OFF subset (SQLite, ~70K products, compact — 19 essential fields)
 ```
 
 ---
@@ -127,50 +127,33 @@ Swagger UI: `http://localhost:8000/docs`
 <!-- ### 9. off_product (DISABLED - removed due to large file size) -->
 <!-- off_data.db was removed from the repository. Use the Australian subset below. -->
 
-### 9. off_product_au (Read-only, Australian subset)
+### 9. off_product_au (Read-only, Australian subset — Compact)
 
-This table lives in a **separate SQLite database** (`off_data_au.db`) and is read-only for API consumers. It is an Australian-product subset (~70K products) of Open Food Facts, containing all available fields from the source CSV including full ingredients, allergens, nutrition, and images. All columns are stored as TEXT.
+This table lives in a **separate SQLite database** (`off_data_au.db`) and is read-only for API consumers. It is an Australian-product subset (~70K products) of Open Food Facts. The schema has been **compacted to 19 essential fields** to stay within Cloudflare's file size limits — only front-facing identifiers, images, and core nutrition values are retained. All columns are stored as TEXT.
 
 | Category | Column | Type | Description |
 |----------|--------|------|-------------|
 | Identity | id | INT (PK, Auto) | Internal ID |
 | | code | TEXT (Unique) | Product barcode |
 | | product_name | TEXT | Product name |
-| | generic_name | TEXT | Generic product description |
 | Brand | brands | TEXT | Brand name(s) |
-| | brands_tags | TEXT | Normalised brand tags |
 | Category | categories | TEXT | Category hierarchy |
-| | categories_tags | TEXT | Normalised category tags |
-| Quantity | quantity | TEXT | Pack size |
-| | product_quantity | TEXT | Numeric quantity |
-| | serving_size | TEXT | Serving size |
-| Store | stores | TEXT | Retailers |
-| Country | countries_tags | TEXT | Country tags |
-| | countries_en | TEXT | Country names (English) |
-| | manufacturing_places | TEXT | Manufacturing locations |
-| Ingredients | ingredients_text | TEXT | Full ingredients list |
-| | allergens / allergens_en | TEXT | Allergen info |
-| | traces / traces_en | TEXT | Traces info |
-| | additives_n / additives_tags | TEXT | Additives |
-| Labels | labels_tags | TEXT | Labels (organic, etc.) |
-| | packaging_tags | TEXT | Packaging types |
-| Scores | nutriscore_grade | TEXT | Nutri-Score grade |
-| | nutriscore_score | TEXT | Numeric Nutri-Score |
-| | nova_group | TEXT | NOVA group (1-4) |
-| Images | image_url / image_small_url | TEXT | Front images |
-| | image_nutrition_url | TEXT | Nutrition image |
-| | image_ingredients_url | TEXT | Ingredients image |
-| Nutrition | energy_kcal_100g ~ sodium_100g | TEXT | Core nutrients per 100g |
-| Micro | vitamin_a_100g ~ zinc_100g | TEXT | Vitamins & minerals per 100g |
-| | fruits_vegetables_legumes_100g | TEXT | % fruits/veg/legumes |
-| | no_nutrition_data | TEXT | Missing nutrition flag |
-| Popularity | unique_scans_n | TEXT | Unique scan count |
-| | popularity_tags | TEXT | Popularity rankings |
-| Metadata | url | TEXT | OFF product page |
-| | creator / created_t / last_modified_t | TEXT | Creation info |
-| | owner / brand_owner | TEXT | Ownership info |
-| | data_quality_errors_tags | TEXT | Data quality flags |
-| | imported_at | TEXT | Import timestamp |
+| Images | image_url | TEXT | Front product image |
+| | image_small_url | TEXT | Small front image |
+| Popularity | unique_scans_n | TEXT | Unique scan count (for search sorting) |
+| Nutrition | energy_kcal_100g | TEXT | Energy in kcal per 100g |
+| | energy_100g | TEXT | Energy in kJ per 100g |
+| | fat_100g | TEXT | Total fat per 100g |
+| | saturated_fat_100g | TEXT | Saturated fat per 100g |
+| | carbohydrates_100g | TEXT | Total carbohydrates per 100g |
+| | sugars_100g | TEXT | Sugars per 100g |
+| | fiber_100g | TEXT | Dietary fiber per 100g |
+| | proteins_100g | TEXT | Proteins per 100g |
+| | salt_100g | TEXT | Salt per 100g |
+| | sodium_100g | TEXT | Sodium per 100g |
+| Metadata | imported_at | TEXT | Import timestamp |
+
+> **Removed fields (45):** `generic_name`, `brands_tags`, `categories_tags`, `quantity`, `product_quantity`, `serving_size`, `stores`, `countries_tags`, `countries_en`, `manufacturing_places`, `ingredients_text`, `allergens`, `allergens_en`, `traces`, `traces_en`, `additives_n`, `additives_tags`, `labels_tags`, `packaging_tags`, `nutriscore_grade`, `nutriscore_score`, `nova_group`, `image_nutrition_url`, `image_ingredients_url`, `energy_from_fat_100g`, `trans_fat_100g`, `cholesterol_100g`, `vitamin_a_100g`, `vitamin_c_100g`, `vitamin_d_100g`, `calcium_100g`, `iron_100g`, `magnesium_100g`, `potassium_100g`, `zinc_100g`, `fruits_vegetables_legumes_100g`, `no_nutrition_data`, `popularity_tags`, `url`, `creator`, `created_t`, `last_modified_t`, `owner`, `brand_owner`, `data_quality_errors_tags`
 
 ---
 
@@ -1263,11 +1246,11 @@ DELETE /food-ownerships/{inventory_item_id}/{member_id}
 <!-- off_data.db has been removed due to large file size. -->
 <!-- Use the Australian subset /off-products-au/ endpoints instead. -->
 
-### 10. Open Food Facts Australia Subset (Full-Field)
+### 10. Open Food Facts Australia Subset (Compact)
 
-Read-only endpoints backed by `off_data_au.db`, an Australian-product subset of Open Food Facts (~70K products). Contains all available OFF fields including full ingredients, allergens, vitamins, minerals, and image URLs.
+Read-only endpoints backed by `off_data_au.db`, an Australian-product subset of Open Food Facts (~70K products). The schema has been **compacted to 19 essential fields** (see §9) to fit within Cloudflare's file size limits. Includes front-facing identifiers, images, and core nutrition values.
 
-The three endpoints mirror their global counterparts but return **string-typed** values across all columns (since the source CSV stores everything as text).
+The three endpoints return **string-typed** values across all columns (since the source CSV stores everything as text).
 
 #### 10.1 Search AU Products by Name
 
@@ -1289,16 +1272,11 @@ GET /off-products-au/search?q={term}&page={n}&page_size={n}
     {
       "code": "9310885115586",
       "product_name": "Dark Peanut Butter Crunchy",
-      "generic_name": "Crunchy peanut butter",
       "brands": "Mayver's",
       "categories": "Plant-based foods and beverages, Plant-based foods, ...",
-      "quantity": "375 g",
       "image_url": "https://images.openfoodfacts.org/.../front_en.57.400.jpg",
       "image_small_url": "https://images.openfoodfacts.org/.../front_en.57.200.jpg",
-      "nutriscore_grade": "b",
-      "nova_group": "3",
-      "unique_scans_n": "9",
-      "countries_en": "Australia"
+      "unique_scans_n": "9"
     }
   ],
   "total": 1606,
@@ -1313,16 +1291,11 @@ GET /off-products-au/search?q={term}&page={n}&page_size={n}
 |-------|------|-------------|
 | code | string | Product barcode |
 | product_name | string | Product name |
-| generic_name | string or null | Generic product description |
 | brands | string or null | Brand name(s) |
 | categories | string or null | Category hierarchy (comma-separated) |
-| quantity | string or null | Pack size (e.g. "375 g") |
 | image_url | string or null | Product front image URL (400px) |
 | image_small_url | string or null | Product front image URL (200px) |
-| nutriscore_grade | string or null | Nutri-Score grade (a/b/c/d/e) |
-| nova_group | string or null | NOVA group (1–4) |
 | unique_scans_n | string or null | Number of unique scans (popularity proxy) |
-| countries_en | string or null | Country name(s) in English |
 
 ---
 
@@ -1337,38 +1310,20 @@ GET /off-products-au/by-barcode/{code}
 |-----------|------|-------------|
 | code | string | Product barcode (EAN-13, e.g. `9310885115586`) |
 
-**Response 200 returns all fields from the search result plus:**
+**Response 200 returns all search result fields plus the following nutrition details:**
 
-| Category | Field | Type | Description |
-|----------|-------|------|-------------|
-| Brand & Tags | brands_tags | string or null | Normalised brand tags |
-| | categories_tags | string or null | Normalised category tags (e.g. `en:peanut-butters`) |
-| | product_quantity | string or null | Numeric quantity (e.g. `"375"`) |
-| | serving_size | string or null | Serving size description |
-| | stores | string or null | Where sold (e.g. `"Woolworths, Coles"`) |
-| | countries_tags | string or null | Country tags |
-| | manufacturing_places | string or null | Manufacturing location(s) |
-| Ingredients | ingredients_text | string or null | Full ingredients list |
-| | allergens | string or null | Allergen info |
-| | allergens_en | string or null | Allergen info (English) |
-| | traces | string or null | Traces info |
-| | traces_en | string or null | Traces info (English) |
-| | additives_n | string or null | Number of additives |
-| | additives_tags | string or null | Additive tags |
-| Labels | labels_tags | string or null | Labels (e.g. organic, gluten-free) |
-| | packaging_tags | string or null | Packaging types (e.g. `en:glass,en:jar`) |
-| Scores | nutriscore_score | string or null | Numeric Nutri-Score |
-| Images | image_nutrition_url | string or null | Nutrition image URL |
-| | image_ingredients_url | string or null | Ingredients image URL |
-| Nutrition | energy_kcal_100g ~ sodium_100g | string or null | All core nutrients per 100g |
-| Vitamins & Minerals | vitamin_a_100g ~ zinc_100g | string or null | Micro-nutrients per 100g |
-| | fruits_vegetables_legumes_100g | string or null | % fruits/veg/legumes |
-| | no_nutrition_data | string or null | Flag for missing nutrition |
-| Metadata | popularity_tags | string or null | Popularity rankings |
-| | url | string or null | Open Food Facts product URL |
-| | creator / created_t / last_modified_t | string or null | Creation & modification info |
-| | owner / brand_owner | string or null | Ownership info |
-| | data_quality_errors_tags | string or null | Data quality flags |
+| Field | Type | Description |
+|-------|------|-------------|
+| energy_kcal_100g | string or null | Energy in kcal per 100g |
+| energy_100g | string or null | Energy in kJ per 100g |
+| fat_100g | string or null | Total fat per 100g |
+| saturated_fat_100g | string or null | Saturated fat per 100g |
+| carbohydrates_100g | string or null | Total carbohydrates per 100g |
+| sugars_100g | string or null | Sugars per 100g |
+| fiber_100g | string or null | Dietary fiber per 100g |
+| proteins_100g | string or null | Proteins per 100g |
+| salt_100g | string or null | Salt per 100g |
+| sodium_100g | string or null | Sodium per 100g |
 
 > Note: All numeric fields are returned as **strings** because the source CSV stores them as text. The frontend should parse with `parseFloat()` or similar where numeric comparison is needed.
 
