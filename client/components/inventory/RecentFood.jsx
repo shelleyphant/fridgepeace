@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useRecentFoods } from '../../hooks/useRecentFoods';
 import FoodDetail from './FoodDetail';
-import Toast from '../Toast';
+import Toast from '../ui/Toast';
 
 const RecentFood = ({ onSuccess }) => {
   const { recentFoods, loading, error } = useRecentFoods();
@@ -23,7 +23,9 @@ const RecentFood = ({ onSuccess }) => {
           </li>
         ))}
       </ul>
-      {selected && <FoodDetail food={selected} inventoryItem={selected} onSuccess={onSuccess} />}
+      {selected && (
+        <FoodDetail food={selected} inventoryItem={selected} onSuccess={onSuccess} />
+      )}
     </div>
   );
 };

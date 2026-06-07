@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { addMembership, setMembership } from '../hooks/useMembership';
-import Button from './Button';
+import Button from './ui/Button';
 import { addHousehold, joinHousehold } from '../hooks/useHousehold';
-import Toast from './Toast';
+import Toast from './ui/Toast';
 
 const Onboarding = ({ onComplete }) => {
   const [member_id, setMemberId] = useState(localStorage.getItem('member_id'));
