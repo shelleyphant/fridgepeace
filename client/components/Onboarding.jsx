@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { addMembership, setMembership } from '../hooks/useMembership';
 import Button from './ui/Button';
+import Toast from './ui/Toast';
 import { addHousehold, joinHousehold, getMemberHousehold } from '../hooks/useHousehold';
 import Input from './ui/Input';
 
@@ -10,8 +11,10 @@ const Onboarding = ({ onComplete }) => {
   const [houseFormType, setHouseFormType] = useState(null);
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
+  const [errorKey, setErrorKey] = useState(0);
 
   const handleMembership = async () => {
+    setInput('');
     try {
       memberFormType === 'signup'
         ? await addMembership(input)
@@ -31,9 +34,11 @@ const Onboarding = ({ onComplete }) => {
           ? detail.map((d) => d.msg).join(', ')
           : (detail ?? e.message),
       );
+      setErrorKey((k) => k + 1);
     }
   };
   const handleHousehold = async () => {
+    setInput('');
     try {
       houseFormType === 'create'
         ? await addHousehold(member_id, input)
@@ -46,6 +51,7 @@ const Onboarding = ({ onComplete }) => {
           ? detail.map((d) => d.msg).join(', ')
           : (detail ?? e.message),
       );
+      setErrorKey((k) => k + 1);
     }
   };
 
@@ -87,8 +93,10 @@ const Onboarding = ({ onComplete }) => {
           value={input}
           onChangeAction={(e) => setInput(e.target.value)}
         />
-        {error && <p>{error}</p>}
+
         <Button title="Submit" action={handleMembership} />
+
+        {error && <Toast key={errorKey} level="error" message={error} />}
         <a
           className="text-water-600 text-sm underline hover:cursor-pointer"
           onClick={() => setMemberFormType(null)}
@@ -131,8 +139,10 @@ const Onboarding = ({ onComplete }) => {
             value={input}
             onChangeAction={(e) => setInput(e.target.value)}
           />
-          {error && <p>{error}</p>}
+
           <Button title="Submit" action={handleHousehold} />
+
+          {error && <Toast key={errorKey} level="error" message={error} />}
           <a
             className="text-water-600 text-sm underline hover:cursor-pointer"
             onClick={() => setHouseFormType('')}

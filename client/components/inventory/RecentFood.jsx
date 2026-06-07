@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { useRecentFoods } from '../../hooks/useRecentFoods';
 import FoodDetail from './FoodDetail';
+import Toast from '../ui/Toast';
 
 const RecentFood = ({ onSuccess }) => {
   const { recentFoods, loading, error } = useRecentFoods();
   const [selected, setSelected] = useState(null);
 
   if (loading) return <div>Loading...</div>;
-  if (error) return <div>Failed to load recent foods.</div>;
 
   return (
     <div>
+      {error && <Toast level="notice" message="Failed to load recent foods." />}
       <ul>
         {recentFoods.map((item) => (
           <li
@@ -22,7 +23,9 @@ const RecentFood = ({ onSuccess }) => {
           </li>
         ))}
       </ul>
-      {selected && <FoodDetail food={selected} inventoryItem={selected} onSuccess={onSuccess} />}
+      {selected && (
+        <FoodDetail food={selected} inventoryItem={selected} onSuccess={onSuccess} />
+      )}
     </div>
   );
 };

@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import Button from './ui/Button';
 import Drawer from './ui/Drawer';
 import FoodCard from './inventory/FoodCard';
+import Toast from './ui/Toast';
 import { useHousehold } from '../hooks/useHousehold';
 import { useInventory } from '../hooks/useInventory';
 
 const MainInventory = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [toast, setToast] = useState(null);
   const { inventory, loading, refresh } = useInventory();
   const household = useHousehold(localStorage.getItem('household_id'));
 
@@ -25,8 +27,14 @@ const MainInventory = () => {
         onSuccess={() => {
           refresh();
           setIsOpen(false);
+          setToast({
+            id: Date.now(),
+            level: 'success',
+            message: 'Food added to fridge!',
+          });
         }}
       />
+      {toast && <Toast key={toast.id} level={toast.level} message={toast.message} />}
     </>
   );
 };
