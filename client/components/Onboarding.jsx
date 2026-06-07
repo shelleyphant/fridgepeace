@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { addMembership, setMembership } from '../hooks/useMembership';
-import Button from './Button';
+import Button from './UI/Button';
 import { addHousehold, joinHousehold, getMemberHousehold } from '../hooks/useHousehold';
 
 const Onboarding = ({ onComplete }) => {
