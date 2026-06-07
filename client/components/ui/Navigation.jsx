@@ -1,27 +1,33 @@
 import React, { useState } from 'react';
 import NavButton from './NavButton';
-import { Menu01Icon } from '@hugeicons/core-free-icons';
+import {
+  BellIcon,
+  Cancel01Icon,
+  Logout02Icon,
+  Menu01Icon,
+  Settings01Icon,
+} from '@hugeicons/core-free-icons';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   return (
-    <nav>
+    <nav className="absolute top-6 right-6 flex flex-col items-end">
       <NavButton
-        name="menu"
-        icon={Menu01Icon}
+        name="Menu"
+        icon={isOpen ? Cancel01Icon : Menu01Icon}
         action={() => {
           setIsOpen(isOpen ? false : true);
         }}
       />
       <ul className={isOpen ? `flex` : `hidden`}>
         <li>
-          <NavButton />
+          <NavButton name="Notifications" icon={BellIcon} />
         </li>
         <li>
-          <NavButton />
+          <NavButton name="Settings" icon={Settings01Icon} />
         </li>
         <li>
-          <NavButton />
+          <NavButton name="Log Out" icon={Logout02Icon} />
         </li>
       </ul>
     </nav>
