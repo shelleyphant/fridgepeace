@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import AddFood from './inventory/AddFood';
+import AddFood from '../inventory/AddFood';
 
 const Drawer = ({ isOpen, onClose, onSuccess }) => {
   const [rendered, setRendered] = useState(false);
