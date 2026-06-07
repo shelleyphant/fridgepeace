@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Fuse from 'fuse.js';
 import foodData from '../source/food-data/foodkeeper.json';
 
 
@@ -14,6 +15,11 @@ const products =
     .find((s) => s.name === 'Product')
     ?.data.map((row) => Object.assign({}, ...row)) ?? [];
 
+const fuse = new Fuse(products, {
+  keys: ['Name', 'Name_subtitle', 'Keywords'],
+  threshold: 0.3,
+});
+
 export function useSearch(query) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -25,9 +31,9 @@ export function useSearch(query) {
 
     const timer = setTimeout(async () => {
       setLoading(true);
-      const local = products
-        .filter((p) => p.Name?.toLowerCase().includes(query.toLowerCase()))
-        .map((p) => ({ ...p, _source: 'foodkeeper' }));
+      const local = fuse
+        .search(query)
+        .map(({ item }) => ({ ...item, _source: 'foodkeeper' }));
 
       let remote = [];
       try {
@@ -57,7 +63,10 @@ export function useSearch(query) {
           const res = await window.fetch(`/off-proxy/cgi/search.pl?${params}`);
           json = await res.json();
         }
-        remote = (json?.products ?? []).map((p) => ({ ...p, _source: 'openfoodfacts' }));
+        const fetched = (json?.products ?? []).map((p) => ({ ...p, _source: 'openfoodfacts' }));
+        remote = new Fuse(fetched, { keys: ['product_name', 'brands'], threshold: 0.3 })
+          .search(query)
+          .map(({ item }) => item);
       } catch (e) {
         console.error('OFF search failed:', e);
       }
