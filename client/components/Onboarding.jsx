@@ -3,6 +3,7 @@ import { addMembership, setMembership } from '../hooks/useMembership';
 import Button from './ui/Button';
 import { addHousehold, joinHousehold, getMemberHousehold } from '../hooks/useHousehold';
 import Toast from './ui/Toast';
+import Input from './ui/Input';
 
 const Onboarding = ({ onComplete }) => {
   const [member_id, setMemberId] = useState(localStorage.getItem('member_id'));
