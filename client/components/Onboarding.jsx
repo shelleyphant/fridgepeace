@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { addMembership, setMembership } from '../hooks/useMembership';
-import Button from './ui/Button';
-import { addHousehold, joinHousehold, getMemberHousehold } from '../hooks/useHousehold';
-import Input from './ui/Input';
+import Button from './Button';
+import { addHousehold, joinHousehold } from '../hooks/useHousehold';
+import Toast from './Toast';
 
 const Onboarding = ({ onComplete }) => {
   const [member_id, setMemberId] = useState(localStorage.getItem('member_id'));
@@ -18,9 +18,7 @@ const Onboarding = ({ onComplete }) => {
       memberFormType === 'signup'
         ? await addMembership(input)
         : await setMembership(input);
-      const memberId = localStorage.getItem('member_id');
-      setMemberId(memberId);
-      setInput('');
+      setMemberId(localStorage.getItem('member_id'));
       setError(null);
       if (memberFormType === 'login') {
         const hasHousehold = await getMemberHousehold(memberId);
@@ -94,10 +92,8 @@ const Onboarding = ({ onComplete }) => {
         />
 
         <Button title="Submit" action={handleMembership} />
-        <a
-          className="text-water-600 text-sm underline hover:cursor-pointer"
-          onClick={() => setMemberFormType(null)}
-        >{`<< Go back`}</a>
+
+        {error && <Toast key={errorKey} level="error" message={error} />}
       </div>
     );
   }
@@ -138,10 +134,8 @@ const Onboarding = ({ onComplete }) => {
           />
 
           <Button title="Submit" action={handleHousehold} />
-          <a
-            className="text-water-600 text-sm underline hover:cursor-pointer"
-            onClick={() => setHouseFormType('')}
-          >{`<< Go Back`}</a>
+
+          {error && <Toast key={errorKey} level="error" message={error} />}
         </div>
       );
     }

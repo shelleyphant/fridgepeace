@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import moment from 'moment';
 import { useAddFood } from '../../hooks/useAddFood';
-import Button from '../ui/Button';
+import Button from '../Button';
+import Toast from '../Toast';
 
 const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
   const [quantity, setQuantity] = useState('');
@@ -11,21 +12,9 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
       : '',
   );
   const { addFood, updateFood, error } = useAddFood();
-  const [validationError, setValidationError] = useState(null);
-  const [validationKey, setValidationKey] = useState(0);
-
-  const apiError = Array.isArray(error?.response?.data?.detail)
+  const errorMessage = Array.isArray(error?.response?.data?.detail)
     ? error.response.data.detail.map((d) => d.msg).join(', ')
     : (error?.response?.data?.detail ?? error?.message ?? null);
-
-  const validate = () => {
-    const missingQuantity = !quantity || isNaN(quantity) || Number(quantity) <= 0;
-    const missingDate = !date;
-    if (missingQuantity && missingDate) return 'Quantity and date are required';
-    if (missingQuantity) return 'Please enter a valid quantity';
-    if (missingDate) return 'Please enter a date';
-    return null;
-  };
 
   const calcExpiryDate = (date) => {
     if (food._source !== 'foodkeeper' || food.packaged_food_id) return date;
@@ -101,10 +90,9 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         }}
         title={'Add to fridge'}
       />
-      {validationError && (
-        <Toast key={validationKey} level="warning" message={validationError} />
+      {errorMessage && (
+        <Toast key={errorMessage} level="error" message={errorMessage} />
       )}
-      {apiError && <Toast key={apiError} level="error" message={apiError} />}
     </div>
   );
 };
