@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import moment from 'moment';
 import { useAddFood } from '../../hooks/useAddFood';
-import Button from '../Button';
+import Button from '../ui/Button';
 
 const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
   const [quantity, setQuantity] = useState('');

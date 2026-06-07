@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { addMembership, setMembership } from '../hooks/useMembership';
-import Button from './Button';
-import { addHousehold, joinHousehold } from '../hooks/useHousehold';
+import Button from './ui/Button';
+import { addHousehold, joinHousehold, getMemberHousehold } from '../hooks/useHousehold';
+import Input from './ui/Input';
 
 const Onboarding = ({ onComplete }) => {
   const [member_id, setMemberId] = useState(localStorage.getItem('member_id'));
@@ -15,9 +16,14 @@ const Onboarding = ({ onComplete }) => {
       memberFormType === 'signup'
         ? await addMembership(input)
         : await setMembership(input);
-      setMemberId(localStorage.getItem('member_id'));
+      const memberId = localStorage.getItem('member_id');
+      setMemberId(memberId);
       setInput('');
       setError(null);
+      if (memberFormType === 'login') {
+        const hasHousehold = await getMemberHousehold(memberId);
+        if (hasHousehold) onComplete();
+      }
     } catch (e) {
       const detail = e.response?.data?.detail;
       setError(
@@ -46,52 +52,91 @@ const Onboarding = ({ onComplete }) => {
   if (!member_id) {
     if (!memberFormType)
       return (
-        <div>
-          <Button title="Sign Up" action={() => setMemberFormType('signup')} />
+        <div className="box-border flex flex-grow flex-col justify-center">
+          <div className="mb-6">
+            <span className="text-water-900">Welcome To</span>
+            <h1 className="font-sansation text-water-800 mb-4 text-5xl font-bold">
+              FridgePeace
+            </h1>
+
+            <h2>Shared pantry management</h2>
+            <p>
+              We're pretty cool. You can{' '}
+              <a className="text-water-600 text-center underline hover:cursor-pointer">
+                learn more here
+              </a>
+            </p>
+          </div>
+          <h2 className="text-water-700 text-xl font-medium">Let's get started!</h2>
           <Button title="Log In" action={() => setMemberFormType('login')} />
+          <a
+            className="text-water-600 text-center text-sm underline hover:cursor-pointer"
+            onClick={() => setMemberFormType('signup')}
+          >
+            Or sign up
+          </a>
         </div>
       );
     return (
-      <div>
-        <label>
+      <div className="box-border flex flex-grow flex-col justify-center">
+        <label className="text-water-700 text-xl font-medium">
           {memberFormType === 'signup' ? 'Choose a username' : 'Enter your username'}
         </label>
-        <input
-          className="w-full border"
+        <Input
+          type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChangeAction={(e) => setInput(e.target.value)}
         />
         {error && <p>{error}</p>}
         <Button title="Submit" action={handleMembership} />
+        <a
+          className="text-water-600 text-sm underline hover:cursor-pointer"
+          onClick={() => setMemberFormType(null)}
+        >{`<< Go back`}</a>
       </div>
     );
   }
   if (member_id) {
     if (!houseFormType) {
       return (
-        <div>
+        <div className="box-border flex flex-grow flex-col justify-center">
+          <h2 className="text-water-700 text-xl font-medium">Welcome member!</h2>
+          <p className="mb-6">Start your pantry!</p>
           <Button
             title="Create a Household"
             action={() => setHouseFormType('create')}
           />
           <Button title="Join a Household" action={() => setHouseFormType('join')} />
+          <a
+            className="text-water-600 text-sm underline hover:cursor-pointer"
+            onClick={() => {
+              localStorage.removeItem('member_id');
+              setMemberId(null);
+              setMemberFormType(null);
+              setInput('');
+            }}
+          >{`<< Log in as a different user`}</a>
         </div>
       );
     } else {
       return (
-        <div>
+        <div className="box-border flex flex-grow flex-col justify-center">
           <label>
             {houseFormType === 'create'
               ? 'Enter a name for your household'
               : 'Enter the unique House ID'}
           </label>
-          <input
-            className="w-full border"
+          <Input
+            type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChangeAction={(e) => setInput(e.target.value)}
           />
           {error && <p>{error}</p>}
           <Button title="Submit" action={handleHousehold} />
+          <a
+            className="text-water-600 text-sm underline hover:cursor-pointer"
+            onClick={() => setHouseFormType('')}
+          >{`<< Go Back`}</a>
         </div>
       );
     }
