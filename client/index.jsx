@@ -3,6 +3,7 @@ import './main.css';
 import Onboarding from './components/Onboarding';
 import { useState } from 'react';
 import MainInventory from './components/MainInventory';
+import Introduction from './components/Introduction'; //remove this after
 
 const isSetUp = () =>
   localStorage.getItem('member_id') && localStorage.getItem('household_id');

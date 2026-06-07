@@ -4,7 +4,7 @@ import Button from './ui/Button';
 import { addHousehold, joinHousehold, getMemberHousehold } from '../hooks/useHousehold';
 import Toast from './ui/Toast';
 import Input from './ui/Input';
-import AboutDrawer from './ui/AboutDrawer';
+import AboutDrawer from './AboutDrawer';
 
 const Onboarding = ({ onComplete }) => {
   const [member_id, setMemberId] = useState(localStorage.getItem('member_id'));
@@ -85,7 +85,6 @@ const Onboarding = ({ onComplete }) => {
           >
             Or sign up
           </a>
-          <AboutDrawer isOpen={showAbout} onClose={() => setShowAbout(false)} />
         </div>
       );
     return (
