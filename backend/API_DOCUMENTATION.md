@@ -8,12 +8,13 @@ FridgePeace is a refrigerator food management system API that supports household
 
 ```
 backend/
-├── main.py           FastAPI entry point, router registration, health check
-├── models.py         SQLAlchemy ORM models (8 tables)
-├── schemas.py        Pydantic request/response models with validation (input trimming, length constraints, positive-only numeric fields, enum validation, and empty-string-to-null coercion for Optional[int] fields)
-├── routers.py        All API endpoint routes
-├── requirements.txt  Dependency list
-└── API_DOCUMENTATION.md   This file
+├── main.py                   FastAPI entry point, router registration, health check
+├── models.py                 SQLAlchemy ORM models (9 tables)
+├── schemas.py                Pydantic request/response models with validation (input trimming, length constraints, positive-only numeric fields, enum validation, and empty-string-to-null coercion for Optional[int] fields)
+├── routers.py                All API endpoint routes
+├── requirements.txt          Dependency list
+├── API_DOCUMENTATION.md      This file
+└── off_data_au.db            Australian OFF subset (SQLite, ~70K products, compact — 19 fields: identifiers, nutrition, allergens, and generic name)
 ```
 
 ---
@@ -30,7 +31,7 @@ Swagger UI: `http://localhost:8000/docs`
 
 ---
 
-## Database Schema (8 Tables)
+## Database Schema (9 Tables + 1 Read-Only OFF Table in separate DB)
 
 ### 1. household
 
@@ -123,6 +124,37 @@ Swagger UI: `http://localhost:8000/docs`
 
 > **Composite Primary Key**: (inventory_item_id, member_id)
 
+<!-- ### 9. off_product (DISABLED - removed due to large file size) -->
+<!-- off_data.db was removed from the repository. Use the Australian subset below. -->
+
+### 9. off_product_au (Read-only, Australian subset — Compact)
+
+This table lives in a **separate SQLite database** (`off_data_au.db`) and is read-only for API consumers. It is an Australian-product subset (~70K products) of Open Food Facts. The schema has been **compacted to 19 essential fields** to stay within Cloudflare's file size limits — only identifiers, core nutrition values, allergens, and generic name are retained. All columns are stored as TEXT.
+
+| Category | Column | Type | Description |
+|----------|--------|------|-------------|
+| Identity | id | INT (PK, Auto) | Internal ID |
+| | code | TEXT (Unique) | Product barcode |
+| | product_name | TEXT | Product name |
+| | generic_name | TEXT | Generic product name (e.g. "Milk chocolate") |
+| Brand | brands | TEXT | Brand name(s) |
+| Category | categories | TEXT | Category hierarchy |
+| Allergens | allergens | TEXT | Allergen information (e.g. "en:milk") |
+| Popularity | unique_scans_n | TEXT | Unique scan count (for search sorting) |
+| Nutrition | energy_kcal_100g | TEXT | Energy in kcal per 100g |
+| | energy_100g | TEXT | Energy in kJ per 100g |
+| | fat_100g | TEXT | Total fat per 100g |
+| | saturated_fat_100g | TEXT | Saturated fat per 100g |
+| | carbohydrates_100g | TEXT | Total carbohydrates per 100g |
+| | sugars_100g | TEXT | Sugars per 100g |
+| | fiber_100g | TEXT | Dietary fiber per 100g |
+| | proteins_100g | TEXT | Proteins per 100g |
+| | salt_100g | TEXT | Salt per 100g |
+| | sodium_100g | TEXT | Sodium per 100g |
+| Metadata | imported_at | TEXT | Import timestamp |
+
+> **Removed fields (45, including images):** `brands_tags`, `categories_tags`, `quantity`, `product_quantity`, `serving_size`, `stores`, `countries_tags`, `countries_en`, `manufacturing_places`, `ingredients_text`, `allergens_en`, `traces`, `traces_en`, `additives_n`, `additives_tags`, `labels_tags`, `packaging_tags`, `nutriscore_grade`, `nutriscore_score`, `nova_group`, `image_url`, `image_small_url`, `image_nutrition_url`, `image_ingredients_url`, `energy_from_fat_100g`, `trans_fat_100g`, `cholesterol_100g`, `vitamin_a_100g`, `vitamin_c_100g`, `vitamin_d_100g`, `calcium_100g`, `iron_100g`, `magnesium_100g`, `potassium_100g`, `zinc_100g`, `fruits_vegetables_legumes_100g`, `no_nutrition_data`, `popularity_tags`, `url`, `creator`, `created_t`, `last_modified_t`, `owner`, `brand_owner`, `data_quality_errors_tags`
+
 ---
 
 ## Business Rules
@@ -139,6 +171,7 @@ Swagger UI: `http://localhost:8000/docs`
 | **Composite PK** | Food ownership uses (inventory_item_id, member_id) as composite key |
 | **SET NULL on food deletion** | Deleting a food reference sets it to NULL in inventory |
 | **Input validation** | String fields (`name`, `display_name`, `username`) are trimmed, must not be empty or whitespace-only, and must not exceed 255 characters. `quantity` must be greater than zero. `event_type` accepts only `added`, `consumed`, `expired`, or `moved`. All `Optional[int]` fields accept empty string `""` as input — it is automatically converted to `null` so frontend forms can send blank number inputs without triggering a 422 error |
+| **OFF database (read-only)** | The `off_data_au.db` is a separate SQLite database containing an Australian subset of Open Food Facts (~70K AU products, compact — 19 fields: identifiers, nutrition, allergens, generic name). It is read-only — API consumers cannot create, update, or delete OFF products |
 
 ---
 
@@ -434,7 +467,7 @@ POST /member/join
 **Validation:**
 - `user_id` must reference an existing user (returns 404 if not found)
 - `household_id` must reference an existing household (returns 404 if not found)
-- `display_name` is optional — if omitted, defaults to the user's `display_name`
+- `display_name` is optional — if omitted, defaults to the user's `display_name`. If provided, it must not be empty or whitespace-only (returns 422), and must not exceed 255 characters
 
 **Response 201:**
 ```json
@@ -829,6 +862,16 @@ DELETE /unpackaged-foods/{food_id}
 GET /food-inventory/
 ```
 
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| household_id | string | No | Filter by household ID to return only items belonging to that household |
+
+**Example:**
+```
+GET /food-inventory/?household_id=A1B2
+```
+
 **Response 200:**
 ```json
 [
@@ -1209,6 +1252,216 @@ DELETE /food-ownerships/{inventory_item_id}/{member_id}
 
 ---
 
+### 9. Shopping Suggestions (Rule-Based)
+
+A rule-based suggestion engine that analyses the household's food history (`food_inventory` + `food_event`) and returns a plain-language shopping recommendation. The engine evaluates **each food item** independently using the rules below, then selects the highest-priority suggestion to display.
+
+#### Rule-Based Logic (v2)
+
+| Rule | Condition | Suggestion | Priority |
+|------|-----------|------------|:--------:|
+| Insufficient history | `added_count < 3` | Skip (no suggestion) | — |
+| Overbuying (waste) | `expired_count / added_count ≥ 0.3` | **buy_less** — reduce purchase quantity | 1 (highest) |
+| Good consumption | `consumed_count / added_count ≥ 0.7` | **buy_same** — keep buying the same amount | 2 |
+| Unclear pattern | anything else | Skip (no suggestion) | — |
+
+**Priority:** `buy_less` > `buy_same`. Waste problems are surfaced first.
+
+**Data sources:**
+- `food_inventory` — tracks each time a food item is added to the household
+- `food_event` with `event_type = 'consumed'` — food was finished before expiry
+- `food_event` with `event_type = 'expired'` — food was wasted
+
+**Minimum data threshold:** at least 3 distinct food types in the household's history before any suggestion is produced.
+
+#### 9.1 Get Shopping Suggestion
+
+```
+GET /households/{household_id}/suggestions
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| household_id | string (4-char code) | Household code |
+
+**Response 200 (buy_less suggestion):**
+```json
+{
+  "has_suggestion": true,
+  "suggestion_type": "buy_less",
+  "suggestion_text": "You often have spinach left over. Try buying a smaller amount next time.",
+  "food_name": "spinach",
+  "added_count": 5,
+  "consumed_count": 1,
+  "expired_count": 3,
+  "details": [
+    {
+      "food_name": "spinach",
+      "suggestion_type": "buy_less",
+      "suggestion_text": "You often have spinach left over. Try buying a smaller amount next time.",
+      "added_count": 5,
+      "consumed_count": 1,
+      "expired_count": 3
+    }
+  ]
+}
+```
+
+**Response 200 (buy_same suggestion):**
+```json
+{
+  "has_suggestion": true,
+  "suggestion_type": "buy_same",
+  "suggestion_text": "You always finish milk before it expires. Keep buying the same amount.",
+  "food_name": "milk",
+  "added_count": 4,
+  "consumed_count": 3,
+  "expired_count": 0,
+  "details": [
+    {
+      "food_name": "milk",
+      "suggestion_type": "buy_same",
+      "suggestion_text": "You always finish milk before it expires. Keep buying the same amount.",
+      "added_count": 4,
+      "consumed_count": 3,
+      "expired_count": 0
+    }
+  ]
+}
+```
+
+**Response 200 (insufficient data):**
+```json
+{
+  "has_suggestion": false,
+  "suggestion_type": "not_enough_data",
+  "suggestion_text": "Add more food records to see shopping suggestions.",
+  "food_name": null,
+  "added_count": null,
+  "consumed_count": null,
+  "expired_count": null,
+  "details": []
+}
+```
+
+**Response 404:**
+```json
+{
+  "detail": "Household not found"
+}
+```
+
+---
+
+<!-- ### 10. Open Food Facts Product Search (DISABLED) -->
+<!-- off_data.db has been removed due to large file size. -->
+<!-- Use the Australian subset /off-products-au/ endpoints instead. -->
+
+### 10. Open Food Facts Australia Subset (Compact)
+
+Read-only endpoints backed by `off_data_au.db`, an Australian-product subset of Open Food Facts (~70K products). The schema has been **compacted to 19 essential fields** (see §9) to fit within Cloudflare's file size limits. Includes identifiers, core nutrition values, allergens, and generic name. Image fields have been removed.
+
+The three endpoints return **string-typed** values across all columns (since the source CSV stores everything as text).
+
+#### 10.1 Search AU Products by Name
+
+```
+GET /off-products-au/search?q={term}&page={n}&page_size={n}
+```
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| q | string or null | null | Search term (optional — case-insensitive LIKE; omit to return all products) |
+| page | int | 1 | Page number (1-based) |
+| page_size | int | 20 | Items per page (1–100) |
+
+**Response 200:**
+```json
+{
+  "items": [
+    {
+      "code": "7622300743536",
+      "product_name": "Dairy Milk",
+      "generic_name": "Milk chocolate",
+      "brands": "Cadbury",
+      "categories": "Snacks, Sweet snacks, Chocolate snacks",
+      "allergens": "en:milk"
+    }
+  ],
+  "total": 2133,
+  "page": 1,
+  "page_size": 2,
+  "total_pages": 1067
+}
+```
+
+**Search Result Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| code | string | Product barcode |
+| product_name | string | Product name |
+| generic_name | string or null | Generic product description |
+| brands | string or null | Brand name(s) |
+| categories | string or null | Category hierarchy (comma-separated) |
+| allergens | string or null | Allergen information |
+
+---
+
+#### 10.2 Get AU Product by Barcode
+
+```
+GET /off-products-au/by-barcode/{code}
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| code | string | Product barcode (EAN-13, e.g. `7622300743536`) |
+
+**Response 200 returns all search result fields plus the following nutrition details:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| energy_kcal_100g | string or null | Energy in kcal per 100g |
+| energy_100g | string or null | Energy in kJ per 100g |
+| fat_100g | string or null | Total fat per 100g |
+| saturated_fat_100g | string or null | Saturated fat per 100g |
+| carbohydrates_100g | string or null | Total carbohydrates per 100g |
+| sugars_100g | string or null | Sugars per 100g |
+| fiber_100g | string or null | Dietary fiber per 100g |
+| proteins_100g | string or null | Proteins per 100g |
+| salt_100g | string or null | Salt per 100g |
+| sodium_100g | string or null | Sodium per 100g |
+
+> Note: All numeric fields are returned as **strings** because the source CSV stores them as text. The frontend should parse with `parseFloat()` or similar where numeric comparison is needed.
+
+**Response 404:**
+```json
+{
+  "detail": "Product not found"
+}
+```
+
+---
+
+#### 10.3 Get AU Database Statistics
+
+```
+GET /off-products-au/stats
+```
+
+**Response 200:**
+```json
+{
+  "total_products": 70826,
+  "imported_at": "2026-06-06 17:17:42"
+}
+```
+
+---
+
 ## Error Codes Summary
 
 | Status | Meaning | Description |
@@ -1269,3 +1522,7 @@ DELETE /food-ownerships/{inventory_item_id}/{member_id}
 | Ownership | GET | `/food-ownerships/by-member/{id}` | List ownerships by member |
 | Ownership | POST | `/food-ownerships/` | Create ownership |
 | Ownership | DELETE | `/food-ownerships/{inv_id}/{mem_id}` | Delete ownership |
+| Suggestion | GET | `/households/{household_id}/suggestions` | Get shopping suggestion for a household |
+| OFF AU Product | GET | `/off-products-au/search?q=&page=&page_size=` | Search AU products by name (q optional; returns all results when omitted) |
+| OFF AU Product | GET | `/off-products-au/by-barcode/{code}` | Get AU product by barcode (all fields) |
+| OFF AU Product | GET | `/off-products-au/stats` | Get AU database statistics |

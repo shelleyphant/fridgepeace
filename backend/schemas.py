@@ -94,6 +94,18 @@ class MemberJoinRequest(BaseModel):
     household_id: str
     display_name: Optional[str] = None
 
+    @field_validator('display_name')
+    @classmethod
+    def validate_display_name(cls, v):
+        if v is None:
+            return v
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError('display_name must not be empty or whitespace-only')
+        if len(stripped) > 255:
+            raise ValueError('display_name must not exceed 255 characters')
+        return stripped
+
 
 class MemberLeaveRequest(BaseModel):
     user_id: int
@@ -267,3 +279,82 @@ class FoodOwnershipResponse(BaseModel):
     inventory_item_id: int
     member_id: int
     tagged_at: datetime
+
+
+# ─── Open Food Facts Product (DISABLED) ────────────────────
+# off_data.db has been removed due to large file size.
+# The Australian subset (off_data_au.db) is used instead.
+
+# class OffProductSearchResult(BaseModel):
+#     ...
+
+
+class OffProductStats(BaseModel):
+    total_products: int
+    imported_at: Optional[str] = None
+
+
+# class OffProductSearchPage(BaseModel):
+#     ...
+
+
+# ─── Open Food Facts Australia Subset ──────────────────────
+
+class OffProductAuSearchResult(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    code: str
+    product_name: str
+    generic_name: Optional[str] = None
+    brands: Optional[str] = None
+    categories: Optional[str] = None
+    allergens: Optional[str] = None
+
+
+class OffProductAuDetail(OffProductAuSearchResult):
+    # Core nutrition per 100g
+    energy_kcal_100g: Optional[str] = None
+    energy_100g: Optional[str] = None
+    fat_100g: Optional[str] = None
+    saturated_fat_100g: Optional[str] = None
+    carbohydrates_100g: Optional[str] = None
+    sugars_100g: Optional[str] = None
+    fiber_100g: Optional[str] = None
+    proteins_100g: Optional[str] = None
+    salt_100g: Optional[str] = None
+    sodium_100g: Optional[str] = None
+
+
+class OffProductAuSearchPage(BaseModel):
+    items: list[OffProductAuSearchResult]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+# ─── Shopping Suggestion ───────────────────────────────────
+
+SuggestionType = Literal["buy_less", "buy_same", "not_enough_data"]
+
+
+class FoodSuggestionItem(BaseModel):
+    """Per-food analysis result used by the suggestion engine."""
+    food_name: str
+    suggestion_type: SuggestionType
+    suggestion_text: str
+    added_count: int
+    consumed_count: int
+    expired_count: int
+
+
+class ShoppingSuggestionResponse(BaseModel):
+    """Response model for the household shopping suggestion endpoint."""
+    has_suggestion: bool
+    suggestion_type: Optional[SuggestionType] = None
+    suggestion_text: Optional[str] = None
+    food_name: Optional[str] = None
+    added_count: Optional[int] = None
+    consumed_count: Optional[int] = None
+    expired_count: Optional[int] = None
+    details: list[FoodSuggestionItem] = []

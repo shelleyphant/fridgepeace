@@ -37,6 +37,7 @@ pyvenv.cfg
 # Databases
 local_settings.py
 *.db
+!backend/off_data_au.db
 db.sqlite3
 db.sqlite3-journal
 
