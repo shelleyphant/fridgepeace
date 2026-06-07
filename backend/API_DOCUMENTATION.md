@@ -14,7 +14,7 @@ backend/
 ├── routers.py                All API endpoint routes
 ├── requirements.txt          Dependency list
 ├── API_DOCUMENTATION.md      This file
-└── off_data_au.db            Australian OFF subset (SQLite, ~70K products, compact — 19 essential fields)
+└── off_data_au.db            Australian OFF subset (SQLite, ~70K products, compact — 19 fields: identifiers, nutrition, allergens, and generic name)
 ```
 
 ---
@@ -129,17 +129,17 @@ Swagger UI: `http://localhost:8000/docs`
 
 ### 9. off_product_au (Read-only, Australian subset — Compact)
 
-This table lives in a **separate SQLite database** (`off_data_au.db`) and is read-only for API consumers. It is an Australian-product subset (~70K products) of Open Food Facts. The schema has been **compacted to 19 essential fields** to stay within Cloudflare's file size limits — only front-facing identifiers, images, and core nutrition values are retained. All columns are stored as TEXT.
+This table lives in a **separate SQLite database** (`off_data_au.db`) and is read-only for API consumers. It is an Australian-product subset (~70K products) of Open Food Facts. The schema has been **compacted to 19 essential fields** to stay within Cloudflare's file size limits — only identifiers, core nutrition values, allergens, and generic name are retained. All columns are stored as TEXT.
 
 | Category | Column | Type | Description |
 |----------|--------|------|-------------|
 | Identity | id | INT (PK, Auto) | Internal ID |
 | | code | TEXT (Unique) | Product barcode |
 | | product_name | TEXT | Product name |
+| | generic_name | TEXT | Generic product name (e.g. "Milk chocolate") |
 | Brand | brands | TEXT | Brand name(s) |
 | Category | categories | TEXT | Category hierarchy |
-| Images | image_url | TEXT | Front product image |
-| | image_small_url | TEXT | Small front image |
+| Allergens | allergens | TEXT | Allergen information (e.g. "en:milk") |
 | Popularity | unique_scans_n | TEXT | Unique scan count (for search sorting) |
 | Nutrition | energy_kcal_100g | TEXT | Energy in kcal per 100g |
 | | energy_100g | TEXT | Energy in kJ per 100g |
@@ -153,7 +153,7 @@ This table lives in a **separate SQLite database** (`off_data_au.db`) and is rea
 | | sodium_100g | TEXT | Sodium per 100g |
 | Metadata | imported_at | TEXT | Import timestamp |
 
-> **Removed fields (45):** `generic_name`, `brands_tags`, `categories_tags`, `quantity`, `product_quantity`, `serving_size`, `stores`, `countries_tags`, `countries_en`, `manufacturing_places`, `ingredients_text`, `allergens`, `allergens_en`, `traces`, `traces_en`, `additives_n`, `additives_tags`, `labels_tags`, `packaging_tags`, `nutriscore_grade`, `nutriscore_score`, `nova_group`, `image_nutrition_url`, `image_ingredients_url`, `energy_from_fat_100g`, `trans_fat_100g`, `cholesterol_100g`, `vitamin_a_100g`, `vitamin_c_100g`, `vitamin_d_100g`, `calcium_100g`, `iron_100g`, `magnesium_100g`, `potassium_100g`, `zinc_100g`, `fruits_vegetables_legumes_100g`, `no_nutrition_data`, `popularity_tags`, `url`, `creator`, `created_t`, `last_modified_t`, `owner`, `brand_owner`, `data_quality_errors_tags`
+> **Removed fields (45, including images):** `brands_tags`, `categories_tags`, `quantity`, `product_quantity`, `serving_size`, `stores`, `countries_tags`, `countries_en`, `manufacturing_places`, `ingredients_text`, `allergens_en`, `traces`, `traces_en`, `additives_n`, `additives_tags`, `labels_tags`, `packaging_tags`, `nutriscore_grade`, `nutriscore_score`, `nova_group`, `image_url`, `image_small_url`, `image_nutrition_url`, `image_ingredients_url`, `energy_from_fat_100g`, `trans_fat_100g`, `cholesterol_100g`, `vitamin_a_100g`, `vitamin_c_100g`, `vitamin_d_100g`, `calcium_100g`, `iron_100g`, `magnesium_100g`, `potassium_100g`, `zinc_100g`, `fruits_vegetables_legumes_100g`, `no_nutrition_data`, `popularity_tags`, `url`, `creator`, `created_t`, `last_modified_t`, `owner`, `brand_owner`, `data_quality_errors_tags`
 
 ---
 
@@ -171,7 +171,7 @@ This table lives in a **separate SQLite database** (`off_data_au.db`) and is rea
 | **Composite PK** | Food ownership uses (inventory_item_id, member_id) as composite key |
 | **SET NULL on food deletion** | Deleting a food reference sets it to NULL in inventory |
 | **Input validation** | String fields (`name`, `display_name`, `username`) are trimmed, must not be empty or whitespace-only, and must not exceed 255 characters. `quantity` must be greater than zero. `event_type` accepts only `added`, `consumed`, `expired`, or `moved`. All `Optional[int]` fields accept empty string `""` as input — it is automatically converted to `null` so frontend forms can send blank number inputs without triggering a 422 error |
-| **OFF database (read-only)** | The `off_data_au.db` is a separate SQLite database containing an Australian subset of Open Food Facts (~70K AU products). It is read-only — API consumers cannot create, update, or delete OFF products |
+| **OFF database (read-only)** | The `off_data_au.db` is a separate SQLite database containing an Australian subset of Open Food Facts (~70K AU products, compact — 19 fields: identifiers, nutrition, allergens, generic name). It is read-only — API consumers cannot create, update, or delete OFF products |
 
 ---
 
@@ -1350,7 +1350,7 @@ GET /households/{household_id}/suggestions
 
 ### 10. Open Food Facts Australia Subset (Compact)
 
-Read-only endpoints backed by `off_data_au.db`, an Australian-product subset of Open Food Facts (~70K products). The schema has been **compacted to 19 essential fields** (see §9) to fit within Cloudflare's file size limits. Includes front-facing identifiers, images, and core nutrition values.
+Read-only endpoints backed by `off_data_au.db`, an Australian-product subset of Open Food Facts (~70K products). The schema has been **compacted to 19 essential fields** (see §9) to fit within Cloudflare's file size limits. Includes identifiers, core nutrition values, allergens, and generic name. Image fields have been removed.
 
 The three endpoints return **string-typed** values across all columns (since the source CSV stores everything as text).
 
@@ -1363,7 +1363,7 @@ GET /off-products-au/search?q={term}&page={n}&page_size={n}
 **Query Parameters:**
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| q | string | (required) | Search term (min 1 character, case-insensitive LIKE) |
+| q | string or null | null | Search term (optional — case-insensitive LIKE; omit to return all products) |
 | page | int | 1 | Page number (1-based) |
 | page_size | int | 20 | Items per page (1–100) |
 
@@ -1372,19 +1372,18 @@ GET /off-products-au/search?q={term}&page={n}&page_size={n}
 {
   "items": [
     {
-      "code": "9310885115586",
-      "product_name": "Dark Peanut Butter Crunchy",
-      "brands": "Mayver's",
-      "categories": "Plant-based foods and beverages, Plant-based foods, ...",
-      "image_url": "https://images.openfoodfacts.org/.../front_en.57.400.jpg",
-      "image_small_url": "https://images.openfoodfacts.org/.../front_en.57.200.jpg",
-      "unique_scans_n": "9"
+      "code": "7622300743536",
+      "product_name": "Dairy Milk",
+      "generic_name": "Milk chocolate",
+      "brands": "Cadbury",
+      "categories": "Snacks, Sweet snacks, Chocolate snacks",
+      "allergens": "en:milk"
     }
   ],
-  "total": 1606,
+  "total": 2133,
   "page": 1,
   "page_size": 2,
-  "total_pages": 803
+  "total_pages": 1067
 }
 ```
 
@@ -1393,11 +1392,10 @@ GET /off-products-au/search?q={term}&page={n}&page_size={n}
 |-------|------|-------------|
 | code | string | Product barcode |
 | product_name | string | Product name |
+| generic_name | string or null | Generic product description |
 | brands | string or null | Brand name(s) |
 | categories | string or null | Category hierarchy (comma-separated) |
-| image_url | string or null | Product front image URL (400px) |
-| image_small_url | string or null | Product front image URL (200px) |
-| unique_scans_n | string or null | Number of unique scans (popularity proxy) |
+| allergens | string or null | Allergen information |
 
 ---
 
@@ -1410,7 +1408,7 @@ GET /off-products-au/by-barcode/{code}
 **Path Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| code | string | Product barcode (EAN-13, e.g. `9310885115586`) |
+| code | string | Product barcode (EAN-13, e.g. `7622300743536`) |
 
 **Response 200 returns all search result fields plus the following nutrition details:**
 
@@ -1464,7 +1462,6 @@ GET /off-products-au/stats
 | 400 | Bad Request | Validation failed (e.g., duplicate barcode, invalid inventory type, missing required fields) |
 | 404 | Not Found | Resource does not exist |
 | 422 | Unprocessable Entity | Request body failed Pydantic schema validation (e.g., required field missing, wrong type, invalid enum value, empty/whitespace-only string, string exceeds length limit, value out of range) |
-| 422 (OFF search) | Unprocessable Entity | Search query parameter `q` must be at least 1 character |
 
 ---
 
@@ -1516,6 +1513,6 @@ GET /off-products-au/stats
 | Ownership | POST | `/food-ownerships/` | Create ownership |
 | Ownership | DELETE | `/food-ownerships/{inv_id}/{mem_id}` | Delete ownership |
 | Suggestion | GET | `/households/{household_id}/suggestions` | Get shopping suggestion for a household |
-| OFF AU Product | GET | `/off-products-au/search?q=&page=&page_size=` | Search AU products by name (full-field) |
+| OFF AU Product | GET | `/off-products-au/search?q=&page=&page_size=` | Search AU products by name (q optional; returns all results when omitted) |
 | OFF AU Product | GET | `/off-products-au/by-barcode/{code}` | Get AU product by barcode (all fields) |
 | OFF AU Product | GET | `/off-products-au/stats` | Get AU database statistics |

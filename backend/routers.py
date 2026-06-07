@@ -547,14 +547,16 @@ def delete_ownership(inventory_item_id: int, member_id: int, db: Session = Depen
 
 @router.get("/off-products-au/search", response_model=OffProductAuSearchPage)
 def search_off_products_au(
-    q: str = Query(..., min_length=1, description="Search term"),
+    q: Optional[str] = Query(None, description="Search term (optional; returns all results when omitted)"),
     page: int = Query(1, ge=1, description="Page number (1-based)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_off_au_db),
 ):
-    base_query = db.query(OffProductAu).filter(
-        OffProductAu.product_name.ilike(f"%{q}%")
-    )
+    base_query = db.query(OffProductAu)
+    if q:
+        base_query = base_query.filter(
+            OffProductAu.product_name.ilike(f"%{q}%")
+        )
     total = base_query.count()
     results = (
         base_query

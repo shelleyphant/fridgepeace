@@ -293,11 +293,10 @@ class OffProductAuSearchResult(BaseModel):
 
     code: str
     product_name: str
+    generic_name: Optional[str] = None
     brands: Optional[str] = None
     categories: Optional[str] = None
-    image_url: Optional[str] = None
-    image_small_url: Optional[str] = None
-    unique_scans_n: Optional[str] = None
+    allergens: Optional[str] = None
 
 
 class OffProductAuDetail(OffProductAuSearchResult):
