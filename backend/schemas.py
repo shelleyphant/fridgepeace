@@ -94,6 +94,18 @@ class MemberJoinRequest(BaseModel):
     household_id: str
     display_name: Optional[str] = None
 
+    @field_validator('display_name')
+    @classmethod
+    def validate_display_name(cls, v):
+        if v is None:
+            return v
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError('display_name must not be empty or whitespace-only')
+        if len(stripped) > 255:
+            raise ValueError('display_name must not exceed 255 characters')
+        return stripped
+
 
 class MemberLeaveRequest(BaseModel):
     user_id: int

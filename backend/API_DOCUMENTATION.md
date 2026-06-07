@@ -467,7 +467,7 @@ POST /member/join
 **Validation:**
 - `user_id` must reference an existing user (returns 404 if not found)
 - `household_id` must reference an existing household (returns 404 if not found)
-- `display_name` is optional — if omitted, defaults to the user's `display_name`
+- `display_name` is optional — if omitted, defaults to the user's `display_name`. If provided, it must not be empty or whitespace-only (returns 422), and must not exceed 255 characters
 
 **Response 201:**
 ```json
