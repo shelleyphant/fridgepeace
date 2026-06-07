@@ -1242,9 +1242,27 @@ DELETE /food-ownerships/{inventory_item_id}/{member_id}
 
 ---
 
-### 9. Shopping Suggestions
+### 9. Shopping Suggestions (Rule-Based)
 
-Analyses the household's food waste patterns and returns a plain-language shopping suggestion. If the household has at least 5 inventory records and a food item has been marked as expired 2 or more times, a "buy less" recommendation is shown for that item. Otherwise a neutral message is returned.
+A rule-based suggestion engine that analyses the household's food history (`food_inventory` + `food_event`) and returns a plain-language shopping recommendation. The engine evaluates **each food item** independently using the rules below, then selects the highest-priority suggestion to display.
+
+#### Rule-Based Logic (v2)
+
+| Rule | Condition | Suggestion | Priority |
+|------|-----------|------------|:--------:|
+| Insufficient history | `added_count < 3` | Skip (no suggestion) | — |
+| Overbuying (waste) | `expired_count / added_count ≥ 0.3` | **buy_less** — reduce purchase quantity | 1 (highest) |
+| Good consumption | `consumed_count / added_count ≥ 0.7` | **buy_same** — keep buying the same amount | 2 |
+| Unclear pattern | anything else | Skip (no suggestion) | — |
+
+**Priority:** `buy_less` > `buy_same`. Waste problems are surfaced first.
+
+**Data sources:**
+- `food_inventory` — tracks each time a food item is added to the household
+- `food_event` with `event_type = 'consumed'` — food was finished before expiry
+- `food_event` with `event_type = 'expired'` — food was wasted
+
+**Minimum data threshold:** at least 3 distinct food types in the household's history before any suggestion is produced.
 
 #### 9.1 Get Shopping Suggestion
 
@@ -1257,19 +1275,49 @@ GET /households/{household_id}/suggestions
 |-----------|------|-------------|
 | household_id | string (4-char code) | Household code |
 
-**Logic:**
-- If the household has fewer than 5 inventory records, returns a neutral message: *"Add more food records to see shopping suggestions."*
-- Groups expired `food_event` records by food item, filters for items with 2+ expired events, and picks the worst offender.
-- Returns a "buy less" suggestion with the food name, waste count, and total times it was added.
-
-**Response 200 (suggestion available):**
+**Response 200 (buy_less suggestion):**
 ```json
 {
   "has_suggestion": true,
+  "suggestion_type": "buy_less",
   "suggestion_text": "You often have spinach left over. Try buying a smaller amount next time.",
   "food_name": "spinach",
-  "wasted_count": 3,
-  "total_added_count": 5
+  "added_count": 5,
+  "consumed_count": 1,
+  "expired_count": 3,
+  "details": [
+    {
+      "food_name": "spinach",
+      "suggestion_type": "buy_less",
+      "suggestion_text": "You often have spinach left over. Try buying a smaller amount next time.",
+      "added_count": 5,
+      "consumed_count": 1,
+      "expired_count": 3
+    }
+  ]
+}
+```
+
+**Response 200 (buy_same suggestion):**
+```json
+{
+  "has_suggestion": true,
+  "suggestion_type": "buy_same",
+  "suggestion_text": "You always finish milk before it expires. Keep buying the same amount.",
+  "food_name": "milk",
+  "added_count": 4,
+  "consumed_count": 3,
+  "expired_count": 0,
+  "details": [
+    {
+      "food_name": "milk",
+      "suggestion_type": "buy_same",
+      "suggestion_text": "You always finish milk before it expires. Keep buying the same amount.",
+      "added_count": 4,
+      "consumed_count": 3,
+      "expired_count": 0
+    }
+  ]
 }
 ```
 
@@ -1277,10 +1325,13 @@ GET /households/{household_id}/suggestions
 ```json
 {
   "has_suggestion": false,
+  "suggestion_type": "not_enough_data",
   "suggestion_text": "Add more food records to see shopping suggestions.",
   "food_name": null,
-  "wasted_count": null,
-  "total_added_count": null
+  "added_count": null,
+  "consumed_count": null,
+  "expired_count": null,
+  "details": []
 }
 ```
 

@@ -324,9 +324,26 @@ class OffProductAuSearchPage(BaseModel):
 
 # ─── Shopping Suggestion ───────────────────────────────────
 
+SuggestionType = Literal["buy_less", "buy_same", "not_enough_data"]
+
+
+class FoodSuggestionItem(BaseModel):
+    """Per-food analysis result used by the suggestion engine."""
+    food_name: str
+    suggestion_type: SuggestionType
+    suggestion_text: str
+    added_count: int
+    consumed_count: int
+    expired_count: int
+
+
 class ShoppingSuggestionResponse(BaseModel):
+    """Response model for the household shopping suggestion endpoint."""
     has_suggestion: bool
+    suggestion_type: Optional[SuggestionType] = None
     suggestion_text: Optional[str] = None
     food_name: Optional[str] = None
-    wasted_count: Optional[int] = None
-    total_added_count: Optional[int] = None
+    added_count: Optional[int] = None
+    consumed_count: Optional[int] = None
+    expired_count: Optional[int] = None
+    details: list[FoodSuggestionItem] = []
