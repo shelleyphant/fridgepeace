@@ -97,6 +97,10 @@ const Onboarding = ({ onComplete }) => {
         <Button title="Submit" action={handleMembership} />
 
         {error && <Toast key={errorKey} level="error" message={error} />}
+        <a
+          className="text-water-600 text-sm underline hover:cursor-pointer"
+          onClick={() => setMemberFormType(null)}
+        >{`<< Go back`}</a>
       </div>
     );
   }
@@ -139,6 +143,10 @@ const Onboarding = ({ onComplete }) => {
           <Button title="Submit" action={handleHousehold} />
 
           {error && <Toast key={errorKey} level="error" message={error} />}
+          <a
+            className="text-water-600 text-sm underline hover:cursor-pointer"
+            onClick={() => setHouseFormType('')}
+          >{`<< Go Back`}</a>
         </div>
       );
     }
