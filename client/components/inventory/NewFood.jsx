@@ -3,6 +3,7 @@ import { Loading02Icon } from '@hugeicons/core-free-icons';
 import { useSearch } from '../../hooks/useSearch';
 import FoodDetail from './FoodDetail';
 import { HugeiconsIcon } from '@hugeicons/react';
+import Input from '../ui/Input';
 
 const NewFood = ({ onSuccess }) => {
   const [search, setSearch] = useState('');
@@ -11,15 +12,16 @@ const NewFood = ({ onSuccess }) => {
 
   return (
     <div>
-      <input
-        className="w-full border"
-        placeholder="apple"
-        onChange={(e) => {
+      <Input
+        type="text"
+        value={search}
+        onChangeAction={(e) => {
           setSearch(e.target.value);
           setSelected(null);
         }}
-        value={search}
+        placeholder="search for..."
       />
+
       {loading && <HugeiconsIcon icon={Loading02Icon} className="animate-spin" />}
       {!selected && !loading && results.length > 0 && (
         <ul className="mt-1 border">
