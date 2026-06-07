@@ -19,7 +19,7 @@ const App = () => {
   } else {
     return (
       <main className="m-auto max-w-md p-4">
-        <Navigation onReset={() => setReady(false)} />
+        <Navigation />
         <MainInventory />
       </main>
     );
