@@ -78,8 +78,8 @@ const Onboarding = ({ onComplete }) => {
         </div>
       );
     return (
-      <div>
-        <label>
+      <div className="box-border flex flex-grow flex-col justify-center">
+        <label className="text-water-700 text-xl font-medium">
           {memberFormType === 'signup' ? 'Choose a username' : 'Enter your username'}
         </label>
         <Input
@@ -89,23 +89,38 @@ const Onboarding = ({ onComplete }) => {
         />
         {error && <p>{error}</p>}
         <Button title="Submit" action={handleMembership} />
+        <a
+          className="text-water-600 text-sm underline hover:cursor-pointer"
+          onClick={() => setMemberFormType(null)}
+        >{`<< Go back`}</a>
       </div>
     );
   }
   if (member_id) {
     if (!houseFormType) {
       return (
-        <div>
+        <div className="box-border flex flex-grow flex-col justify-center">
+          <h2 className="text-water-700 text-xl font-medium">Welcome member!</h2>
+          <p className="mb-6">Start your pantry!</p>
           <Button
             title="Create a Household"
             action={() => setHouseFormType('create')}
           />
           <Button title="Join a Household" action={() => setHouseFormType('join')} />
+          <a
+            className="text-water-600 text-sm underline hover:cursor-pointer"
+            onClick={() => {
+              localStorage.removeItem('member_id');
+              setMemberId(null);
+              setMemberFormType(null);
+              setInput('');
+            }}
+          >{`<< Log in as a different user`}</a>
         </div>
       );
     } else {
       return (
-        <div>
+        <div className="box-border flex flex-grow flex-col justify-center">
           <label>
             {houseFormType === 'create'
               ? 'Enter a name for your household'
@@ -118,6 +133,10 @@ const Onboarding = ({ onComplete }) => {
           />
           {error && <p>{error}</p>}
           <Button title="Submit" action={handleHousehold} />
+          <a
+            className="text-water-600 text-sm underline hover:cursor-pointer"
+            onClick={() => setHouseFormType('')}
+          >{`<< Go Back`}</a>
         </div>
       );
     }
