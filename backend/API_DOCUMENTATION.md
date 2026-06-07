@@ -172,6 +172,7 @@ This table lives in a **separate SQLite database** (`off_data_au.db`) and is rea
 | **SET NULL on food deletion** | Deleting a food reference sets it to NULL in inventory |
 | **Input validation** | String fields (`name`, `display_name`, `username`) are trimmed, must not be empty or whitespace-only, and must not exceed 255 characters. `quantity` must be greater than zero. `event_type` accepts only `added`, `consumed`, `expired`, or `moved`. All `Optional[int]` fields accept empty string `""` as input — it is automatically converted to `null` so frontend forms can send blank number inputs without triggering a 422 error |
 | **OFF database (read-only)** | The `off_data_au.db` is a separate SQLite database containing an Australian subset of Open Food Facts (~70K AU products). It is read-only — API consumers cannot create, update, or delete OFF products |
+| **FoodKeeper database (read-only)** | The `foodkeeper.db` is a separate SQLite database containing USDA FoodKeeper reference data (660 products, 24 categories). It is read-only — API consumers cannot create, update, or delete records. All shelf-life values are pre-converted to **days** |
 
 ---
 
@@ -1454,6 +1455,102 @@ GET /off-products-au/stats
 
 ---
 
+### 11. FoodKeeper Reference Data (Read-Only)
+
+Read-only endpoints backed by `foodkeeper.db`, a separate SQLite database containing USDA FoodKeeper reference data (660 products, 24 categories). All shelf-life values have been **pre-converted to days** so the frontend does not need to handle unit conversion.
+
+#### 11.1 Search FoodKeeper Products
+
+```
+GET /foodkeeper/search?q={term}&limit={n}
+```
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| q | string | (required) | Search term (min 1 character, case-insensitive LIKE on `name` and `keywords`) |
+| limit | int | 20 | Max results to return (1–100) |
+
+**Response 200:**
+```json
+[
+  {
+    "id": 1,
+    "foodkeeper_id": "2",
+    "category_id": 7,
+    "category_name": "Dairy Products & Eggs",
+    "name": "Buttermilk",
+    "name_subtitle": null,
+    "keywords": "Buttermilk",
+    "fridge_days_min": 7,
+    "fridge_days_max": 14,
+    "freezer_days_min": 90,
+    "freezer_days_max": 90,
+    "pantry_days_min": null,
+    "pantry_days_max": null,
+    "tips": null
+  }
+]
+```
+
+**Product Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| id | int | Auto-increment primary key |
+| foodkeeper_id | string or null | Original FoodKeeper product ID |
+| category_id | int or null | FK to FoodKeeper category |
+| category_name | string or null | Denormalized category name |
+| name | string | Product name |
+| name_subtitle | string or null | Product subtitle (e.g., "commercial") |
+| keywords | string or null | Search keywords |
+| fridge_days_min | int or null | Minimum days in fridge |
+| fridge_days_max | int or null | Maximum days in fridge |
+| freezer_days_min | int or null | Minimum days in freezer |
+| freezer_days_max | int or null | Maximum days in freezer |
+| pantry_days_min | int or null | Minimum days in pantry |
+| pantry_days_max | int or null | Maximum days in pantry |
+| tips | string or null | Storage tips / handling notes |
+
+**Response 422:**
+```json
+{
+  "detail": "Search query parameter `q` must be at least 1 character"
+}
+```
+
+---
+
+#### 11.2 List All FoodKeeper Categories
+
+```
+GET /foodkeeper/categories
+```
+
+**Response 200:**
+```json
+[
+  {
+    "id": 2,
+    "category_name": "Baked Goods",
+    "subcategory_name": "Bakery"
+  },
+  {
+    "id": 3,
+    "category_name": "Baked Goods",
+    "subcategory_name": "Baking and Cooking"
+  }
+]
+```
+
+**Category Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| id | int | Category ID |
+| category_name | string or null | Top-level category name |
+| subcategory_name | string or null | Subcategory name |
+
+---
+
 ## Error Codes Summary
 
 | Status | Meaning | Description |
@@ -1519,3 +1616,5 @@ GET /off-products-au/stats
 | OFF AU Product | GET | `/off-products-au/search?q=&page=&page_size=` | Search AU products by name (full-field) |
 | OFF AU Product | GET | `/off-products-au/by-barcode/{code}` | Get AU product by barcode (all fields) |
 | OFF AU Product | GET | `/off-products-au/stats` | Get AU database statistics |
+| FoodKeeper | GET | `/foodkeeper/search?q=&limit=` | Search FoodKeeper products by name or keyword |
+| FoodKeeper | GET | `/foodkeeper/categories` | List all FoodKeeper categories |

@@ -322,6 +322,33 @@ class OffProductAuSearchPage(BaseModel):
     total_pages: int
 
 
+# ─── FoodKeeper Reference Data ─────────────────────────────
+
+class FoodkeeperProductResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    foodkeeper_id: Optional[str] = None
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    name: str
+    name_subtitle: Optional[str] = None
+    keywords: Optional[str] = None
+    fridge_days_min: Optional[int] = None
+    fridge_days_max: Optional[int] = None
+    freezer_days_min: Optional[int] = None
+    freezer_days_max: Optional[int] = None
+    pantry_days_min: Optional[int] = None
+    pantry_days_max: Optional[int] = None
+    tips: Optional[str] = None
+
+
+class FoodkeeperCategoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    category_name: Optional[str] = None
+    subcategory_name: Optional[str] = None
+
+
 # ─── Shopping Suggestion ───────────────────────────────────
 
 SuggestionType = Literal["buy_less", "buy_same", "not_enough_data"]

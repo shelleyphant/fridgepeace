@@ -26,6 +26,7 @@ from sqlalchemy.orm import (
 SQLALCHEMY_DATABASE_URL = "sqlite:///./fridgepeace_v2.db"
 # OFF_DATABASE_URL = "sqlite:///./off_data.db"
 OFF_AU_DATABASE_URL = "sqlite:///./off_data_au.db"
+FOODKEEPER_DATABASE_URL = "sqlite:///./foodkeeper.db"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
@@ -42,12 +43,22 @@ off_au_engine = create_engine(
     connect_args={"check_same_thread": False},
 )
 
+foodkeeper_engine = create_engine(
+    FOODKEEPER_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # OffSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=off_engine)
 OffAuSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=off_au_engine)
+FoodkeeperSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=foodkeeper_engine)
 
 
 class Base(DeclarativeBase):
+    pass
+
+
+class FoodkeeperBase(DeclarativeBase):
     pass
 
 
@@ -69,6 +80,14 @@ def get_db():
 
 def get_off_au_db():
     db = OffAuSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def get_foodkeeper_db():
+    db = FoodkeeperSessionLocal()
     try:
         yield db
     finally:
@@ -339,9 +358,42 @@ class FoodOwnership(Base):
     )
 
 
+# ─── FoodKeeper Reference Data ────────────────────────────
+# Read-only reference tables sourced from foodkeeper.json.
+# Used by GET /foodkeeper/search and GET /foodkeeper/categories.
+# This data is static and imported via seed_foodkeeper_db.py.
+
+class FoodkeeperProduct(FoodkeeperBase):
+    __tablename__ = "foodkeeper_product"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    foodkeeper_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    category_id: Mapped[Optional[int]] = mapped_column(nullable=True)
+    category_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name_subtitle: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    keywords: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    fridge_days_min: Mapped[Optional[int]] = mapped_column(nullable=True)
+    fridge_days_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+    freezer_days_min: Mapped[Optional[int]] = mapped_column(nullable=True)
+    freezer_days_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+    pantry_days_min: Mapped[Optional[int]] = mapped_column(nullable=True)
+    pantry_days_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+    tips: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class FoodkeeperCategory(FoodkeeperBase):
+    __tablename__ = "foodkeeper_category"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
+    category_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    subcategory_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+
 Base.metadata.create_all(bind=engine)
 # Base.metadata.create_all(bind=off_engine)
 Base.metadata.create_all(bind=off_au_engine)
+FoodkeeperBase.metadata.create_all(bind=foodkeeper_engine)
 
 
 # ─── Open Food Facts Product (DISABLED) ────────────────────

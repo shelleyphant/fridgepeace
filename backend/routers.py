@@ -8,6 +8,8 @@ from models import (
     FoodEvent,
     FoodInventory,
     FoodOwnership,
+    FoodkeeperCategory,
+    FoodkeeperProduct,
     Household,
     HouseholdMember,
     OffProductAu,
@@ -16,6 +18,7 @@ from models import (
     User,
     generate_household_code,
     get_db,
+    get_foodkeeper_db,
     get_off_au_db,
 )
 from schemas import (
@@ -24,6 +27,8 @@ from schemas import (
     FoodInventoryCreate,
     FoodInventoryDetailResponse,
     FoodInventoryResponse,
+    FoodkeeperCategoryResponse,
+    FoodkeeperProductResponse,
     FoodOwnershipCreate,
     FoodOwnershipResponse,
     FoodSuggestionItem,
@@ -793,3 +798,34 @@ def get_shopping_suggestion(household_id: str, db: Session = Depends(get_db)):
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
     return _build_shopping_suggestion(household_id, db)
+
+
+# ─── FoodKeeper Reference Data ────────────────────────────
+# Read-only endpoints backed by the separate foodkeeper.db.
+# Data is static and imported from the FoodKeeper Excel spreadsheet.
+
+@router.get("/foodkeeper/search", response_model=list[FoodkeeperProductResponse])
+def search_foodkeeper_products(
+    q: str = Query(..., min_length=1, description="Search query (case-insensitive)"),
+    limit: int = Query(20, ge=1, le=100, description="Max results to return"),
+    db: Session = Depends(get_foodkeeper_db),
+):
+    """Search FoodKeeper products by name or keywords (case-insensitive)."""
+    pattern = f"%{q}%"
+    return (
+        db.query(FoodkeeperProduct)
+        .filter(
+            FoodkeeperProduct.name.ilike(pattern)
+            | FoodkeeperProduct.keywords.ilike(pattern)
+        )
+        .limit(limit)
+        .all()
+    )
+
+
+@router.get("/foodkeeper/categories", response_model=list[FoodkeeperCategoryResponse])
+def list_foodkeeper_categories(
+    db: Session = Depends(get_foodkeeper_db),
+):
+    """List all FoodKeeper categories."""
+    return db.query(FoodkeeperCategory).all()
