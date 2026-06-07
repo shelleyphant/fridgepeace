@@ -367,8 +367,14 @@ def delete_unpackaged_food(food_id: int, db: Session = Depends(get_db)):
 # enforced by a CHECK constraint and validated at the application level.
 
 @router.get("/food-inventory/", response_model=list[FoodInventoryResponse])
-def list_inventory(db: Session = Depends(get_db)):
-    return db.query(FoodInventory).all()
+def list_inventory(
+    household_id: Optional[str] = Query(None, description="Filter by household ID"),
+    db: Session = Depends(get_db),
+):
+    query = db.query(FoodInventory)
+    if household_id:
+        query = query.filter(FoodInventory.household_id == household_id)
+    return query.all()
 
 
 @router.get("/food-inventory/{item_id}", response_model=FoodInventoryDetailResponse)

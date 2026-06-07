@@ -862,6 +862,16 @@ DELETE /unpackaged-foods/{food_id}
 GET /food-inventory/
 ```
 
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| household_id | string | No | Filter by household ID to return only items belonging to that household |
+
+**Example:**
+```
+GET /food-inventory/?household_id=A1B2
+```
+
 **Response 200:**
 ```json
 [
