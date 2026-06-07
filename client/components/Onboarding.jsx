@@ -18,7 +18,9 @@ const Onboarding = ({ onComplete }) => {
       memberFormType === 'signup'
         ? await addMembership(input)
         : await setMembership(input);
-      setMemberId(localStorage.getItem('member_id'));
+      const memberId = localStorage.getItem('member_id');
+      setMemberId(memberId);
+      setInput('');
       setError(null);
       if (memberFormType === 'login') {
         const hasHousehold = await getMemberHousehold(memberId);
