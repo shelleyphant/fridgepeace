@@ -320,3 +320,13 @@ class OffProductAuSearchPage(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+# ─── Shopping Suggestion ───────────────────────────────────
+
+class ShoppingSuggestionResponse(BaseModel):
+    has_suggestion: bool
+    suggestion_text: Optional[str] = None
+    food_name: Optional[str] = None
+    wasted_count: Optional[int] = None
+    total_added_count: Optional[int] = None

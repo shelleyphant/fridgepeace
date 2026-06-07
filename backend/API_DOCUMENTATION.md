@@ -1242,6 +1242,57 @@ DELETE /food-ownerships/{inventory_item_id}/{member_id}
 
 ---
 
+### 9. Shopping Suggestions
+
+Analyses the household's food waste patterns and returns a plain-language shopping suggestion. If the household has at least 5 inventory records and a food item has been marked as expired 2 or more times, a "buy less" recommendation is shown for that item. Otherwise a neutral message is returned.
+
+#### 9.1 Get Shopping Suggestion
+
+```
+GET /households/{household_id}/suggestions
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| household_id | string (4-char code) | Household code |
+
+**Logic:**
+- If the household has fewer than 5 inventory records, returns a neutral message: *"Add more food records to see shopping suggestions."*
+- Groups expired `food_event` records by food item, filters for items with 2+ expired events, and picks the worst offender.
+- Returns a "buy less" suggestion with the food name, waste count, and total times it was added.
+
+**Response 200 (suggestion available):**
+```json
+{
+  "has_suggestion": true,
+  "suggestion_text": "You often have spinach left over. Try buying a smaller amount next time.",
+  "food_name": "spinach",
+  "wasted_count": 3,
+  "total_added_count": 5
+}
+```
+
+**Response 200 (insufficient data):**
+```json
+{
+  "has_suggestion": false,
+  "suggestion_text": "Add more food records to see shopping suggestions.",
+  "food_name": null,
+  "wasted_count": null,
+  "total_added_count": null
+}
+```
+
+**Response 404:**
+```json
+{
+  "detail": "Household not found"
+}
+```
+
+---
+
 <!-- ### 10. Open Food Facts Product Search (DISABLED) -->
 <!-- off_data.db has been removed due to large file size. -->
 <!-- Use the Australian subset /off-products-au/ endpoints instead. -->
@@ -1413,6 +1464,7 @@ GET /off-products-au/stats
 | Ownership | GET | `/food-ownerships/by-member/{id}` | List ownerships by member |
 | Ownership | POST | `/food-ownerships/` | Create ownership |
 | Ownership | DELETE | `/food-ownerships/{inv_id}/{mem_id}` | Delete ownership |
+| Suggestion | GET | `/households/{household_id}/suggestions` | Get shopping suggestion for a household |
 | OFF AU Product | GET | `/off-products-au/search?q=&page=&page_size=` | Search AU products by name (full-field) |
 | OFF AU Product | GET | `/off-products-au/by-barcode/{code}` | Get AU product by barcode (all fields) |
 | OFF AU Product | GET | `/off-products-au/stats` | Get AU database statistics |

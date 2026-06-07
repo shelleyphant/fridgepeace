@@ -37,6 +37,7 @@ from schemas import (
     OffProductStats,
     PackagedFoodCreate,
     PackagedFoodResponse,
+    ShoppingSuggestionResponse,
     UnpackagedFoodCreate,
     UnpackagedFoodResponse,
     UserCreate,
@@ -588,3 +589,112 @@ def get_off_products_au_stats(db: Session = Depends(get_off_au_db)):
         total_products=count,
         imported_at=last[0] if last else None,
     )
+
+
+# ─── Shopping Suggestions ──────────────────────────────────
+# Generates a "buy less" recommendation for a household by
+# analysing which foods are frequently added but later expire.
+# Requires at least 5 inventory records before any suggestion
+# is produced (otherwise a neutral message is returned).
+
+def _build_shopping_suggestion(household_id: str, db: Session) -> ShoppingSuggestionResponse:
+    """Analyse food waste patterns and return a shopping suggestion."""
+    inventory_count = (
+        db.query(sa_func.count(FoodInventory.id))
+        .filter(FoodInventory.household_id == household_id)
+        .scalar()
+        or 0
+    )
+    if inventory_count < 5:
+        return ShoppingSuggestionResponse(
+            has_suggestion=False,
+            suggestion_text="Add more food records to see shopping suggestions.",
+        )
+
+    # Group expired events by their inventory item's food name
+    results = (
+        db.query(
+            FoodInventory.unpackaged_food_id,
+            FoodInventory.packaged_food_id,
+            sa_func.count(FoodEvent.id).label("wasted_count"),
+        )
+        .join(FoodEvent, FoodEvent.inventory_item_id == FoodInventory.id)
+        .filter(
+            FoodInventory.household_id == household_id,
+            FoodEvent.event_type == "expired",
+        )
+        .group_by(
+            FoodInventory.unpackaged_food_id,
+            FoodInventory.packaged_food_id,
+        )
+        .having(sa_func.count(FoodEvent.id) >= 2)
+        .order_by(sa_func.count(FoodEvent.id).desc())
+        .all()
+    )
+
+    if not results:
+        return ShoppingSuggestionResponse(
+            has_suggestion=False,
+            suggestion_text="Add more food records to see shopping suggestions.",
+        )
+
+    # Pick the worst offender and resolve its name
+    unpackaged_id, packaged_id, wasted_count = results[0]
+    food_name = None
+
+    if unpackaged_id is not None:
+        food = (
+            db.query(UnpackagedFood)
+            .filter(UnpackagedFood.id == unpackaged_id)
+            .first()
+        )
+        if food:
+            food_name = food.name
+    elif packaged_id is not None:
+        food = (
+            db.query(PackagedFood)
+            .filter(PackagedFood.id == packaged_id)
+            .first()
+        )
+        if food:
+            food_name = food.name
+
+    if not food_name:
+        return ShoppingSuggestionResponse(
+            has_suggestion=False,
+            suggestion_text="Add more food records to see shopping suggestions.",
+        )
+
+    # Count total times this food was added
+    total_added = (
+        db.query(sa_func.count(FoodInventory.id))
+        .filter(
+            FoodInventory.household_id == household_id,
+            (
+                (FoodInventory.unpackaged_food_id == unpackaged_id)
+                if unpackaged_id is not None
+                else (FoodInventory.packaged_food_id == packaged_id)
+            ),
+        )
+        .scalar()
+        or 0
+    )
+
+    return ShoppingSuggestionResponse(
+        has_suggestion=True,
+        suggestion_text=f"You often have {food_name} left over. Try buying a smaller amount next time.",
+        food_name=food_name,
+        wasted_count=wasted_count,
+        total_added_count=total_added,
+    )
+
+
+@router.get(
+    "/households/{household_id}/suggestions",
+    response_model=ShoppingSuggestionResponse,
+)
+def get_shopping_suggestion(household_id: str, db: Session = Depends(get_db)):
+    household = db.query(Household).filter(Household.id == household_id).first()
+    if not household:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
+    return _build_shopping_suggestion(household_id, db)
