@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { addMembership, setMembership } from '../hooks/useMembership';
-import Button from './UI/Button';
+import Button from './ui/Button';
 import { addHousehold, joinHousehold, getMemberHousehold } from '../hooks/useHousehold';
+import Input from './ui/Input';
 
 const Onboarding = ({ onComplete }) => {
   const [member_id, setMemberId] = useState(localStorage.getItem('member_id'));
@@ -81,10 +82,10 @@ const Onboarding = ({ onComplete }) => {
         <label>
           {memberFormType === 'signup' ? 'Choose a username' : 'Enter your username'}
         </label>
-        <input
-          className="w-full border"
+        <Input
+          type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChangeAction={(e) => setInput(e.target.value)}
         />
         {error && <p>{error}</p>}
         <Button title="Submit" action={handleMembership} />
@@ -110,10 +111,10 @@ const Onboarding = ({ onComplete }) => {
               ? 'Enter a name for your household'
               : 'Enter the unique House ID'}
           </label>
-          <input
-            className="w-full border"
+          <Input
+            type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChangeAction={(e) => setInput(e.target.value)}
           />
           {error && <p>{error}</p>}
           <Button title="Submit" action={handleHousehold} />

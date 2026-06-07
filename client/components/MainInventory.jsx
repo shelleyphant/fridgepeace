@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import Button from './UI/Button';
-import Drawer from './Drawer';
+import Button from './ui/Button';
+import Drawer from './ui/Drawer';
 import FoodCard from './inventory/FoodCard';
 import { useHousehold } from '../hooks/useHousehold';
 import { useInventory } from '../hooks/useInventory';
