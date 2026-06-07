@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { addMembership, setMembership } from '../hooks/useMembership';
 import Button from './ui/Button';
-import { addHousehold, joinHousehold } from '../hooks/useHousehold';
+import { addHousehold, joinHousehold, getMemberHousehold } from '../hooks/useHousehold';
 import Toast from './ui/Toast';
 
 const Onboarding = ({ onComplete }) => {
