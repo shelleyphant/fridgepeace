@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import moment from 'moment';
 import { useAddFood } from '../../hooks/useAddFood';
 import Button from '../Button';
+import Toast from '../Toast';
 
 const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
   const [quantity, setQuantity] = useState('');
@@ -10,7 +11,10 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
       ? moment().format('YYYY-MM-DD')
       : '',
   );
-  const { addFood, updateFood } = useAddFood();
+  const { addFood, updateFood, error } = useAddFood();
+  const errorMessage = Array.isArray(error?.response?.data?.detail)
+    ? error.response.data.detail.map((d) => d.msg).join(', ')
+    : (error?.response?.data?.detail ?? error?.message ?? null);
 
   const calcExpiryDate = (date) => {
     if (food._source !== 'foodkeeper' || food.packaged_food_id) return date;
@@ -80,6 +84,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         }}
         title={'Add to fridge'}
       />
+      {errorMessage && <Toast key={errorMessage} level="error" message={errorMessage} />}
     </div>
   );
 };

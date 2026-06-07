@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { addMembership, setMembership } from '../hooks/useMembership';
 import Button from './Button';
 import { addHousehold, joinHousehold } from '../hooks/useHousehold';
+import Toast from './Toast';
 
 const Onboarding = ({ onComplete }) => {
   const [member_id, setMemberId] = useState(localStorage.getItem('member_id'));
@@ -9,25 +10,24 @@ const Onboarding = ({ onComplete }) => {
   const [houseFormType, setHouseFormType] = useState(null);
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
+  const [errorKey, setErrorKey] = useState(0);
 
   const handleMembership = async () => {
+    setInput('');
     try {
       memberFormType === 'signup'
         ? await addMembership(input)
         : await setMembership(input);
       setMemberId(localStorage.getItem('member_id'));
-      setInput('');
       setError(null);
     } catch (e) {
       const detail = e.response?.data?.detail;
-      setError(
-        Array.isArray(detail)
-          ? detail.map((d) => d.msg).join(', ')
-          : (detail ?? e.message),
-      );
+      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail ?? e.message));
+      setErrorKey((k) => k + 1);
     }
   };
   const handleHousehold = async () => {
+    setInput('');
     try {
       houseFormType === 'create'
         ? await addHousehold(member_id, input)
@@ -35,11 +35,8 @@ const Onboarding = ({ onComplete }) => {
       onComplete();
     } catch (e) {
       const detail = e.response?.data?.detail;
-      setError(
-        Array.isArray(detail)
-          ? detail.map((d) => d.msg).join(', ')
-          : (detail ?? e.message),
-      );
+      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (detail ?? e.message));
+      setErrorKey((k) => k + 1);
     }
   };
 
@@ -61,8 +58,10 @@ const Onboarding = ({ onComplete }) => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
         />
-        {error && <p>{error}</p>}
+
         <Button title="Submit" action={handleMembership} />
+
+        {error && <Toast key={errorKey} level="error" message={error} />}
       </div>
     );
   }
@@ -90,8 +89,10 @@ const Onboarding = ({ onComplete }) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
-          {error && <p>{error}</p>}
+
           <Button title="Submit" action={handleHousehold} />
+
+          {error && <Toast key={errorKey} level="error" message={error} />}
         </div>
       );
     }
