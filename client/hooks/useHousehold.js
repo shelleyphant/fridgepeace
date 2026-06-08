@@ -39,3 +39,7 @@ export function useHousehold(household_id) {
 
   return household;
 }
+
+export async function leaveHousehold() {
+  localStorage.removeItem('household_id');
+}
