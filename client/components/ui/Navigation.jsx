@@ -10,8 +10,9 @@ import {
 import Notifications from '../user/Notifications';
 import Settings from '../user/Settings';
 import Drawer from './Drawer';
+import { logOut } from '../../hooks/useMembership';
 
-const Navigation = () => {
+const Navigation = ({ onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <nav className="absolute top-6 right-6 flex flex-col items-end">
@@ -56,7 +57,14 @@ const Navigation = () => {
           </Drawer>
         </li>
         <li>
-          <NavButton name="Log Out" icon={Logout02Icon} />
+          <NavButton
+            name="Log Out"
+            icon={Logout02Icon}
+            action={() => {
+              logOut();
+              onLogout();
+            }}
+          />
         </li>
       </ul>
     </nav>
