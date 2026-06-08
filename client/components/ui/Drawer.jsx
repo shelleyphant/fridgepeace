@@ -10,9 +10,6 @@ const Drawer = ({ trigger, children }) => {
   const open = () => setIsOpen(true);
   const close = () => setIsOpen(false);
 
-  const open = () => setIsOpen(true);
-  const close = () => setIsOpen(false);
-
   useEffect(() => {
     if (isOpen) {
       setRendered(true);
