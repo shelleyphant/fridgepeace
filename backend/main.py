@@ -10,7 +10,7 @@ app = FastAPI(title="FridgePeace API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://fridgepeace.me"],
+    allow_origins=["https://fridgepeace.me","http://localhost:4040",],
     allow_methods=["*"],
     allow_headers=["*"],
 )
