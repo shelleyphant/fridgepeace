@@ -24,9 +24,11 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
   const validate = () => {
     const missingQuantity = !quantity || isNaN(quantity) || Number(quantity) <= 0;
     const missingDate = !date;
+    const missingLocation = !storageLocation;
     if (missingQuantity && missingDate) return 'Quantity and date are required';
     if (missingQuantity) return 'Please enter a valid quantity';
     if (missingDate) return 'Please enter a date';
+    if (missingLocation) return 'Please select a storage location';
     return null;
   };
 
