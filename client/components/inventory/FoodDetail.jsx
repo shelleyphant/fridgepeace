@@ -6,6 +6,7 @@ import Toast from '../ui/Toast';
 
 const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
   const [quantity, setQuantity] = useState('');
+  const [storageLocation, setStorageLocation] = useState('');
   const [date, setDate] = useState(
     food._source === 'foodkeeper' || food.unpackaged_food_id
       ? moment().format('YYYY-MM-DD')
@@ -75,6 +76,20 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         value={quantity}
         type="number"
       />
+      <label>Storage location</label>
+      <select
+        className="border"
+        onChange={(e) => setStorageLocation(e.target.value)}
+        value={storageLocation}
+      >
+        <option value="" disabled>
+          Select a location
+        </option>
+        <option value="fridge">Fridge</option>
+        <option value="freezer">Freezer</option>
+        <option value="pantry">Pantry</option>
+        <option value="counter">Counter</option>
+      </select>
       <label>
         {food._source === 'foodkeeper' || food.unpackaged_food_id
           ? 'Purchase Date'
@@ -97,7 +112,11 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
           }
           const success = inventoryItem
             ? await updateFood(inventoryItem, quantity, calcExpiryDate(date))
-            : await addFood(food, { quantity, expiry_date: calcExpiryDate(date) });
+            : await addFood(food, {
+                quantity,
+                expiry_date: calcExpiryDate(date),
+                storage_location: storageLocation || null,
+              });
           if (success) onSuccess?.();
         }}
         title={'Add to fridge'}
