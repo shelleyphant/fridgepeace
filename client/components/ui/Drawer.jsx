@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 const Drawer = ({ trigger, children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [rendered, setRendered] = useState(false);
   const [show, setShow] = useState(false);
+  const panelRef = useRef(null);
 
   const open = () => setIsOpen(true);
   const close = () => setIsOpen(false);
@@ -12,7 +13,6 @@ const Drawer = ({ trigger, children }) => {
   useEffect(() => {
     if (isOpen) {
       setRendered(true);
-      requestAnimationFrame(() => requestAnimationFrame(() => setShow(true)));
     } else {
       setShow(false);
       const t = setTimeout(() => setRendered(false), 300);
@@ -20,12 +20,19 @@ const Drawer = ({ trigger, children }) => {
     }
   }, [isOpen]);
 
+  useLayoutEffect(() => {
+    if (!rendered || !panelRef.current) return;
+    panelRef.current.getBoundingClientRect();
+    requestAnimationFrame(() => setShow(true));
+  }, [rendered]);
+
   return (
     <>
       {trigger(open)}
       {rendered &&
         createPortal(
           <div
+            ref={panelRef}
             className={`absolute bottom-0 left-0 h-11/12 w-full rounded-tl-3xl rounded-tr-3xl bg-white p-4 shadow transition-transform duration-300 ease-in-out ${show ? 'translate-y-0' : 'translate-y-full'}`}
           >
             <hr
@@ -34,7 +41,7 @@ const Drawer = ({ trigger, children }) => {
             ></hr>
             <div className="m-auto max-w-md p-4">{children(close)}</div>
           </div>,
-          document.body
+          document.body,
         )}
     </>
   );
