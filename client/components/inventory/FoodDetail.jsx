@@ -3,6 +3,7 @@ import moment from 'moment';
 import { useAddFood } from '../../hooks/useAddFood';
 import Button from '../ui/Button';
 import Toast from '../ui/Toast';
+import Input from '../ui/Input';
 
 const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
   const [quantity, setQuantity] = useState('');
@@ -70,15 +71,14 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
       </pre> */}
       <span className="block">{food.Name ?? food.product_name}</span>
       <label>Quantity</label>
-      <input
-        className="border"
-        onChange={(e) => setQuantity(e.target.value)}
+      <Input
+        onChangeAction={(e) => setQuantity(e.target.value)}
         value={quantity}
         type="number"
       />
       <label>Storage location</label>
       <select
-        className="border"
+        className="border-water-600 relative my-4 w-full border p-4"
         onChange={(e) => setStorageLocation(e.target.value)}
         value={storageLocation}
       >
@@ -95,12 +95,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
           ? 'Purchase Date'
           : 'Use By Date'}
       </label>
-      <input
-        className="border"
-        onChange={(e) => setDate(e.target.value)}
-        value={date}
-        type="date"
-      />
+      <Input onChangeAction={(e) => setDate(e.target.value)} value={date} type="date" />
       <Button
         action={async () => {
           const msg = validate();
