@@ -14,7 +14,6 @@ const Onboarding = ({ onComplete }) => {
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
   const [errorKey, setErrorKey] = useState(0);
-  const [showAbout, setShowAbout] = useState(false);
 
   const handleMembership = async () => {
     setInput('');
@@ -99,7 +98,6 @@ const Onboarding = ({ onComplete }) => {
           >
             Or sign up
           </a>
-          <AboutDrawer isOpen={showAbout} onClose={() => setShowAbout(false)} />
         </div>
       );
     return (
