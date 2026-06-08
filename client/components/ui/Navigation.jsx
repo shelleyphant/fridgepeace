@@ -7,6 +7,9 @@ import {
   Menu01Icon,
   Settings01Icon,
 } from '@hugeicons/core-free-icons';
+import Notifications from '../user/Notifications';
+import Settings from '../user/Settings';
+import Drawer from './Drawer';
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,10 +24,36 @@ const Navigation = () => {
       />
       <ul className={isOpen ? `flex` : `hidden`}>
         <li>
-          <NavButton name="Notifications" icon={BellIcon} />
+          <Drawer
+            trigger={(open) => (
+              <NavButton name="Notifications" icon={BellIcon} action={open} />
+            )}
+          >
+            {(close) => (
+              <Notifications
+                onClose={close}
+                onSuccess={() => {
+                  close();
+                }}
+              />
+            )}
+          </Drawer>
         </li>
         <li>
-          <NavButton name="Settings" icon={Settings01Icon} />
+          <Drawer
+            trigger={(open) => (
+              <NavButton name="Settings" icon={Settings01Icon} action={open} />
+            )}
+          >
+            {(close) => (
+              <Settings
+                onClose={close}
+                onSuccess={() => {
+                  close();
+                }}
+              />
+            )}
+          </Drawer>
         </li>
         <li>
           <NavButton name="Log Out" icon={Logout02Icon} />
