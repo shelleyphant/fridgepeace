@@ -4,7 +4,7 @@ import { useAddFood } from '../../hooks/useAddFood';
 import Button from '../ui/Button';
 import Toast from '../ui/Toast';
 
-const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
+const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
   const [quantity, setQuantity] = useState('');
   const [storageLocation, setStorageLocation] = useState('');
   const [date, setDate] = useState(
@@ -102,7 +102,6 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         type="date"
       />
       <Button
-        className="mt-2 bg-blue-500 px-4 py-2 text-white"
         action={async () => {
           const msg = validate();
           if (msg) {
@@ -121,6 +120,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
         }}
         title={'Add to fridge'}
       />
+      <a onClick={close}>Cancel</a>
       {validationError && (
         <Toast key={validationKey} level="warning" message={validationError} />
       )}
