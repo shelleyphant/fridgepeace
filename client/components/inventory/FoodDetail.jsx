@@ -47,20 +47,33 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
           return value;
       }
     };
+    const pantryFields = [
+      ['Pantry_Max', 'Pantry_Metric'],
+      ['DOP_Pantry_Max', 'DOP_Pantry_Metric'],
+      ['Pantry_After_Opening_Max', 'Pantry_After_Opening_Metric'],
+    ];
+    const fridgeFields = [
+      ['Refrigerate_Max', 'Refrigerate_Metric'],
+      ['DOP_Refrigerate_Max', 'DOP_Refrigerate_Metric'],
+      ['Refrigerate_After_Opening_Max', 'Refrigerate_After_Opening_Metric'],
+    ];
+    const freezerFields = [
+      ['Freeze_Max', 'Freeze_Metric'],
+      ['DOP_Freeze_Max', 'DOP_Freeze_Metric'],
+    ];
+    const fieldsByLocation = {
+      fridge: fridgeFields,
+      freezer: freezerFields,
+      pantry: pantryFields,
+      counter: pantryFields,
+    };
+
+    const fields =
+      fieldsByLocation[storageLocation] ?? [...pantryFields, ...fridgeFields, ...freezerFields];
     const maxDays = Math.max(
-      ...[
-        toDays(food.Pantry_Max, food.Pantry_Metric),
-        toDays(food.DOP_Pantry_Max, food.DOP_Pantry_Metric),
-        toDays(food.Pantry_After_Opening_Max, food.Pantry_After_Opening_Metric),
-        toDays(food.Refrigerate_Max, food.Refrigerate_Metric),
-        toDays(food.DOP_Refrigerate_Max, food.DOP_Refrigerate_Metric),
-        toDays(
-          food.Refrigerate_After_Opening_Max,
-          food.Refrigerate_After_Opening_Metric,
-        ),
-        toDays(food.Freeze_Max, food.Freeze_Metric),
-        toDays(food.DOP_Freeze_Max, food.DOP_Freeze_Metric),
-      ].filter((v) => v != null),
+      ...fields
+        .map(([maxKey, metricKey]) => toDays(food[maxKey], food[metricKey]))
+        .filter((v) => v != null),
     );
     if (!isFinite(maxDays)) return date;
     return moment(date).add(maxDays, 'days').format('YYYY-MM-DD');
