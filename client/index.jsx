@@ -3,7 +3,7 @@ import './main.css';
 import Onboarding from './components/Onboarding';
 import { useState } from 'react';
 import MainInventory from './components/MainInventory';
-import Introduction from './components/Introduction'; //remove this after
+import Navigation from './components/ui/Navigation';
 
 const isSetUp = () =>
   localStorage.getItem('member_id') && localStorage.getItem('household_id');
@@ -19,6 +19,7 @@ const App = () => {
   } else {
     return (
       <main className="m-auto max-w-md p-4">
+        <Navigation onReset={() => setReady(false)} />
         <MainInventory />
       </main>
     );
