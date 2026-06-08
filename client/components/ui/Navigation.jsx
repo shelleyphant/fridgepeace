@@ -12,7 +12,7 @@ import Settings from '../user/Settings';
 import Drawer from './Drawer';
 import { logOut } from '../../hooks/useMembership';
 
-const Navigation = ({ onLogout }) => {
+const Navigation = ({ onReset }) => {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <nav className="absolute top-6 right-6 flex flex-col items-end">
@@ -52,6 +52,7 @@ const Navigation = ({ onLogout }) => {
                 onSuccess={() => {
                   close();
                 }}
+                onReset={onReset}
               />
             )}
           </Drawer>
@@ -62,7 +63,7 @@ const Navigation = ({ onLogout }) => {
             icon={Logout02Icon}
             action={() => {
               logOut();
-              onLogout();
+              onReset();
             }}
           />
         </li>
