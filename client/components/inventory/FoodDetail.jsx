@@ -7,9 +7,7 @@ import Input from '../ui/Input';
 
 const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
   const [quantity, setQuantity] = useState('');
-  const [storageLocation, setStorageLocation] = useState(
-    inventoryItem?.storage_location ?? '',
-  );
+  const [storageLocation, setStorageLocation] = useState('');
   const [date, setDate] = useState(
     food._source === 'foodkeeper' || food.unpackaged_food_id
       ? moment().format('YYYY-MM-DD')
@@ -132,7 +130,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
       />
       <label>Storage location</label>
       <select
-        className="border-water-600 relative my-4 w-full border p-4"
+        className="border"
         onChange={(e) => setStorageLocation(e.target.value)}
         value={storageLocation}
       >
@@ -159,12 +157,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
             return;
           }
           const success = inventoryItem
-            ? await updateFood(
-                inventoryItem,
-                quantity,
-                calcExpiryDate(date),
-                storageLocation,
-              )
+            ? await updateFood(inventoryItem, quantity, calcExpiryDate(date))
             : await addFood(food, {
                 quantity,
                 expiry_date: calcExpiryDate(date),
