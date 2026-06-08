@@ -4,7 +4,8 @@ import Button from './ui/Button';
 import { addHousehold, joinHousehold, getMemberHousehold } from '../hooks/useHousehold';
 import Toast from './ui/Toast';
 import Input from './ui/Input';
-import AboutDrawer from './ui/AboutDrawer';
+import Drawer from './ui/Drawer';
+import Introduction from './Introduction';
 
 const Onboarding = ({ onComplete }) => {
   const [member_id, setMemberId] = useState(localStorage.getItem('member_id'));
@@ -13,7 +14,6 @@ const Onboarding = ({ onComplete }) => {
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
   const [errorKey, setErrorKey] = useState(0);
-  const [showAbout, setShowAbout] = useState(false);
 
   const handleMembership = async () => {
     setInput('');
@@ -66,15 +66,28 @@ const Onboarding = ({ onComplete }) => {
             <h1 className="font-sansation text-water-800 mb-4 text-5xl font-bold">
               FridgePeace
             </h1>
-
             <h2>Shared pantry management</h2>
             <p>
               We're pretty cool. You can{' '}
-              <a className="text-water-600 text-center underline hover:cursor-pointer" 
-              onClick={() => setShowAbout(true)}
+              <Drawer
+                trigger={(open) => (
+                  <a
+                    className="text-water-600 text-center underline hover:cursor-pointer"
+                    onClick={open}
+                  >
+                    learn more here
+                  </a>
+                )}
               >
-                learn more here
-              </a>
+                {(close) => (
+                  <Introduction
+                    onClose={close}
+                    onSuccess={() => {
+                      close();
+                    }}
+                  />
+                )}
+              </Drawer>
             </p>
           </div>
           <h2 className="text-water-700 text-xl font-medium">Let's get started!</h2>
@@ -85,7 +98,6 @@ const Onboarding = ({ onComplete }) => {
           >
             Or sign up
           </a>
-          <AboutDrawer isOpen={showAbout} onClose={() => setShowAbout(false)} />
         </div>
       );
     return (
