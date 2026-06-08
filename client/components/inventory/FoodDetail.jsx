@@ -130,7 +130,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
       />
       <label>Storage location</label>
       <select
-        className="border"
+        className="border-water-600 relative my-4 w-full border p-4"
         onChange={(e) => setStorageLocation(e.target.value)}
         value={storageLocation}
       >
