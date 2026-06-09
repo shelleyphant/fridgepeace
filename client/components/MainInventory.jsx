@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Button from './ui/Button';
 import Drawer from './ui/Drawer';
 import FoodCard from './inventory/FoodCard';
+import FoodCardStack from './inventory/FoodCardStack';
 import Toast from './ui/Toast';
 import { useHousehold } from '../hooks/useHousehold';
 import { useInventory } from '../hooks/useInventory';
@@ -35,7 +36,20 @@ const MainInventory = () => {
           />
         )}
       </Drawer>
-      {!loading && inventory.map((item) => <FoodCard key={item.id} item={item} />)}
+      {!loading &&
+        Object.values(
+          inventory.reduce((groups, item) => {
+            const key = item.packaged_food_id ?? `unpackaged-${item.unpackaged_food_id}`;
+            (groups[key] ??= []).push(item);
+            return groups;
+          }, {}),
+        ).map((group) =>
+          group.length > 1 ? (
+            <FoodCardStack key={group[0].id} items={group} />
+          ) : (
+            <FoodCard key={group[0].id} item={group[0]} />
+          ),
+        )}
       {toast && <Toast key={toast.id} level={toast.level} message={toast.message} />}
     </>
   );
