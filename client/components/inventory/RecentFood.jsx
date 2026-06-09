@@ -37,8 +37,10 @@ const RecentFood = ({ onSuccess }) => {
       >
         {(close) => (
           <FoodDetail
-            food={selected}
-            inventoryItem={selected}
+            food={{
+              ...selected,
+              _source: selected?.packaged_food_id ? 'packaged' : 'unpackaged',
+            }}
             onSuccess={onSuccess}
             close={close}
           />
