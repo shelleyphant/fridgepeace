@@ -40,8 +40,8 @@ const NewFood = ({ onSuccess }) => {
                   }}
                 >
                   {p._source === 'foodkeeper'
-                    ? `${p.Name} (${p.Name_subtitle}) `
-                    : `${p.product_name} (${p.brands})`}
+                    ? `${p.Name}${p.Name_subtitle ? ` (${p.Name_subtitle})` : ''}`
+                    : `${p.product_name}${p.brands ? ` (${p.brands})` : ''}`}
                 </li>
               ))}
             </ul>
