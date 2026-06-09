@@ -3,9 +3,13 @@ import moment from 'moment';
 import { useAddFood } from '../../hooks/useAddFood';
 import Button from '../ui/Button';
 import Toast from '../ui/Toast';
+import Input from '../ui/Input';
 
-const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
+const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
   const [quantity, setQuantity] = useState('');
+  const [storageLocation, setStorageLocation] = useState(
+    inventoryItem?.storage_location ?? '',
+  );
   const [date, setDate] = useState(
     food._source === 'foodkeeper' || food.unpackaged_food_id
       ? moment().format('YYYY-MM-DD')
@@ -19,16 +23,52 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
     ? error.response.data.detail.map((d) => d.msg).join(', ')
     : (error?.response?.data?.detail ?? error?.message ?? null);
 
+  const locationMaxFields = {
+    fridge: ['Refrigerate_Max', 'DOP_Refrigerate_Max', 'Refrigerate_After_Opening_Max'],
+    freezer: ['Freeze_Max', 'DOP_Freeze_Max'],
+    pantry: ['Pantry_Max', 'DOP_Pantry_Max', 'Pantry_After_Opening_Max'],
+    counter: ['Pantry_Max', 'DOP_Pantry_Max', 'Pantry_After_Opening_Max'],
+  };
+
   const validate = () => {
     const missingQuantity = !quantity || isNaN(quantity) || Number(quantity) <= 0;
     const missingDate = !date;
+    const missingLocation = !storageLocation;
     if (missingQuantity && missingDate) return 'Quantity and date are required';
     if (missingQuantity) return 'Please enter a valid quantity';
     if (missingDate) return 'Please enter a date';
+    if (missingLocation) return 'Please select a storage location';
+    if (
+      food._source === 'foodkeeper' &&
+      !food.packaged_food_id &&
+      locationMaxFields[storageLocation]?.every((f) => food[f] == null)
+    )
+      return 'Unsuitable storage location';
+    if (food._source === 'unpackaged') {
+      const storedDays = {
+        fridge: food.fridge_days_max,
+        freezer: food.freezer_days_max,
+        pantry: food.pantry_days_max,
+        counter: food.pantry_days_max,
+      };
+      if (storedDays[storageLocation] == null) return 'Unsuitable storage location';
+    }
     return null;
   };
 
+  const storedDaysByLocation = {
+    fridge: food.fridge_days_max,
+    freezer: food.freezer_days_max,
+    pantry: food.pantry_days_max,
+    counter: food.pantry_days_max,
+  };
+
   const calcExpiryDate = (date) => {
+    if (food._source === 'unpackaged') {
+      const days = storedDaysByLocation[storageLocation];
+      if (!days) return date;
+      return moment(date).add(days, 'days').format('YYYY-MM-DD');
+    }
     if (food._source !== 'foodkeeper' || food.packaged_food_id) return date;
     const toDays = (value, metric) => {
       if (value == null || metric == null) return null;
@@ -43,20 +83,36 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
           return value;
       }
     };
+    const pantryFields = [
+      ['Pantry_Max', 'Pantry_Metric'],
+      ['DOP_Pantry_Max', 'DOP_Pantry_Metric'],
+      ['Pantry_After_Opening_Max', 'Pantry_After_Opening_Metric'],
+    ];
+    const fridgeFields = [
+      ['Refrigerate_Max', 'Refrigerate_Metric'],
+      ['DOP_Refrigerate_Max', 'DOP_Refrigerate_Metric'],
+      ['Refrigerate_After_Opening_Max', 'Refrigerate_After_Opening_Metric'],
+    ];
+    const freezerFields = [
+      ['Freeze_Max', 'Freeze_Metric'],
+      ['DOP_Freeze_Max', 'DOP_Freeze_Metric'],
+    ];
+    const fieldsByLocation = {
+      fridge: fridgeFields,
+      freezer: freezerFields,
+      pantry: pantryFields,
+      counter: pantryFields,
+    };
+
+    const fields = fieldsByLocation[storageLocation] ?? [
+      ...pantryFields,
+      ...fridgeFields,
+      ...freezerFields,
+    ];
     const maxDays = Math.max(
-      ...[
-        toDays(food.Pantry_Max, food.Pantry_Metric),
-        toDays(food.DOP_Pantry_Max, food.DOP_Pantry_Metric),
-        toDays(food.Pantry_After_Opening_Max, food.Pantry_After_Opening_Metric),
-        toDays(food.Refrigerate_Max, food.Refrigerate_Metric),
-        toDays(food.DOP_Refrigerate_Max, food.DOP_Refrigerate_Metric),
-        toDays(
-          food.Refrigerate_After_Opening_Max,
-          food.Refrigerate_After_Opening_Metric,
-        ),
-        toDays(food.Freeze_Max, food.Freeze_Metric),
-        toDays(food.DOP_Freeze_Max, food.DOP_Freeze_Metric),
-      ].filter((v) => v != null),
+      ...fields
+        .map(([maxKey, metricKey]) => toDays(food[maxKey], food[metricKey]))
+        .filter((v) => v != null),
     );
     if (!isFinite(maxDays)) return date;
     return moment(date).add(maxDays, 'days').format('YYYY-MM-DD');
@@ -67,27 +123,34 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
       {/* <pre className="mt-1 border p-2 text-xs whitespace-pre-wrap">
         {JSON.stringify(food, null, 2)}
       </pre> */}
-      <span className="block">{food.Name ?? food.product_name}</span>
+      <span className="block">{food.Name ?? food.product_name ?? food.name}</span>
       <label>Quantity</label>
-      <input
-        className="border"
-        onChange={(e) => setQuantity(e.target.value)}
+      <Input
+        onChangeAction={(e) => setQuantity(e.target.value)}
         value={quantity}
         type="number"
       />
+      <label>Storage location</label>
+      <select
+        className="border-water-600 relative my-4 w-full border p-4"
+        onChange={(e) => setStorageLocation(e.target.value)}
+        value={storageLocation}
+      >
+        <option value="" disabled>
+          Select a location
+        </option>
+        <option value="fridge">Fridge</option>
+        <option value="freezer">Freezer</option>
+        <option value="pantry">Pantry</option>
+        <option value="counter">Counter</option>
+      </select>
       <label>
         {food._source === 'foodkeeper' || food.unpackaged_food_id
           ? 'Purchase Date'
           : 'Use By Date'}
       </label>
-      <input
-        className="border"
-        onChange={(e) => setDate(e.target.value)}
-        value={date}
-        type="date"
-      />
+      <Input onChangeAction={(e) => setDate(e.target.value)} value={date} type="date" />
       <Button
-        className="mt-2 bg-blue-500 px-4 py-2 text-white"
         action={async () => {
           const msg = validate();
           if (msg) {
@@ -96,12 +159,22 @@ const FoodDetail = ({ food, inventoryItem, onSuccess }) => {
             return;
           }
           const success = inventoryItem
-            ? await updateFood(inventoryItem, quantity, calcExpiryDate(date))
-            : await addFood(food, { quantity, expiry_date: calcExpiryDate(date) });
+            ? await updateFood(
+                inventoryItem,
+                quantity,
+                calcExpiryDate(date),
+                storageLocation,
+              )
+            : await addFood(food, {
+                quantity,
+                expiry_date: calcExpiryDate(date),
+                storage_location: storageLocation || null,
+              });
           if (success) onSuccess?.();
         }}
-        title={'Add to fridge'}
+        title={'Add to kitchen'}
       />
+      <a onClick={close}>Cancel</a>
       {validationError && (
         <Toast key={validationKey} level="warning" message={validationError} />
       )}

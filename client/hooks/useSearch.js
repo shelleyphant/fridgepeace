@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import Fuse from 'fuse.js';
 import foodData from '../source/food-data/foodkeeper.json';
 
-
 export const categories = Object.fromEntries(
   (foodData.sheets.find((s) => s.name === 'Category')?.data ?? [])
     .map((row) => Object.assign({}, ...row))
     .filter((r) => r.ID != null)
-    .map((r) => [r.ID, r.Category_Name]),
+    .map((r) => [r.ID, `${r.Category_Name} (${r.Subcategory_Name})`]),
 );
 
 const products =
@@ -25,7 +24,11 @@ export function useSearch(query) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!query) { setResults([]); setLoading(false); return; }
+    if (!query) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
 
     let cancelled = false;
 
@@ -45,9 +48,12 @@ export function useSearch(query) {
             sort_by: 'unique_scans_n',
             page_size: '20',
           });
-          const res = await window.fetch(`https://world.openfoodfacts.org/api/v2/search?${params}`, {
-            headers: { 'User-Agent': 'FridgePeace/1.0 (university project)' },
-          });
+          const res = await window.fetch(
+            `https://world.openfoodfacts.org/api/v2/search?${params}`,
+            {
+              headers: { 'User-Agent': 'FridgePeace/1.0 (university project)' },
+            },
+          );
           json = await res.json();
         } else {
           const params = new URLSearchParams({
@@ -63,7 +69,10 @@ export function useSearch(query) {
           const res = await window.fetch(`/off-proxy/cgi/search.pl?${params}`);
           json = await res.json();
         }
-        const fetched = (json?.products ?? []).map((p) => ({ ...p, _source: 'openfoodfacts' }));
+        const fetched = (json?.products ?? []).map((p) => ({
+          ...p,
+          _source: 'openfoodfacts',
+        }));
         remote = new Fuse(fetched, { keys: ['product_name', 'brands'], threshold: 0.3 })
           .search(query)
           .map(({ item }) => item);
@@ -71,10 +80,16 @@ export function useSearch(query) {
         console.error('OFF search failed:', e);
       }
 
-      if (!cancelled) { setResults([...local, ...remote]); setLoading(false); }
+      if (!cancelled) {
+        setResults([...local, ...remote]);
+        setLoading(false);
+      }
     }, 400);
 
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [query]);
 
   return { results, loading };
