@@ -13,7 +13,12 @@ export function useInventory() {
     setError(null);
     try {
       const memberId = parseInt(localStorage.getItem('member_id'));
-      const [{ data: inv }, { data: packaged }, { data: unpackaged }, { data: members }] = await Promise.all([
+      const [
+        { data: inv },
+        { data: packaged },
+        { data: unpackaged },
+        { data: members },
+      ] = await Promise.all([
         axios.get(`${API}/food-inventory/`),
         axios.get(`${API}/packaged-foods/`),
         axios.get(`${API}/unpackaged-foods/`),
@@ -27,12 +32,17 @@ export function useInventory() {
       const items = inv
         .filter((item) => item.added_by_member_id === memberId)
         .map((item) => {
-          const food = packagedById[item.packaged_food_id] ?? unpackagedById[item.unpackaged_food_id];
+          const food =
+            packagedById[item.packaged_food_id] ??
+            unpackagedById[item.unpackaged_food_id];
           return {
             ...item,
             name: food?.name ?? 'Unknown',
             category: food?.category ?? null,
             added_by: memberById[item.added_by_member_id] ?? null,
+            fridge_days_max: food?.fridge_days_max ?? null,
+            freezer_days_max: food?.freezer_days_max ?? null,
+            pantry_days_max: food?.pantry_days_max ?? null,
           };
         });
 
@@ -44,7 +54,9 @@ export function useInventory() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   return { inventory, loading, error, refresh };
 }
