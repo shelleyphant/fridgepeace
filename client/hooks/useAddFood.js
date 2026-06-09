@@ -112,7 +112,7 @@ export function useAddFood() {
       const household_id = localStorage.getItem('household_id');
       const added_by_member_id = parseInt(localStorage.getItem('member_id'));
 
-      await axios.post(
+      const { data: newItem } = await axios.post(
         `${API}/food-inventory/`,
         {
           packaged_food_id,
@@ -126,6 +126,15 @@ export function useAddFood() {
         },
         { headers: { 'content-type': 'application/json' } },
       );
+
+      const { data: members } = await axios.get(`${API}/member/${household_id}/members`);
+      const me = members.find((m) => m.user_id === added_by_member_id);
+      if (me) {
+        await axios.post(`${API}/food-ownerships/`, {
+          inventory_item_id: newItem.id,
+          member_id: me.id,
+        });
+      }
 
       return true;
     } catch (e) {
@@ -161,6 +170,23 @@ export function useAddFood() {
         },
         { headers: { 'content-type': 'application/json' } },
       );
+
+      const added_by_member_id = parseInt(localStorage.getItem('member_id'));
+      const { data: members } = await axios.get(
+        `${API}/member/${inventoryItem.household_id}/members`,
+      );
+      const me = members.find((m) => m.user_id === added_by_member_id);
+      if (me) {
+        await axios
+          .post(`${API}/food-ownerships/`, {
+            inventory_item_id: inventoryItem.id,
+            member_id: me.id,
+          })
+          .catch((e) => {
+            if (e.response?.status !== 400) throw e;
+          });
+      }
+
       return true;
     } catch (e) {
       setError(e);

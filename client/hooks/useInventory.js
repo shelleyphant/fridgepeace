@@ -22,14 +22,20 @@ export function useInventory() {
         axios.get(`${API}/food-inventory/?household_id=${householdId}`),
         axios.get(`${API}/packaged-foods/`),
         axios.get(`${API}/unpackaged-foods/`),
-        axios.get(`${API}/users/`),
+        axios.get(`${API}/member/${householdId}/members`),
       ]);
 
       const packagedById = Object.fromEntries(packaged.map((f) => [f.id, f]));
       const unpackagedById = Object.fromEntries(unpackaged.map((f) => [f.id, f]));
       const memberById = Object.fromEntries(members.map((m) => [m.id, m.display_name]));
 
-      const items = inv.map((item) => {
+      const ownerships = await Promise.all(
+        inv.map(({ id }) =>
+          axios.get(`${API}/food-ownerships/by-inventory/${id}`).then((r) => r.data),
+        ),
+      );
+
+      const items = inv.map((item, i) => {
         const food =
           packagedById[item.packaged_food_id] ??
           unpackagedById[item.unpackaged_food_id];
@@ -37,7 +43,7 @@ export function useInventory() {
           ...item,
           name: food?.name ?? 'Unknown',
           category: food?.category ?? null,
-          added_by: memberById[item.added_by_member_id] ?? null,
+          owners: ownerships[i].map((o) => memberById[o.member_id] ?? 'Unknown'),
         };
       });
 
