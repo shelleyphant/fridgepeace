@@ -136,7 +136,12 @@ export function useAddFood() {
     }
   }
 
-  async function updateFood(inventoryItem, additionalQuantity, expiry_date) {
+  async function updateFood(
+    inventoryItem,
+    additionalQuantity,
+    expiry_date,
+    storage_location,
+  ) {
     setLoading(true);
     setError(null);
     try {
@@ -149,7 +154,7 @@ export function useAddFood() {
           added_by_member_id: inventoryItem.added_by_member_id,
           packaged_food_id: inventoryItem.packaged_food_id,
           unpackaged_food_id: inventoryItem.unpackaged_food_id,
-          storage_location: inventoryItem.storage_location,
+          storage_location: storage_location ?? inventoryItem.storage_location,
           quantity: newQuantity,
           unit: inventoryItem.unit,
           expiry_date: expiry_date ?? inventoryItem.expiry_date,

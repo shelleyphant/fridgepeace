@@ -7,7 +7,9 @@ import Input from '../ui/Input';
 
 const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
   const [quantity, setQuantity] = useState('');
-  const [storageLocation, setStorageLocation] = useState('');
+  const [storageLocation, setStorageLocation] = useState(
+    inventoryItem?.storage_location ?? '',
+  );
   const [date, setDate] = useState(
     food._source === 'foodkeeper' || food.unpackaged_food_id
       ? moment().format('YYYY-MM-DD')
@@ -21,6 +23,13 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
     ? error.response.data.detail.map((d) => d.msg).join(', ')
     : (error?.response?.data?.detail ?? error?.message ?? null);
 
+  const locationMaxFields = {
+    fridge: ['Refrigerate_Max', 'DOP_Refrigerate_Max', 'Refrigerate_After_Opening_Max'],
+    freezer: ['Freeze_Max', 'DOP_Freeze_Max'],
+    pantry: ['Pantry_Max', 'DOP_Pantry_Max', 'Pantry_After_Opening_Max'],
+    counter: ['Pantry_Max', 'DOP_Pantry_Max', 'Pantry_After_Opening_Max'],
+  };
+
   const validate = () => {
     const missingQuantity = !quantity || isNaN(quantity) || Number(quantity) <= 0;
     const missingDate = !date;
@@ -29,10 +38,37 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
     if (missingQuantity) return 'Please enter a valid quantity';
     if (missingDate) return 'Please enter a date';
     if (missingLocation) return 'Please select a storage location';
+    if (
+      food._source === 'foodkeeper' &&
+      !food.packaged_food_id &&
+      locationMaxFields[storageLocation]?.every((f) => food[f] == null)
+    )
+      return 'Unsuitable storage location';
+    if (food._source === 'unpackaged') {
+      const storedDays = {
+        fridge: food.fridge_days_max,
+        freezer: food.freezer_days_max,
+        pantry: food.pantry_days_max,
+        counter: food.pantry_days_max,
+      };
+      if (storedDays[storageLocation] == null) return 'Unsuitable storage location';
+    }
     return null;
   };
 
+  const storedDaysByLocation = {
+    fridge: food.fridge_days_max,
+    freezer: food.freezer_days_max,
+    pantry: food.pantry_days_max,
+    counter: food.pantry_days_max,
+  };
+
   const calcExpiryDate = (date) => {
+    if (food._source === 'unpackaged') {
+      const days = storedDaysByLocation[storageLocation];
+      if (!days) return date;
+      return moment(date).add(days, 'days').format('YYYY-MM-DD');
+    }
     if (food._source !== 'foodkeeper' || food.packaged_food_id) return date;
     const toDays = (value, metric) => {
       if (value == null || metric == null) return null;
@@ -68,8 +104,11 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
       counter: pantryFields,
     };
 
-    const fields =
-      fieldsByLocation[storageLocation] ?? [...pantryFields, ...fridgeFields, ...freezerFields];
+    const fields = fieldsByLocation[storageLocation] ?? [
+      ...pantryFields,
+      ...fridgeFields,
+      ...freezerFields,
+    ];
     const maxDays = Math.max(
       ...fields
         .map(([maxKey, metricKey]) => toDays(food[maxKey], food[metricKey]))
@@ -84,7 +123,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
       {/* <pre className="mt-1 border p-2 text-xs whitespace-pre-wrap">
         {JSON.stringify(food, null, 2)}
       </pre> */}
-      <span className="block">{food.Name ?? food.product_name}</span>
+      <span className="block">{food.Name ?? food.product_name ?? food.name}</span>
       <label>Quantity</label>
       <Input
         onChangeAction={(e) => setQuantity(e.target.value)}
@@ -120,7 +159,12 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
             return;
           }
           const success = inventoryItem
-            ? await updateFood(inventoryItem, quantity, calcExpiryDate(date))
+            ? await updateFood(
+                inventoryItem,
+                quantity,
+                calcExpiryDate(date),
+                storageLocation,
+              )
             : await addFood(food, {
                 quantity,
                 expiry_date: calcExpiryDate(date),
@@ -128,7 +172,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
               });
           if (success) onSuccess?.();
         }}
-        title={'Add to fridge'}
+        title={'Add to kitchen'}
       />
       <a onClick={close}>Cancel</a>
       {validationError && (

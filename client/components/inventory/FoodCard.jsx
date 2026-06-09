@@ -14,6 +14,11 @@ const FoodCard = ({ item }) => {
 
       <span className="mb-6 ml-14 block text-2xl font-bold">{item.name}</span>
       <span className="rounded-xl bg-indigo-200 px-2 text-xs">{item.added_by}</span>
+      {item.storage_location && (
+        <span className="rounded-xl bg-green-100 px-2 text-xs capitalize">
+          {item.storage_location}
+        </span>
+      )}
       <span className="block">Quantity: {item.quantity}</span>
       <span className="block">
         {item.expiry_date
