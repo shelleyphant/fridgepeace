@@ -5,8 +5,10 @@ import FoodDetail from './FoodDetail';
 import { HugeiconsIcon } from '@hugeicons/react';
 import Input from '../ui/Input';
 import Modal from '../ui/Modal';
+import { useInventory } from '../../hooks/useInventory';
 
 const NewFood = ({ onSuccess }) => {
+  const { refresh } = useInventory();
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const { results, loading } = useSearch(search);
@@ -53,6 +55,7 @@ const NewFood = ({ onSuccess }) => {
             food={selected}
             onSuccess={() => {
               onSuccess?.();
+              refresh();
               close();
             }}
             close={close}
