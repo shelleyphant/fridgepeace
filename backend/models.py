@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -11,6 +12,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Text,
+    UniqueConstraint,
     create_engine,
     func,
 )
@@ -118,6 +120,9 @@ class User(Base):
 
     memberships: Mapped[list["HouseholdMember"]] = relationship(
         "HouseholdMember", back_populates="user", cascade="all, delete-orphan"
+    )
+    notification_preferences: Mapped[list["UserNotificationPreference"]] = relationship(
+        "UserNotificationPreference", back_populates="user", cascade="all, delete-orphan"
     )
 
 
@@ -336,6 +341,36 @@ class FoodOwnership(Base):
 
     __table_args__ = (
         PrimaryKeyConstraint("inventory_item_id", "member_id"),
+    )
+
+
+# ─── User Notification Preference ────────────────────────
+# Stores per-user notification settings. Each row represents
+# whether a specific notification type on a specific channel
+# is enabled. Cascades delete when the user is removed.
+
+class UserNotificationPreference(Base):
+    __tablename__ = "user_notification_preference"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id", ondelete="CASCADE", onupdate="CASCADE"),
+        nullable=False,
+    )
+    notification_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    channel: Mapped[str] = mapped_column(String(50), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    user: Mapped["User"] = relationship("User", back_populates="notification_preferences")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "notification_type", "channel",
+            name="uq_user_notification_type_channel",
+        ),
     )
 
 

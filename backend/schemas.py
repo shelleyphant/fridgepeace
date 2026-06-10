@@ -358,3 +358,37 @@ class ShoppingSuggestionResponse(BaseModel):
     consumed_count: Optional[int] = None
     expired_count: Optional[int] = None
     details: list[FoodSuggestionItem] = []
+
+
+# ─── Notification Preference ───────────────────────────────
+
+NotificationType = Literal[
+    "expiry_reminder",
+    "member_joined",
+    "food_shared",
+]
+
+NotificationChannel = Literal["in_app"]
+
+
+class NotificationPreferenceCreate(BaseModel):
+    """Single notification preference for create/update."""
+    notification_type: NotificationType
+    channel: NotificationChannel
+    enabled: bool
+
+
+class NotificationPreferenceResponse(BaseModel):
+    """Single notification preference returned to the client."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    notification_type: str
+    channel: str
+    enabled: bool
+    updated_at: datetime
+
+
+class NotificationPreferenceBatchUpdate(BaseModel):
+    """Batch update request — replaces all preferences for a user."""
+    preferences: list[NotificationPreferenceCreate]
