@@ -47,9 +47,19 @@ const MainInventory = () => {
           }, {}),
         ).map((group) =>
           group.length > 1 ? (
-            <FoodCardStack className="my-6" key={group[0].id} items={group} />
+            <FoodCardStack
+              className="my-6"
+              key={group[0].id}
+              items={group}
+              onChange={refresh}
+            />
           ) : (
-            <FoodCard className="my-6" key={group[0].id} item={group[0]} />
+            <FoodCard
+              className="my-6"
+              key={group[0].id}
+              item={group[0]}
+              onChange={refresh}
+            />
           ),
         )}
 
