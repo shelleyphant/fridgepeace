@@ -9,7 +9,7 @@ import {
   ClockFadingIcon,
 } from '@hugeicons/core-free-icons';
 
-const FoodCard = ({ item }) => {
+const FoodCard = ({ item, className }) => {
   const Icon = categoryIcon(item.category);
 
   const expiryDays = moment(item.expiry_date, 'YYYY-MM-DD').diff(moment(), 'days');
@@ -28,7 +28,7 @@ const FoodCard = ({ item }) => {
   };
 
   return (
-    <div className="relative my-6 rounded-4xl bg-white p-6 pt-4">
+    <div className={`${className} relative rounded-4xl bg-white p-6 pt-4`}>
       <span
         className={`rounded-4xl ${expiryStyle().bg} absolute top-0 left-0 inline-block p-4`}
       >
