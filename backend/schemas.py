@@ -392,3 +392,55 @@ class NotificationPreferenceResponse(BaseModel):
 class NotificationPreferenceBatchUpdate(BaseModel):
     """Batch update request — replaces all preferences for a user."""
     preferences: list[NotificationPreferenceCreate]
+
+
+# ─── AI Scanning ───────────────────────────────────────────
+
+class FoodKeeperMatch(BaseModel):
+    id: Optional[int] = None
+    name: str
+    category: Optional[str] = None
+    subtitle: Optional[str] = None
+    keywords: Optional[str] = None
+    score: float
+
+
+class StorageGuidance(BaseModel):
+    pantry: Optional[str] = None
+    refrigerate: Optional[str] = None
+    freeze: Optional[str] = None
+
+
+class FoodKeeperOption(FoodKeeperMatch):
+    recommended: bool = False
+    storage_guidance: Optional[StorageGuidance] = None
+
+
+class FoodScanResponse(BaseModel):
+    food_name: Optional[str]
+    confidence: float
+    matched_foodkeeper_item: Optional[FoodKeeperMatch] = None
+    storage_guidance: Optional[StorageGuidance] = None
+    alternatives: list[FoodKeeperMatch] = Field(default_factory=list)
+    foodkeeper_options: list[FoodKeeperOption] = Field(default_factory=list)
+    requires_confirmation: bool = True
+    error: Optional[str] = None
+
+
+class PackagedFoodScanResponse(BaseModel):
+    product_name: Optional[str]
+    brand: Optional[str] = None
+    category: Optional[str] = None
+    search_terms: list[str] = Field(default_factory=list)
+    confidence: float
+    requires_confirmation: bool = True
+    error: Optional[str] = None
+
+
+class ExpiryDateResponse(BaseModel):
+    raw_text: Optional[str]
+    label_type: Optional[str]
+    expiry_date: Optional[str]
+    confidence: float
+    requires_confirmation: bool = True
+    error: Optional[str] = None

@@ -8,13 +8,20 @@ FridgePeace is a refrigerator food management system API that supports household
 
 ```
 backend/
+├── ai_scanning/                AI-powered food scanning module
+│   ├── __init__.py             Package declaration
+│   ├── config.py               Environment configuration (Gemini API, FoodKeeper path)
+│   ├── date_parser.py          Australian date parsing (day-first rules)
+│   ├── foodkeeper.py           FoodKeeper database matching and storage guidance
+│   ├── gemini_service.py       Gemini API request logic for food/date recognition
+│   └── image_utils.py          Image validation and HEIC/HEIF conversion
 ├── main.py                   FastAPI entry point, router registration, health check
 ├── models.py                   SQLAlchemy ORM models (10 tables)
-├── schemas.py                Pydantic request/response models with validation (input trimming, length constraints, positive-only numeric fields, enum validation, and empty-string-to-null coercion for Optional[int] fields)
+├── schemas.py                Pydantic request/response models with validation
 ├── routers.py                All API endpoint routes
 ├── requirements.txt          Dependency list
 ├── API_DOCUMENTATION.md      This file
-└── off_data_au.db            Australian OFF subset (SQLite, ~70K products, compact — 19 fields: identifiers, nutrition, allergens, and generic name)
+└── off_data_au.db            Australian OFF subset (SQLite, ~70K products, compact — 19 fields)
 ```
 
 ---
@@ -1561,6 +1568,228 @@ GET /off-products-au/stats
 
 ---
 
+### 12. AI Scanning
+
+The AI scanning module uses Google Gemini Vision to identify food items and extract expiry dates from images. It supports three scanning scenarios:
+
+- **Unpackaged food** — raw produce (fruit, vegetables) identified from photos
+- **Packaged food** — branded products identified from package photos
+- **Expiry date** — printed date text extracted from labels
+
+> **Architecture**: The AI scanning routes and Pydantic models have been merged into `routers.py` (via `APIRouter` sub-router with prefix `/ai-scan`) and `schemas.py` for unified management. The `ai_scanning/` package contains only the core logic modules (config, date parser, foodkeeper, gemini service, image utils).
+
+> **Mock Mode**: By default, the module runs in mock mode (`GEMINI_MOCK_MODE=true`) and returns fixed responses without calling the actual Gemini API. Set `GEMINI_MOCK_MODE=false` and provide a valid `GEMINI_API_KEY` to use real AI inference.
+
+#### Image Requirements
+
+| Constraint | Value |
+|------------|-------|
+| Max file size | 5 MB |
+| Supported formats | JPEG, PNG, WebP, BMP, TIFF, HEIC/HEIF |
+| HEIC handling | Automatically converted to JPEG in-memory |
+
+**Error responses:**
+
+| Status | Condition | Response |
+|:------:|-----------|----------|
+| 413 | File exceeds 5 MB | `{"detail": "File too large — max 5 MB"}` |
+| 415 | Unsupported content type | `{"detail": "Unsupported file type: <type>"}` |
+
+---
+
+#### 12.1 Scan Unpackaged Food
+
+Identifies a fresh food item (fruit, vegetable, etc.) from a photo and returns FoodKeeper storage guidance.
+
+```
+POST /ai-scan/unpackaged-food
+```
+
+**Request:** Multipart form-data with a single `file` field containing the image.
+
+**Response 200 (mock mode):**
+```json
+{
+  "food_name": "apple",
+  "confidence": 0.82,
+  "matched_foodkeeper_item": {
+    "id": 248,
+    "name": "Apples",
+    "category": "Produce > Fresh Fruits",
+    "subtitle": null,
+    "keywords": "Apples,apple",
+    "score": 2.0
+  },
+  "storage_guidance": {
+    "pantry": "1 to 2 weeks",
+    "refrigerate": "3 to 4 weeks",
+    "freeze": "8 to 12 months"
+  },
+  "alternatives": [],
+  "foodkeeper_options": [
+    {
+      "id": 248,
+      "name": "Apples",
+      "category": "Produce > Fresh Fruits",
+      "subtitle": null,
+      "keywords": "Apples,apple",
+      "score": 2.0,
+      "recommended": true,
+      "storage_guidance": {
+        "pantry": "1 to 2 weeks",
+        "refrigerate": "3 to 4 weeks",
+        "freeze": "8 to 12 months"
+      }
+    }
+  ],
+  "requires_confirmation": true,
+  "error": null
+}
+```
+
+**Response 200 (real mode):** Same schema — `food_name`, `confidence`, and `matched_foodkeeper_item` vary based on what Gemini identifies.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| food_name | string or null | Identified food name |
+| confidence | float | Gemini's confidence score (0–1) |
+| matched_foodkeeper_item | FoodKeeperMatch or null | Best matching FoodKeeper record |
+| storage_guidance | StorageGuidance or null | Storage duration for the best match |
+| alternatives | list[FoodKeeperMatch] | Lower-scoring FoodKeeper matches |
+| foodkeeper_options | list[FoodKeeperOption] | All matches with score and storage guidance (ranked) |
+| requires_confirmation | bool | Whether the result needs user confirmation |
+| error | string or null | Error message if processing failed |
+
+**FoodKeeperMatch fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | int or null | FoodKeeper internal record ID |
+| name | string | Food name in FoodKeeper |
+| category | string or null | Category hierarchy (e.g. `Produce > Fresh Fruits`) |
+| subtitle | string or null | Subtitle / common name |
+| keywords | string or null | Search keywords |
+| score | float | Match relevance score |
+
+**FoodKeeperOption fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | int or null | FoodKeeper internal record ID |
+| name | string | Food name |
+| category | string or null | Category hierarchy |
+| subtitle | string or null | Subtitle / common name |
+| keywords | string or null | Search keywords |
+| score | float | Match relevance score |
+| recommended | bool | Whether this is the top recommendation |
+| storage_guidance | StorageGuidance or null | Recommended storage durations |
+
+**StorageGuidance fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| pantry | string or null | Recommended pantry storage duration |
+| refrigerate | string or null | Recommended fridge storage duration |
+| freeze | string or null | Recommended freezer storage duration |
+
+**Error responses:**
+
+| Status | Condition |
+|:------:|-----------|
+| 413 | File > 5 MB |
+| 415 | Unsupported image type |
+| 422 | Missing `file` field |
+| 500 | Gemini API error or internal processing failure |
+
+---
+
+#### 12.2 Scan Packaged Food
+
+Identifies a packaged/branded food product from a photo and returns product name, brand, and category.
+
+```
+POST /ai-scan/packaged-food
+```
+
+**Request:** Multipart form-data with a single `file` field containing the image.
+
+**Response 200 (mock mode):**
+```json
+{
+  "product_name": "milk",
+  "brand": "demo dairy",
+  "category": "dairy",
+  "search_terms": ["milk", "demo dairy milk", "dairy milk"],
+  "confidence": 0.82,
+  "requires_confirmation": true,
+  "error": null
+}
+```
+
+**Response fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| product_name | string or null | Identified product name |
+| brand | string or null | Brand name |
+| category | string or null | Product category |
+| search_terms | list[string] | Pre-built search terms for database lookup |
+| confidence | float | Gemini's confidence score (0–1) |
+| requires_confirmation | bool | Whether the result needs user confirmation |
+| error | string or null | Error message if processing failed |
+
+---
+
+#### 12.3 Scan Expiry Date
+
+Extracts a printed expiry or best-before date from a food label photo. Applies Australian day-first date parsing logic.
+
+```
+POST /ai-scan/expiry-date
+```
+
+**Request:** Multipart form-data with a single `file` field containing the image.
+
+**Response 200 (mock mode):**
+```json
+{
+  "raw_text": "BEST BEFORE 08 JUN 2026",
+  "label_type": "best-before",
+  "expiry_date": "2026-06-08",
+  "confidence": 0.9,
+  "requires_confirmation": true,
+  "error": null
+}
+```
+
+**Response fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| raw_text | string or null | Raw text extracted from the label |
+| label_type | string or null | `best-before`, `use-by`, or null if unreadable |
+| expiry_date | string or null | Parsed date in `YYYY-MM-DD` format |
+| confidence | float | Gemini's confidence score (0–1) |
+| requires_confirmation | bool | Whether the result needs user confirmation |
+| error | string or null | Error message if processing failed |
+
+**Date parsing:** Uses Australian day-first conventions — `DD/MM/YYYY` and `DD MON YYYY` are the primary formats. See `ai_scanning/date_parser.py` for the full list of supported patterns.
+
+---
+
+## Environment Variables
+
+The AI scanning module introduces the following environment variables (managed via `.env` or system env):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GEMINI_API_KEY` | — | Google Gemini API key (required if `GEMINI_MOCK_MODE=false`) |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model name to use |
+| `GEMINI_MOCK_MODE` | `true` | If `true`, returns fixed mock responses without calling the real API |
+| `FOODKEEPER_JSON_PATH` | `../client/source/food-data/foodkeeper.json` | Path to the FoodKeeper JSON database |
+
+---
+
 ## Error Codes Summary
 
 | Status | Meaning | Description |
@@ -1570,6 +1799,8 @@ GET /off-products-au/stats
 | 204 | No Content | Deletion succeeded (no response body) |
 | 400 | Bad Request | Validation failed (e.g., duplicate barcode, invalid inventory type, missing required fields) |
 | 404 | Not Found | Resource does not exist |
+| 413 | Payload Too Large | Uploaded file exceeds the 5 MB limit (AI scanning endpoints) |
+| 415 | Unsupported Media Type | Uploaded file has an unsupported image format (AI scanning endpoints) |
 | 422 | Unprocessable Entity | Request body failed Pydantic schema validation (e.g., required field missing, wrong type, invalid enum value, empty/whitespace-only string, string exceeds length limit, value out of range) |
 
 ---
@@ -1627,3 +1858,6 @@ GET /off-products-au/stats
 | OFF AU Product | GET | `/off-products-au/search?q=&page=&page_size=` | Search AU products by name (q optional; returns all results when omitted) |
 | OFF AU Product | GET | `/off-products-au/by-barcode/{code}` | Get AU product by barcode (all fields) |
 | OFF AU Product | GET | `/off-products-au/stats` | Get AU database statistics |
+| AI Scan | POST | `/ai-scan/unpackaged-food` | Identify unpackaged food from photo |
+| AI Scan | POST | `/ai-scan/packaged-food` | Identify packaged food from photo |
+| AI Scan | POST | `/ai-scan/expiry-date` | Extract expiry date from label photo |

@@ -1,9 +1,21 @@
+from __future__ import annotations
+
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func as sa_func
 from sqlalchemy.orm import Session, joinedload
 
+from ai_scanning.config import get_settings
+from ai_scanning.date_parser import parse_labelled_expiry
+from ai_scanning.foodkeeper import get_storage_guidance, search_foodkeeper
+from ai_scanning.gemini_service import GeminiError, extract_expiry_text, identify_food, identify_packaged_food
+from ai_scanning.image_utils import (
+    HEIC_IMAGE_TYPES,
+    SUPPORTED_IMAGE_TYPES,
+    ImageConversionError,
+    convert_heic_to_jpeg,
+)
 from models import (
     FoodEvent,
     FoodInventory,
@@ -20,13 +32,17 @@ from models import (
     get_off_au_db,
 )
 from schemas import (
+    ExpiryDateResponse,
     FoodEventCreate,
     FoodEventResponse,
     FoodInventoryCreate,
     FoodInventoryDetailResponse,
     FoodInventoryResponse,
+    FoodKeeperMatch,
+    FoodKeeperOption,
     FoodOwnershipCreate,
     FoodOwnershipResponse,
+    FoodScanResponse,
     FoodSuggestionItem,
     HouseholdCreate,
     HouseholdMemberCreate,
@@ -44,6 +60,7 @@ from schemas import (
     OffProductStats,
     PackagedFoodCreate,
     PackagedFoodResponse,
+    PackagedFoodScanResponse,
     ShoppingSuggestionResponse,
     SuggestionType,
     UnpackagedFoodCreate,
@@ -824,6 +841,211 @@ def list_notification_preferences(user_id: int, db: Session = Depends(get_db)):
         .filter(UserNotificationPreference.user_id == user_id)
         .all()
     )
+
+
+# ─── AI Scanning ───────────────────────────────────────────
+
+ai_scanning_router = APIRouter(prefix="/ai-scan", tags=["AI scanning"])
+
+
+def _build_foodkeeper_options(
+    matches: list[FoodKeeperMatch],
+    foodkeeper_json_path: str,
+) -> list[FoodKeeperOption]:
+    options = []
+    for index, match in enumerate(matches):
+        options.append(
+            FoodKeeperOption(
+                id=match.id,
+                name=match.name,
+                category=match.category,
+                subtitle=match.subtitle,
+                keywords=match.keywords,
+                score=match.score,
+                recommended=index == 0,
+                storage_guidance=get_storage_guidance(match, foodkeeper_json_path),
+            )
+        )
+    return options
+
+
+async def _read_image(file: UploadFile) -> tuple[bytes, str]:
+    settings = get_settings()
+    content_type = (file.content_type or "").lower()
+    if content_type not in SUPPORTED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Only JPEG, PNG, WebP, HEIC, and HEIF images are supported",
+        )
+    image_bytes = await file.read()
+    if len(image_bytes) > settings.max_upload_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Image must be 5 MB or smaller",
+        )
+    if not image_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded image is empty",
+        )
+    if content_type in HEIC_IMAGE_TYPES:
+        try:
+            image_bytes = convert_heic_to_jpeg(image_bytes)
+        except ImageConversionError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
+        return image_bytes, "image/jpeg"
+    return image_bytes, content_type
+
+
+@ai_scanning_router.post("/unpackaged-food", response_model=FoodScanResponse)
+async def scan_unpackaged_food(image: UploadFile = File(...)):
+    settings = get_settings()
+    image_bytes, mime_type = await _read_image(image)
+
+    try:
+        result = await identify_food(settings, image_bytes, mime_type)
+    except GeminiError as exc:
+        return FoodScanResponse(
+            food_name=None,
+            confidence=0.0,
+            requires_confirmation=True,
+            error=str(exc),
+        )
+
+    food_name = result.get("food_name")
+    confidence = float(result.get("confidence") or 0.0)
+    if not food_name or confidence < 0.5:
+        return FoodScanResponse(
+            food_name=food_name,
+            confidence=confidence,
+            requires_confirmation=True,
+            error="Food item could not be identified confidently",
+        )
+
+    matches = search_foodkeeper(
+        food_name,
+        settings.foodkeeper_json_path,
+        limit=5,
+        prefer_unpackaged_fresh=True,
+    )
+    best_match = matches[0] if matches else None
+    guidance = get_storage_guidance(best_match, settings.foodkeeper_json_path) if best_match else None
+    foodkeeper_options = _build_foodkeeper_options(matches, settings.foodkeeper_json_path)
+
+    return FoodScanResponse(
+        food_name=str(food_name).strip().lower(),
+        confidence=confidence,
+        matched_foodkeeper_item=best_match,
+        storage_guidance=guidance,
+        alternatives=matches[1:],
+        foodkeeper_options=foodkeeper_options,
+        requires_confirmation=True,
+        error=None if best_match else "No FoodKeeper match found",
+    )
+
+
+@ai_scanning_router.post("/packaged-food", response_model=PackagedFoodScanResponse)
+async def scan_packaged_food(image: UploadFile = File(...)):
+    settings = get_settings()
+    image_bytes, mime_type = await _read_image(image)
+
+    try:
+        result = await identify_packaged_food(settings, image_bytes, mime_type)
+    except GeminiError as exc:
+        return PackagedFoodScanResponse(
+            product_name=None,
+            brand=None,
+            category=None,
+            search_terms=[],
+            confidence=0.0,
+            requires_confirmation=True,
+            error=str(exc),
+        )
+
+    product_name = result.get("product_name")
+    confidence = float(result.get("confidence") or 0.0)
+    if not product_name or confidence < 0.5:
+        return PackagedFoodScanResponse(
+            product_name=product_name,
+            brand=result.get("brand"),
+            category=result.get("category"),
+            search_terms=result.get("search_terms") or [],
+            confidence=confidence,
+            requires_confirmation=True,
+            error="Packaged product could not be identified confidently",
+        )
+
+    search_terms = result.get("search_terms") or []
+    if not search_terms:
+        search_terms = [term for term in [product_name, result.get("brand")] if term]
+
+    return PackagedFoodScanResponse(
+        product_name=str(product_name).strip(),
+        brand=result.get("brand"),
+        category=result.get("category"),
+        search_terms=[str(term).strip() for term in search_terms if str(term).strip()],
+        confidence=confidence,
+        requires_confirmation=True,
+        error=None,
+    )
+
+
+@ai_scanning_router.post("/expiry-date", response_model=ExpiryDateResponse)
+async def scan_expiry_date(image: UploadFile = File(...)):
+    settings = get_settings()
+    image_bytes, mime_type = await _read_image(image)
+
+    try:
+        result = await extract_expiry_text(settings, image_bytes, mime_type)
+    except GeminiError as exc:
+        return ExpiryDateResponse(
+            raw_text=None,
+            label_type=None,
+            expiry_date=None,
+            confidence=0.0,
+            requires_confirmation=True,
+            error=str(exc),
+        )
+
+    raw_text = result.get("raw_text")
+    gemini_label_type = result.get("label_type")
+    confidence = float(result.get("confidence") or 0.0)
+    if not raw_text or confidence < 0.5:
+        return ExpiryDateResponse(
+            raw_text=raw_text,
+            label_type=gemini_label_type,
+            expiry_date=None,
+            confidence=confidence,
+            requires_confirmation=True,
+            error="Expiry date could not be read confidently",
+        )
+
+    label_type, parsed_date = parse_labelled_expiry(raw_text)
+    final_label_type = label_type or gemini_label_type
+    if final_label_type in {"packed-on", "baked-on"}:
+        return ExpiryDateResponse(
+            raw_text=raw_text,
+            label_type=final_label_type,
+            expiry_date=None,
+            confidence=confidence,
+            requires_confirmation=True,
+            error=f"{final_label_type} is informational and should not be treated as an expiry date",
+        )
+
+    return ExpiryDateResponse(
+        raw_text=raw_text,
+        label_type=final_label_type,
+        expiry_date=parsed_date.isoformat() if parsed_date else None,
+        confidence=confidence,
+        requires_confirmation=True,
+        error=None if parsed_date else "No valid Australian expiry date found",
+    )
+
+
+router.include_router(ai_scanning_router)
 
 
 @router.put(
