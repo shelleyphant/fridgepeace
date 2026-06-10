@@ -4,12 +4,17 @@ import Onboarding from './components/Onboarding';
 import { useState } from 'react';
 import MainInventory from './components/MainInventory';
 import Navigation from './components/ui/Navigation';
+import { useHousehold } from './hooks/useHousehold';
+import Drawer from './components/ui/Drawer';
+import Button from './components/ui/Button';
+import AddFood from './components/inventory/AddFood';
 
 const isSetUp = () =>
   localStorage.getItem('member_id') && localStorage.getItem('household_id');
 
 const App = () => {
   const [ready, setReady] = useState(isSetUp);
+  const household = useHousehold(localStorage.getItem('household_id'));
   if (!ready) {
     return (
       <main className="m-auto block flex min-h-screen max-w-md flex-col p-6">
@@ -18,8 +23,30 @@ const App = () => {
     );
   } else {
     return (
-      <main className="m-auto max-w-md p-4">
-        <Navigation onReset={() => setReady(false)} />
+      <main className="relative m-auto h-screen max-w-md overflow-scroll p-4">
+        <header className="to-water-50 fixed top-0 left-0 z-10 w-full bg-linear-to-t from-transparent to-50% p-4">
+          <Navigation onReset={() => setReady(false)} />
+          <h1 className="text-water-800 font-sansation text-4xl font-bold">
+            {household?.name}
+          </h1>
+          <span>{household?.id}</span>
+          <Drawer trigger={(open) => <Button title="Add a Food" action={open} />}>
+            {(close) => (
+              <AddFood
+                onClose={close}
+                onSuccess={() => {
+                  refresh();
+                  close();
+                  setToast({
+                    id: Date.now(),
+                    level: 'success',
+                    message: 'Food added to kitchen!',
+                  });
+                }}
+              />
+            )}
+          </Drawer>
+        </header>
         <MainInventory />
       </main>
     );
