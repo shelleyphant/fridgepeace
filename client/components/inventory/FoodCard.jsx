@@ -1,10 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import moment from 'moment/moment';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { categoryIcon } from '../../source/categoryIcons';
 import { useAddFood } from '../../hooks/useAddFood';
+import { useMembers } from '../../hooks/useMembers';
+import { calcExpiryDate } from '../../source/calcExpiryDate';
+import { validateFoodEntry } from '../../source/validateFoodEntry';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import Drawer from '../ui/Drawer';
+import Input from '../ui/Input';
+import Toast from '../ui/Toast';
 import {
   Clock01Icon,
   ClockCheckIcon,
@@ -17,7 +23,23 @@ import {
 
 const FoodCard = ({ item, className, onChange }) => {
   const Icon = categoryIcon(item.category);
-  const { updateFood, deleteFood } = useAddFood();
+  const { updateFood, deleteFood, transferOwnership } = useAddFood();
+  const { members } = useMembers(item.household_id);
+  const [pendingOwnerId, setPendingOwnerId] = useState('');
+  const [quantity, setQuantity] = useState(item.quantity);
+  const [storageLocation, setStorageLocation] = useState(item.storage_location ?? '');
+  const [date, setDate] = useState(item.expiry_date ?? '');
+  const [validationError, setValidationError] = useState(null);
+  const [validationKey, setValidationKey] = useState(0);
+
+  const currentOwnerId =
+    members.find((m) => item.owners?.includes(m.display_name))?.id ?? '';
+
+  const handleTransferOwnership = async (close) => {
+    await transferOwnership(item, parseInt(pendingOwnerId));
+    onChange?.();
+    close();
+  };
 
   const handleIncrement = async () => {
     await updateFood(item, { additionalQuantity: 1 });
@@ -61,11 +83,10 @@ const FoodCard = ({ item, className, onChange }) => {
         {item.name}
       </span>
       <span className="rounded-xl bg-indigo-200 px-2 text-xs">{item.added_by}</span>
-      {item.storage_location && (
-        <span className="rounded-xl bg-green-100 px-2 text-xs capitalize">
-          {item.storage_location}
-        </span>
-      )}
+
+      <span className="rounded-xl bg-green-100 px-2 text-xs capitalize">
+        {item.storage_location}
+      </span>
 
       <div className="absolute right-4 bottom-8 flex flex-row items-center gap-2">
         {parseFloat(item.quantity) <= 1 ? (
@@ -122,9 +143,115 @@ const FoodCard = ({ item, className, onChange }) => {
       </span>
 
       <div className="absolute right-0 -bottom-2">
-        <button className="bg-water-200 rounded-4xl p-2">
-          <HugeiconsIcon icon={Edit02Icon} size={16} />
-        </button>
+        <Drawer
+          trigger={(open) => (
+            <button onClick={open} className="bg-water-200 rounded-4xl p-2">
+              <HugeiconsIcon icon={Edit02Icon} size={16} />
+            </button>
+          )}
+        >
+          {(close) => (
+            <div>
+              <span className="block">{item.name}</span>
+              <label>Quantity</label>
+              <Input
+                onChangeAction={(e) => setQuantity(e.target.value)}
+                value={quantity}
+                type="number"
+              />
+              <label>Storage location</label>
+              <select
+                className="border-water-600 relative my-4 w-full border p-4"
+                onChange={(e) => setStorageLocation(e.target.value)}
+                value={storageLocation}
+              >
+                <option value="" disabled>
+                  Select a location
+                </option>
+                <option value="fridge">Fridge</option>
+                <option value="freezer">Freezer</option>
+                <option value="pantry">Pantry</option>
+                <option value="counter">Counter</option>
+              </select>
+              <label>
+                {item._source === 'foodkeeper' || item.unpackaged_food_id
+                  ? 'Purchase Date'
+                  : 'Use By Date'}
+              </label>
+              <Input
+                onChangeAction={(e) => setDate(e.target.value)}
+                value={date}
+                type="date"
+              />
+              <Modal
+                trigger={(open) => (
+                  <select
+                    className="border-water-600 relative my-4 w-full border p-4"
+                    value={currentOwnerId}
+                    onChange={(e) => {
+                      setPendingOwnerId(e.target.value);
+                      open();
+                    }}
+                  >
+                    <option value="" disabled>
+                      Owner
+                    </option>
+                    {members.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.display_name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              >
+                {(close) => (
+                  <div>
+                    <p className="mb-4">
+                      Change the owner of {item.name} to{' '}
+                      {
+                        members.find((m) => m.id === parseInt(pendingOwnerId))
+                          ?.display_name
+                      }
+                      ?
+                    </p>
+                    <div className="flex justify-end gap-2">
+                      <Button title="Cancel" action={close} color="blue" />
+                      <Button
+                        title="Confirm"
+                        color="red"
+                        action={() => handleTransferOwnership(close)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </Modal>
+              <Button
+                action={async () => {
+                  const msg = validateFoodEntry(item, { quantity, date, storageLocation });
+                  if (msg) {
+                    setValidationError(msg);
+                    setValidationKey((k) => k + 1);
+                    return;
+                  }
+                  const success = await updateFood(item, {
+                    additionalQuantity: parseFloat(quantity) - parseFloat(item.quantity),
+                    expiry_date: calcExpiryDate(item, storageLocation, date),
+                    storage_location: storageLocation,
+                  });
+                  if (success) {
+                    onChange?.();
+                    close();
+                  }
+                }}
+                title={`Update `}
+              />
+              <a onClick={close}>Cancel</a>
+              {validationError && (
+                <Toast key={validationKey} level="warning" message={validationError} />
+              )}
+            </div>
+          )}
+        </Drawer>
       </div>
     </div>
   );

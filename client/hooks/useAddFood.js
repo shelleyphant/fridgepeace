@@ -200,6 +200,31 @@ export function useAddFood() {
     return members.find((m) => m.user_id === userId)?.id ?? null;
   }
 
+  async function transferOwnership(inventoryItem, member_id) {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: existing } = await axios.get(
+        `${API}/food-ownerships/by-inventory/${inventoryItem.id}`,
+      );
+      await Promise.all(
+        existing.map((o) =>
+          axios.delete(`${API}/food-ownerships/${inventoryItem.id}/${o.member_id}`),
+        ),
+      );
+      await axios.post(`${API}/food-ownerships/`, {
+        inventory_item_id: inventoryItem.id,
+        member_id,
+      });
+      return true;
+    } catch (e) {
+      setError(e);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function deleteFood(inventoryItem) {
     setLoading(true);
     setError(null);
@@ -214,5 +239,13 @@ export function useAddFood() {
     }
   }
 
-  return { addFood, updateFood, deleteFood, resolveMemberId, loading, error };
+  return {
+    addFood,
+    updateFood,
+    deleteFood,
+    transferOwnership,
+    resolveMemberId,
+    loading,
+    error,
+  };
 }
