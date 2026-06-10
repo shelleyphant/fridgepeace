@@ -18,3 +18,7 @@
 
   --shadow: 0 0 12px rgba(0, 0, 0, 0.25);
 }
+
+.swiper-cards .swiper-slide-shadow {
+  @apply rounded-4xl;
+}
