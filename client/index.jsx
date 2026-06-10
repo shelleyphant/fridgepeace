@@ -8,13 +8,17 @@ import { useHousehold } from './hooks/useHousehold';
 import Drawer from './components/ui/Drawer';
 import Button from './components/ui/Button';
 import AddFood from './components/inventory/AddFood';
+import { useInventory } from './hooks/useInventory';
 
 const isSetUp = () =>
   localStorage.getItem('member_id') && localStorage.getItem('household_id');
 
 const App = () => {
   const [ready, setReady] = useState(isSetUp);
+  const [toast, setToast] = useState(null);
   const household = useHousehold(localStorage.getItem('household_id'));
+  const { inventory, loading, refresh } = useInventory();
+
   if (!ready) {
     return (
       <main className="m-auto block flex min-h-screen max-w-md flex-col p-6">
@@ -47,7 +51,7 @@ const App = () => {
             )}
           </Drawer>
         </header>
-        <MainInventory />
+        <MainInventory inventory={inventory} loading={loading} refresh={refresh} />
       </main>
     );
   }
