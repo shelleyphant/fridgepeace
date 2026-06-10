@@ -12,16 +12,16 @@ const Settings = ({ onReset }) => {
         {(close) => (
           <div>
             <p>Are you sure you want to leave the household?</p>
-            <a onClick={close}>Cancel</a>
-            <a
-              onClick={() => {
+            <Button title="Cancel" action={close} color="blue" />
+            <Button
+              title=" Leave Household"
+              color="red"
+              action={() => {
                 leaveHousehold();
                 onReset();
                 close();
               }}
-            >
-              Leave Household
-            </a>
+            />
           </div>
         )}
       </Modal>
