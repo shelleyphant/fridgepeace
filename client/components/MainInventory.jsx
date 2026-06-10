@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import FoodCard from './inventory/FoodCard';
 import FoodCardStack from './inventory/FoodCardStack';
 import Toast from './ui/Toast';
-import { useInventory } from '../hooks/useInventory';
 
-const MainInventory = () => {
+const MainInventory = ({ inventory, loading, refresh }) => {
   const [toast, setToast] = useState(null);
-  const { inventory, loading, refresh } = useInventory();
 
   return (
     <div className="mt-40">

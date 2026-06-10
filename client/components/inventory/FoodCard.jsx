@@ -20,9 +20,11 @@ import {
   AddCircleIcon,
   Edit02Icon,
 } from '@hugeicons/core-free-icons';
+import { useInventory } from '../../hooks/useInventory';
 
 const FoodCard = ({ item, className, onChange }) => {
   const Icon = categoryIcon(item.category);
+  const { refresh } = useInventory();
   const { updateFood, deleteFood, transferOwnership } = useAddFood();
   const { members } = useMembers(item.household_id);
   const [pendingOwnerId, setPendingOwnerId] = useState('');
@@ -227,20 +229,26 @@ const FoodCard = ({ item, className, onChange }) => {
               </Modal>
               <Button
                 action={async () => {
-                  const msg = validateFoodEntry(item, { quantity, date, storageLocation });
+                  const msg = validateFoodEntry(item, {
+                    quantity,
+                    date,
+                    storageLocation,
+                  });
                   if (msg) {
                     setValidationError(msg);
                     setValidationKey((k) => k + 1);
                     return;
                   }
                   const success = await updateFood(item, {
-                    additionalQuantity: parseFloat(quantity) - parseFloat(item.quantity),
+                    additionalQuantity:
+                      parseFloat(quantity) - parseFloat(item.quantity),
                     expiry_date: calcExpiryDate(item, storageLocation, date),
                     storage_location: storageLocation,
                   });
                   if (success) {
                     onChange?.();
                     close();
+                    refresh();
                   }
                 }}
                 title={`Update `}
