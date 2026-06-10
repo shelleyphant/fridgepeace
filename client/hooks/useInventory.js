@@ -9,7 +9,6 @@ export function useInventory() {
   const [error, setError] = useState(null);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const householdId = localStorage.getItem('household_id');

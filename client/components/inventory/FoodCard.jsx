@@ -2,15 +2,36 @@ import React from 'react';
 import moment from 'moment/moment';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { categoryIcon } from '../../source/categoryIcons';
+import { useAddFood } from '../../hooks/useAddFood';
+import Modal from '../ui/Modal';
+import Button from '../ui/Button';
 import {
   Clock01Icon,
   ClockCheckIcon,
   ClockAlertIcon,
   ClockFadingIcon,
+  RemoveCircleIcon,
+  AddCircleIcon,
 } from '@hugeicons/core-free-icons';
 
-const FoodCard = ({ item, className }) => {
+const FoodCard = ({ item, className, onChange }) => {
   const Icon = categoryIcon(item.category);
+  const { updateFood, deleteFood } = useAddFood();
+
+  const handleIncrement = async () => {
+    await updateFood(item, { additionalQuantity: 1 });
+    onChange?.();
+  };
+
+  const handleDecrement = async () => {
+    await updateFood(item, { additionalQuantity: -1 });
+    onChange?.();
+  };
+
+  const handleRemove = async () => {
+    await deleteFood(item);
+    onChange?.();
+  };
 
   const expiryDays = moment(item.expiry_date, 'YYYY-MM-DD').diff(moment(), 'days');
   const expiryStyle = () => {
@@ -44,7 +65,48 @@ const FoodCard = ({ item, className }) => {
           {item.storage_location}
         </span>
       )}
-      <span className="block">Quantity: {item.quantity}</span>
+
+      <div className="absolute right-4 bottom-8 flex flex-row items-center gap-2">
+        {parseFloat(item.quantity) <= 1 ? (
+          <Modal
+            trigger={(open) => (
+              <button type="button" onClick={open} aria-label="Remove one">
+                <HugeiconsIcon icon={RemoveCircleIcon} className="inline" />
+              </button>
+            )}
+          >
+            {(close) => (
+              <div>
+                <p className="mb-4">
+                  Remove {item.name} from your inventory?
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button title="Cancel" action={close} color="blue" />
+                  <Button
+                    title="Remove"
+                    color="red"
+                    action={async () => {
+                      await handleRemove();
+                      close();
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </Modal>
+        ) : (
+          <button type="button" onClick={handleDecrement} aria-label="Remove one">
+            <HugeiconsIcon icon={RemoveCircleIcon} className="inline" />
+          </button>
+        )}
+        <span className="font-sansation text-water-600 inline text-2xl">
+          {item.quantity}
+        </span>
+        <button type="button" onClick={handleIncrement} aria-label="Add one">
+          <HugeiconsIcon icon={AddCircleIcon} className="inline" />
+        </button>
+      </div>
+
       <span>
         {item.expiry_date ? (
           <div className="flex gap-2">

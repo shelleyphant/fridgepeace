@@ -5,7 +5,7 @@ import 'swiper/css';
 import 'swiper/css/effect-cards';
 import FoodCard from './FoodCard';
 
-const FoodCardStack = ({ items, className }) => {
+const FoodCardStack = ({ items, className, onChange }) => {
   return (
     <Swiper
       effect="cards"
@@ -16,7 +16,7 @@ const FoodCardStack = ({ items, className }) => {
     >
       {items.map((item) => (
         <SwiperSlide key={item.id}>
-          <FoodCard item={item} />
+          <FoodCard item={item} onChange={onChange} />
         </SwiperSlide>
       ))}
     </Swiper>

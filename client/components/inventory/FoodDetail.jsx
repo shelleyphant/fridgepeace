@@ -15,7 +15,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
       ? moment().format('YYYY-MM-DD')
       : '',
   );
-  const { addFood, updateFood, error } = useAddFood();
+  const { addFood, updateFood, resolveMemberId, error } = useAddFood();
   const [validationError, setValidationError] = useState(null);
   const [validationKey, setValidationKey] = useState(0);
 
@@ -159,12 +159,12 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
             return;
           }
           const success = inventoryItem
-            ? await updateFood(
-                inventoryItem,
-                quantity,
-                calcExpiryDate(date),
-                storageLocation,
-              )
+            ? await updateFood(inventoryItem, {
+                additionalQuantity: quantity,
+                expiry_date: calcExpiryDate(date),
+                storage_location: storageLocation,
+                member_id: await resolveMemberId(inventoryItem.household_id),
+              })
             : await addFood(food, {
                 quantity,
                 expiry_date: calcExpiryDate(date),
