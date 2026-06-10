@@ -12,6 +12,7 @@ import {
   ClockFadingIcon,
   RemoveCircleIcon,
   AddCircleIcon,
+  Edit02Icon,
 } from '@hugeicons/core-free-icons';
 
 const FoodCard = ({ item, className, onChange }) => {
@@ -77,9 +78,7 @@ const FoodCard = ({ item, className, onChange }) => {
           >
             {(close) => (
               <div>
-                <p className="mb-4">
-                  Remove {item.name} from your inventory?
-                </p>
+                <p className="mb-4">Remove {item.name} from your inventory?</p>
                 <div className="flex justify-end gap-2">
                   <Button title="Cancel" action={close} color="blue" />
                   <Button
@@ -121,6 +120,12 @@ const FoodCard = ({ item, className, onChange }) => {
           'No expiry set'
         )}
       </span>
+
+      <div className="absolute right-0 -bottom-2">
+        <button className="bg-water-200 rounded-4xl p-2">
+          <HugeiconsIcon icon={Edit02Icon} size={16} />
+        </button>
+      </div>
     </div>
   );
 };
