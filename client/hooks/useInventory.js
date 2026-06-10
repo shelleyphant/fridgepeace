@@ -43,6 +43,10 @@ export function useInventory() {
           name: food?.name ?? 'Unknown',
           category: food?.category ?? null,
           owners: ownerships[i].map((o) => memberById[o.member_id] ?? 'Unknown'),
+          _source: item.packaged_food_id ? 'packaged' : 'unpackaged',
+          fridge_days_max: food?.fridge_days_max ?? null,
+          freezer_days_max: food?.freezer_days_max ?? null,
+          pantry_days_max: food?.pantry_days_max ?? null,
         };
       });
 
