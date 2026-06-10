@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 const levelStyle = {
   success: 'bg-lime-200 text-lime-800 border-lime-800',
@@ -17,12 +18,13 @@ const Toast = ({ level, message }) => {
 
   if (!visible) return null;
 
-  return (
+  return createPortal(
     <div
       className={`fixed top-4 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 rounded-2xl border-2 p-4 ${levelStyle[level]}`}
     >
       {message}
-    </div>
+    </div>,
+    document.body,
   );
 };
 
