@@ -22,3 +22,7 @@
 .swiper-cards .swiper-slide-shadow {
   @apply rounded-4xl;
 }
+
+.swiper-slide {
+  @apply !overflow-visible;
+}
