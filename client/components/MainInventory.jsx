@@ -30,26 +30,29 @@ const MainInventory = () => {
               setToast({
                 id: Date.now(),
                 level: 'success',
-                message: 'Food added to fridge!',
+                message: 'Food added to kitchen!',
               });
             }}
           />
         )}
       </Drawer>
+
       {!loading &&
         Object.values(
           inventory.reduce((groups, item) => {
-            const key = item.packaged_food_id ?? `unpackaged-${item.unpackaged_food_id}`;
+            const key =
+              item.packaged_food_id ?? `unpackaged-${item.unpackaged_food_id}`;
             (groups[key] ??= []).push(item);
             return groups;
           }, {}),
         ).map((group) =>
           group.length > 1 ? (
-            <FoodCardStack key={group[0].id} items={group} />
+            <FoodCardStack className="my-6" key={group[0].id} items={group} />
           ) : (
-            <FoodCard key={group[0].id} item={group[0]} />
+            <FoodCard className="my-6" key={group[0].id} item={group[0]} />
           ),
         )}
+
       {toast && <Toast key={toast.id} level={toast.level} message={toast.message} />}
     </>
   );

@@ -5,14 +5,14 @@ import 'swiper/css';
 import 'swiper/css/effect-cards';
 import FoodCard from './FoodCard';
 
-const FoodCardStack = ({ items }) => {
+const FoodCardStack = ({ items, className }) => {
   return (
     <Swiper
       effect="cards"
       modules={[EffectCards]}
       grabCursor
       rewind={true}
-      className="my-6 w-full max-w-xs"
+      className={`${className} w-full`}
     >
       {items.map((item) => (
         <SwiperSlide key={item.id}>
