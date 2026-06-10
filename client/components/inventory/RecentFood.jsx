@@ -36,14 +36,7 @@ const RecentFood = ({ onSuccess }) => {
         }
       >
         {(close) => (
-          <FoodDetail
-            food={{
-              ...selected,
-              _source: selected?.packaged_food_id ? 'packaged' : 'unpackaged',
-            }}
-            onSuccess={onSuccess}
-            close={close}
-          />
+          <FoodDetail food={selected} onSuccess={onSuccess} close={close} />
         )}
       </Modal>
     </div>
