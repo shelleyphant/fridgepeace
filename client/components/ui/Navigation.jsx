@@ -24,7 +24,7 @@ const Navigation = ({ onReset }) => {
         }}
       />
       <ul
-        className={`absolute -top-8 right-10 mt-4 flex rounded-3xl bg-white p-4 shadow transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'pointer-events-none translate-x-[calc(200%)]'}`}
+        className={`absolute -top-8 right-10 mt-4 flex gap-2 rounded-3xl bg-white p-4 shadow transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'pointer-events-none translate-x-[calc(200%)]'}`}
       >
         <li>
           <Drawer
