@@ -3,15 +3,15 @@ import axios from 'axios';
 
 const API = process.env.API_URL ?? '';
 
-export function useInventory() {
+export function useInventory(householdId) {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const refresh = useCallback(async () => {
+    if (!householdId) return;
     setError(null);
     try {
-      const householdId = localStorage.getItem('household_id');
       const [
         { data: inv },
         { data: packaged },
@@ -56,7 +56,7 @@ export function useInventory() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [householdId]);
 
   useEffect(() => {
     refresh();
