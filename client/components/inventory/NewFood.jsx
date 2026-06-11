@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loading02Icon } from '@hugeicons/core-free-icons';
+import { Loading02Icon, Search01Icon } from '@hugeicons/core-free-icons';
 import { useSearch } from '../../hooks/useSearch';
 import FoodDetail from './FoodDetail';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -13,15 +13,22 @@ const NewFood = ({ onSuccess }) => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <Input
-        type="text"
-        value={search}
-        onChangeAction={(e) => {
-          setSearch(e.target.value);
-          setSelected(null);
-        }}
-        placeholder="search for..."
-      />
+      <label className="relative w-full">
+        <HugeiconsIcon
+          icon={Search01Icon}
+          className="absolute top-1/2 left-4 -translate-y-1/2"
+        />
+        <Input
+          type="text"
+          value={search}
+          onChangeAction={(e) => {
+            setSearch(e.target.value);
+            setSelected(null);
+          }}
+          placeholder="search for..."
+          className="pl-12"
+        />
+      </label>
 
       {loading && <HugeiconsIcon icon={Loading02Icon} className="animate-spin" />}
       <Modal
@@ -66,7 +73,10 @@ const NewFood = ({ onSuccess }) => {
               onSuccess?.();
               close();
             }}
-            close={close}
+            close={() => {
+              setSelected(null);
+              close();
+            }}
           />
         )}
       </Modal>
