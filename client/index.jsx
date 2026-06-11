@@ -10,6 +10,7 @@ import Button from './components/ui/Button';
 import AddFood from './components/inventory/AddFood';
 import { useInventory } from './hooks/useInventory';
 import { useMembers } from './hooks/useMembers';
+import Tooltip from './components/ui/Tooltip';
 
 const isSetUp = () =>
   localStorage.getItem('member_id') && localStorage.getItem('household_id');
@@ -32,13 +33,16 @@ const App = () => {
     );
   } else {
     return (
-      <main className="relative m-auto h-screen max-w-md overflow-scroll p-4">
+      <main className="relative m-auto h-screen max-w-md overflow-x-hidden overflow-y-scroll p-4">
         <header className="to-water-50 fixed top-0 left-0 z-10 w-full bg-linear-to-t from-transparent to-50% p-4">
           <Navigation onReset={() => setReady(false)} />
           <h1 className="text-water-800 font-sansation text-4xl font-bold">
             {household?.name}
           </h1>
-          <span>{household?.id}</span>
+          <span>
+            {household?.id}{' '}
+            <Tooltip message="Share this code with your housemates so you can manage the same inventory!" />
+          </span>
           <Drawer trigger={(open) => <Button title="Add a Food" action={open} />}>
             {(close) => (
               <AddFood
