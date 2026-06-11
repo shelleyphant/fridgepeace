@@ -33,13 +33,15 @@ const Drawer = ({ trigger, children }) => {
         createPortal(
           <div
             ref={panelRef}
-            className={`absolute bottom-0 left-0 z-10 h-11/12 w-full rounded-tl-3xl rounded-tr-3xl bg-white p-4 shadow transition-transform duration-300 ease-in-out ${show ? 'translate-y-0' : 'translate-y-full'}`}
+            className={`absolute bottom-0 left-0 z-10 flex h-11/12 w-full flex-col overflow-hidden rounded-tl-3xl rounded-tr-3xl bg-white p-4 shadow transition-transform duration-300 ease-in-out ${show ? 'translate-y-0' : 'translate-y-full'}`}
           >
             <hr
-              className="m-auto mb-8 h-1 w-16 rounded border-0 bg-gray-300 hover:cursor-pointer"
+              className="m-auto mb-8 h-1 w-16 shrink-0 rounded border-0 bg-gray-300 hover:cursor-pointer"
               onClick={close}
             ></hr>
-            <div className="m-auto max-w-md p-4">{children(close)}</div>
+            <div className="m-auto flex w-full max-w-md min-h-0 grow flex-col p-4">
+              {children(close)}
+            </div>
           </div>,
           document.body,
         )}
