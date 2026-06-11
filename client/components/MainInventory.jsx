@@ -3,7 +3,7 @@ import FoodCard from './inventory/FoodCard';
 import FoodCardStack from './inventory/FoodCardStack';
 import Toast from './ui/Toast';
 
-const MainInventory = ({ inventory, loading, refresh }) => {
+const MainInventory = ({ inventory, loading, refresh, members }) => {
   const [toast, setToast] = useState(null);
 
   return (
@@ -23,6 +23,7 @@ const MainInventory = ({ inventory, loading, refresh }) => {
               key={group[0].id}
               items={group}
               onChange={refresh}
+              members={members}
             />
           ) : (
             <FoodCard
@@ -30,6 +31,7 @@ const MainInventory = ({ inventory, loading, refresh }) => {
               key={group[0].id}
               item={group[0]}
               onChange={refresh}
+              members={members}
             />
           ),
         )}

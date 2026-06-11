@@ -9,6 +9,7 @@ import Drawer from './components/ui/Drawer';
 import Button from './components/ui/Button';
 import AddFood from './components/inventory/AddFood';
 import { useInventory } from './hooks/useInventory';
+import { useMembers } from './hooks/useMembers';
 
 const isSetUp = () =>
   localStorage.getItem('member_id') && localStorage.getItem('household_id');
@@ -17,7 +18,10 @@ const App = () => {
   const [ready, setReady] = useState(isSetUp);
   const [toast, setToast] = useState(null);
   const household = useHousehold(localStorage.getItem('household_id'));
-  const { inventory, loading, refresh } = useInventory();
+  const { inventory, loading, refresh } = useInventory(
+    localStorage.getItem('household_id'),
+  );
+  const { members } = useMembers(localStorage.getItem('household_id'));
 
   if (!ready) {
     return (
@@ -38,6 +42,7 @@ const App = () => {
             {(close) => (
               <AddFood
                 onClose={close}
+                inventory={inventory}
                 onSuccess={() => {
                   refresh();
                   close();
@@ -51,7 +56,12 @@ const App = () => {
             )}
           </Drawer>
         </header>
-        <MainInventory inventory={inventory} loading={loading} refresh={refresh} />
+        <MainInventory
+          inventory={inventory}
+          loading={loading}
+          refresh={refresh}
+          members={members}
+        />
       </main>
     );
   }
