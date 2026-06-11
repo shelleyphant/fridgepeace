@@ -75,7 +75,7 @@ const Drawer = ({ trigger, children }) => {
                 className="m-auto mb-8 h-1 w-16 shrink-0 rounded border-0 bg-gray-300 hover:cursor-pointer"
                 onClick={close}
               ></hr>
-              <div className="m-auto flex w-full max-w-md min-h-0 grow flex-col p-4">
+              <div className="m-auto flex min-h-0 w-full max-w-md grow flex-col p-4">
                 {children(close)}
               </div>
             </div>
