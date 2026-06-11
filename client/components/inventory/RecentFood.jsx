@@ -1,22 +1,17 @@
 import React, { useState } from 'react';
 import { useRecentFoods } from '../../hooks/useRecentFoods';
 import FoodDetail from './FoodDetail';
-import Toast from '../ui/Toast';
 import Modal from '../ui/Modal';
 
-const RecentFood = ({ onSuccess }) => {
-  const { recentFoods, loading, error } = useRecentFoods();
+const RecentFood = ({ inventory, onSuccess }) => {
+  const { recentFoods } = useRecentFoods(inventory);
   const [selected, setSelected] = useState(null);
-
-  if (loading) return <div>Loading...</div>;
 
   return (
     <div>
-      {error && <Toast level="notice" message="Failed to load recent foods." />}
       <Modal
         trigger={(open) =>
           !selected &&
-          !loading &&
           recentFoods.length > 0 && (
             <ul>
               {recentFoods.map((item) => (
@@ -36,14 +31,7 @@ const RecentFood = ({ onSuccess }) => {
         }
       >
         {(close) => (
-          <FoodDetail
-            food={{
-              ...selected,
-              _source: selected?.packaged_food_id ? 'packaged' : 'unpackaged',
-            }}
-            onSuccess={onSuccess}
-            close={close}
-          />
+          <FoodDetail food={selected} onSuccess={onSuccess} close={close} />
         )}
       </Modal>
     </div>

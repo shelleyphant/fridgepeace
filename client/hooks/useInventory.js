@@ -3,48 +3,48 @@ import axios from 'axios';
 
 const API = process.env.API_URL ?? '';
 
-export function useInventory() {
+export function useInventory(householdId, members) {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    if (!householdId) return;
     setError(null);
     try {
-      const memberId = parseInt(localStorage.getItem('member_id'));
-      const [
-        { data: inv },
-        { data: packaged },
-        { data: unpackaged },
-        { data: members },
-      ] = await Promise.all([
-        axios.get(`${API}/food-inventory/`),
-        axios.get(`${API}/packaged-foods/`),
-        axios.get(`${API}/unpackaged-foods/`),
-        axios.get(`${API}/household-members/`),
-      ]);
+      const [{ data: inv }, { data: packaged }, { data: unpackaged }] =
+        await Promise.all([
+          axios.get(`${API}/food-inventory/?household_id=${householdId}`),
+          axios.get(`${API}/packaged-foods/`),
+          axios.get(`${API}/unpackaged-foods/`),
+        ]);
 
       const packagedById = Object.fromEntries(packaged.map((f) => [f.id, f]));
       const unpackagedById = Object.fromEntries(unpackaged.map((f) => [f.id, f]));
+
+      const owners = await Promise.all(
+        inv.map(({ id }) =>
+          axios.get(`${API}/food-ownerships/by-inventory/${id}`).then((r) => r.data),
+        ),
+      );
+
       const memberById = Object.fromEntries(members.map((m) => [m.id, m.display_name]));
 
-      const items = inv
-        .filter((item) => item.added_by_member_id === memberId)
-        .map((item) => {
-          const food =
-            packagedById[item.packaged_food_id] ??
-            unpackagedById[item.unpackaged_food_id];
-          return {
-            ...item,
-            name: food?.name ?? 'Unknown',
-            category: food?.category ?? null,
-            added_by: memberById[item.added_by_member_id] ?? null,
-            fridge_days_max: food?.fridge_days_max ?? null,
-            freezer_days_max: food?.freezer_days_max ?? null,
-            pantry_days_max: food?.pantry_days_max ?? null,
-          };
-        });
+      const items = inv.map((item, i) => {
+        const food =
+          packagedById[item.packaged_food_id] ??
+          unpackagedById[item.unpackaged_food_id];
+        return {
+          ...item,
+          name: food?.name ?? 'Unknown',
+          category: food?.category ?? null,
+          owners: owners[i].map((o) => memberById[o.member_id] ?? 'Unknown'),
+          _source: item.packaged_food_id ? 'packaged' : 'unpackaged',
+          fridge_days_max: food?.fridge_days_max ?? null,
+          freezer_days_max: food?.freezer_days_max ?? null,
+          pantry_days_max: food?.pantry_days_max ?? null,
+        };
+      });
 
       setInventory(items);
     } catch (e) {
@@ -52,7 +52,7 @@ export function useInventory() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [householdId, members]);
 
   useEffect(() => {
     refresh();

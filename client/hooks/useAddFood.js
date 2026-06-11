@@ -112,7 +112,7 @@ export function useAddFood() {
       const household_id = localStorage.getItem('household_id');
       const added_by_member_id = parseInt(localStorage.getItem('member_id'));
 
-      await axios.post(
+      const { data: newItem } = await axios.post(
         `${API}/food-inventory/`,
         {
           packaged_food_id,
@@ -127,6 +127,17 @@ export function useAddFood() {
         { headers: { 'content-type': 'application/json' } },
       );
 
+      const { data: members } = await axios.get(
+        `${API}/member/${household_id}/members`,
+      );
+      const me = members.find((m) => m.user_id === added_by_member_id);
+      if (me) {
+        await axios.post(`${API}/food-ownerships/`, {
+          inventory_item_id: newItem.id,
+          member_id: me.id,
+        });
+      }
+
       return true;
     } catch (e) {
       setError(e);
@@ -138,15 +149,16 @@ export function useAddFood() {
 
   async function updateFood(
     inventoryItem,
-    additionalQuantity,
-    expiry_date,
-    storage_location,
+    { additionalQuantity, expiry_date, storage_location, member_id } = {},
   ) {
     setLoading(true);
     setError(null);
     try {
       const newQuantity =
-        parseFloat(inventoryItem.quantity) + parseFloat(additionalQuantity);
+        additionalQuantity != null
+          ? parseFloat(inventoryItem.quantity) + parseFloat(additionalQuantity)
+          : inventoryItem.quantity;
+
       await axios.put(
         `${API}/food-inventory/${inventoryItem.id}`,
         {
@@ -161,6 +173,18 @@ export function useAddFood() {
         },
         { headers: { 'content-type': 'application/json' } },
       );
+
+      if (member_id != null) {
+        await axios
+          .post(`${API}/food-ownerships/`, {
+            inventory_item_id: inventoryItem.id,
+            member_id,
+          })
+          .catch((e) => {
+            if (e.response?.status !== 400) throw e;
+          });
+      }
+
       return true;
     } catch (e) {
       setError(e);
@@ -170,5 +194,58 @@ export function useAddFood() {
     }
   }
 
-  return { addFood, updateFood, loading, error };
+  async function resolveMemberId(household_id) {
+    const userId = parseInt(localStorage.getItem('member_id'));
+    const { data: members } = await axios.get(`${API}/member/${household_id}/members`);
+    return members.find((m) => m.user_id === userId)?.id ?? null;
+  }
+
+  async function transferOwnership(inventoryItem, member_id) {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: existing } = await axios.get(
+        `${API}/food-ownerships/by-inventory/${inventoryItem.id}`,
+      );
+      await Promise.all(
+        existing.map((o) =>
+          axios.delete(`${API}/food-ownerships/${inventoryItem.id}/${o.member_id}`),
+        ),
+      );
+      await axios.post(`${API}/food-ownerships/`, {
+        inventory_item_id: inventoryItem.id,
+        member_id,
+      });
+      return true;
+    } catch (e) {
+      setError(e);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deleteFood(inventoryItem) {
+    setLoading(true);
+    setError(null);
+    try {
+      await axios.delete(`${API}/food-inventory/${inventoryItem.id}`);
+      return true;
+    } catch (e) {
+      setError(e);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return {
+    addFood,
+    updateFood,
+    deleteFood,
+    transferOwnership,
+    resolveMemberId,
+    loading,
+    error,
+  };
 }
