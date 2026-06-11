@@ -9,7 +9,7 @@ FridgePeace is a refrigerator food management system API that supports household
 ```
 backend/
 ├── main.py                   FastAPI entry point, router registration, health check
-├── models.py                 SQLAlchemy ORM models (9 tables)
+├── models.py                   SQLAlchemy ORM models (10 tables)
 ├── schemas.py                Pydantic request/response models with validation (input trimming, length constraints, positive-only numeric fields, enum validation, and empty-string-to-null coercion for Optional[int] fields)
 ├── routers.py                All API endpoint routes
 ├── requirements.txt          Dependency list
@@ -31,7 +31,7 @@ Swagger UI: `http://localhost:8000/docs`
 
 ---
 
-## Database Schema (9 Tables + 1 Read-Only OFF Table in separate DB)
+## Database Schema (10 Tables + 1 Read-Only OFF Table in separate DB)
 
 ### 1. household
 
@@ -155,6 +155,19 @@ This table lives in a **separate SQLite database** (`off_data_au.db`) and is rea
 
 > **Removed fields (45, including images):** `brands_tags`, `categories_tags`, `quantity`, `product_quantity`, `serving_size`, `stores`, `countries_tags`, `countries_en`, `manufacturing_places`, `ingredients_text`, `allergens_en`, `traces`, `traces_en`, `additives_n`, `additives_tags`, `labels_tags`, `packaging_tags`, `nutriscore_grade`, `nutriscore_score`, `nova_group`, `image_url`, `image_small_url`, `image_nutrition_url`, `image_ingredients_url`, `energy_from_fat_100g`, `trans_fat_100g`, `cholesterol_100g`, `vitamin_a_100g`, `vitamin_c_100g`, `vitamin_d_100g`, `calcium_100g`, `iron_100g`, `magnesium_100g`, `potassium_100g`, `zinc_100g`, `fruits_vegetables_legumes_100g`, `no_nutrition_data`, `popularity_tags`, `url`, `creator`, `created_t`, `last_modified_t`, `owner`, `brand_owner`, `data_quality_errors_tags`
 
+### 10. user_notification_preference
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT (PK, Auto) | Unique preference ID |
+| user_id | INT (FK → user) | Owning user (CASCADE on delete) |
+| notification_type | VARCHAR(50) | Notification type (expiry_reminder, member_joined, food_shared) |
+| channel | VARCHAR(50) | Delivery channel (in_app) |
+| enabled | BOOLEAN | Whether the notification is enabled |
+| updated_at | DATETIME | Last updated timestamp (auto) |
+
+> **Unique Constraint**: (user_id, notification_type, channel) — each user can have at most one preference per type+channel.
+
 ---
 
 ## Business Rules
@@ -169,6 +182,7 @@ This table lives in a **separate SQLite database** (`off_data_au.db`) and is rea
 | **Packaged/Unpackaged exclusivity** | Each inventory item must be exactly one type |
 | **Unique barcode** | Packaged food barcodes must be unique |
 | **Composite PK** | Food ownership uses (inventory_item_id, member_id) as composite key |
+| **Unique constraint on notification preferences** | Each user can have at most one preference per (notification_type, channel) pair |
 | **SET NULL on food deletion** | Deleting a food reference sets it to NULL in inventory |
 | **Input validation** | String fields (`name`, `display_name`, `username`) are trimmed, must not be empty or whitespace-only, and must not exceed 255 characters. `quantity` must be greater than zero. `event_type` accepts only `added`, `consumed`, `expired`, or `moved`. All `Optional[int]` fields accept empty string `""` as input — it is automatically converted to `null` so frontend forms can send blank number inputs without triggering a 422 error |
 | **OFF database (read-only)** | The `off_data_au.db` is a separate SQLite database containing an Australian subset of Open Food Facts (~70K AU products, compact — 19 fields: identifiers, nutrition, allergens, generic name). It is read-only — API consumers cannot create, update, or delete OFF products |
@@ -1354,17 +1368,102 @@ GET /households/{household_id}/suggestions
 
 ---
 
+### 10. Notification Preferences
+
+Per-user notification preference settings. Each user can configure whether they receive specific notification types on specific channels. A `PUT` replaces all preferences (full batch update) — the client sends the complete desired state.
+
+#### 10.1 List Notification Preferences
+
+```
+GET /users/{user_id}/notification-preferences
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| user_id | int | User ID |
+
+**Response 200:**
+```json
+[
+  {
+    "id": 1,
+    "user_id": 42,
+    "notification_type": "expiry_reminder",
+    "channel": "in_app",
+    "enabled": true,
+    "updated_at": "2026-06-09T12:00:00"
+  },
+  {
+    "id": 2,
+    "user_id": 42,
+    "notification_type": "member_joined",
+    "channel": "in_app",
+    "enabled": false,
+    "updated_at": "2026-06-09T12:00:00"
+  }
+]
+```
+
+---
+
+#### 10.2 Update Notification Preferences (Batch)
+
+```
+PUT /users/{user_id}/notification-preferences
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| user_id | int | User ID |
+
+**Request Body:**
+```json
+{
+  "preferences": [
+    {
+      "notification_type": "expiry_reminder",
+      "channel": "in_app",
+      "enabled": true
+    },
+    {
+      "notification_type": "member_joined",
+      "channel": "in_app",
+      "enabled": false
+    },
+    {
+      "notification_type": "food_shared",
+      "channel": "in_app",
+      "enabled": true
+    }
+  ]
+}
+```
+
+**Validation:**
+- `user_id` must exist
+- `notification_type` must be one of: `expiry_reminder`, `member_joined`, `food_shared`
+- `channel` must be one of: `in_app`
+- Duplicate `(notification_type, channel)` pairs in the same request will cause a database constraint violation (400)
+
+**Behaviour:** All existing preferences for the user are deleted and replaced with the submitted list (full batch update).
+
+**Response 200:** Returns the updated list of preferences (same format as GET).
+
+---
+
 <!-- ### 10. Open Food Facts Product Search (DISABLED) -->
 <!-- off_data.db has been removed due to large file size. -->
 <!-- Use the Australian subset /off-products-au/ endpoints instead. -->
 
-### 10. Open Food Facts Australia Subset (Compact)
+### 11. Open Food Facts Australia Subset (Compact)
 
 Read-only endpoints backed by `off_data_au.db`, an Australian-product subset of Open Food Facts (~70K products). The schema has been **compacted to 19 essential fields** (see §9) to fit within Cloudflare's file size limits. Includes identifiers, core nutrition values, allergens, and generic name. Image fields have been removed.
 
 The three endpoints return **string-typed** values across all columns (since the source CSV stores everything as text).
 
-#### 10.1 Search AU Products by Name
+#### 11.1 Search AU Products by Name
 
 ```
 GET /off-products-au/search?q={term}&page={n}&page_size={n}
@@ -1409,7 +1508,7 @@ GET /off-products-au/search?q={term}&page={n}&page_size={n}
 
 ---
 
-#### 10.2 Get AU Product by Barcode
+#### 11.2 Get AU Product by Barcode
 
 ```
 GET /off-products-au/by-barcode/{code}
@@ -1446,7 +1545,7 @@ GET /off-products-au/by-barcode/{code}
 
 ---
 
-#### 10.3 Get AU Database Statistics
+#### 11.3 Get AU Database Statistics
 
 ```
 GET /off-products-au/stats
@@ -1523,6 +1622,8 @@ GET /off-products-au/stats
 | Ownership | POST | `/food-ownerships/` | Create ownership |
 | Ownership | DELETE | `/food-ownerships/{inv_id}/{mem_id}` | Delete ownership |
 | Suggestion | GET | `/households/{household_id}/suggestions` | Get shopping suggestion for a household |
+| Notification | GET | `/users/{user_id}/notification-preferences` | List notification preferences for a user |
+| Notification | PUT | `/users/{user_id}/notification-preferences` | Update all notification preferences (batch) |
 | OFF AU Product | GET | `/off-products-au/search?q=&page=&page_size=` | Search AU products by name (q optional; returns all results when omitted) |
 | OFF AU Product | GET | `/off-products-au/by-barcode/{code}` | Get AU product by barcode (all fields) |
 | OFF AU Product | GET | `/off-products-au/stats` | Get AU database statistics |

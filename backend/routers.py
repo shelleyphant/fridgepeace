@@ -14,6 +14,7 @@ from models import (
     PackagedFood,
     UnpackagedFood,
     User,
+    UserNotificationPreference,
     generate_household_code,
     get_db,
     get_off_au_db,
@@ -35,6 +36,9 @@ from schemas import (
     MemberLeaveRequest,
     MemberUserBrief,
     MemberWithUserResponse,
+    NotificationPreferenceBatchUpdate,
+    NotificationPreferenceCreate,
+    NotificationPreferenceResponse,
     OffProductAuDetail,
     OffProductAuSearchPage,
     OffProductStats,
@@ -801,3 +805,63 @@ def get_shopping_suggestion(household_id: str, db: Session = Depends(get_db)):
     if not household:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Household not found")
     return _build_shopping_suggestion(household_id, db)
+
+
+# ─── Notification Preferences ──────────────────────────────
+# Per-user notification settings. GET retrieves all preferences;
+# PUT replaces them entirely (batch update).
+
+@router.get(
+    "/users/{user_id}/notification-preferences",
+    response_model=list[NotificationPreferenceResponse],
+)
+def list_notification_preferences(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return (
+        db.query(UserNotificationPreference)
+        .filter(UserNotificationPreference.user_id == user_id)
+        .all()
+    )
+
+
+@router.put(
+    "/users/{user_id}/notification-preferences",
+    response_model=list[NotificationPreferenceResponse],
+)
+def update_notification_preferences(
+    user_id: int,
+    payload: NotificationPreferenceBatchUpdate,
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Delete all existing preferences for this user
+    db.query(UserNotificationPreference).filter(
+        UserNotificationPreference.user_id == user_id
+    ).delete()
+
+    # Insert new preferences
+    new_preferences = [
+        UserNotificationPreference(
+            user_id=user_id,
+            notification_type=p.notification_type,
+            channel=p.channel,
+            enabled=p.enabled,
+        )
+        for p in payload.preferences
+    ]
+    for pref in new_preferences:
+        db.add(pref)
+
+    db.commit()
+
+    # Return the updated list
+    return (
+        db.query(UserNotificationPreference)
+        .filter(UserNotificationPreference.user_id == user_id)
+        .all()
+    )
