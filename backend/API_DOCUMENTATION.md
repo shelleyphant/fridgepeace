@@ -168,6 +168,19 @@ This table lives in a **separate SQLite database** (`off_data_au.db`) and is rea
 
 > **Unique Constraint**: (user_id, notification_type, channel) — each user can have at most one preference per type+channel.
 
+### 11. notification
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT (PK, Auto) | Unique notification ID |
+| user_id | INT (FK → user) | Owning user (CASCADE on delete) |
+| message | VARCHAR(500) | Notification message text |
+| notification_type | VARCHAR(50) | Notification type (expiry_reminder, member_joined, food_shared) |
+| read | BOOLEAN | Whether the notification has been read (default false) |
+| created_at | DATETIME | Creation timestamp |
+
+> **Index**: `user_id` is indexed for efficient per-user queries.
+
 ---
 
 ## Business Rules
@@ -1453,6 +1466,108 @@ PUT /users/{user_id}/notification-preferences
 
 ---
 
+### 11. Notifications
+
+Actual notification records created by the backend when relevant events occur. Users can retrieve their notifications and mark them as read.
+
+| Event | Notification Type | Trigger Point |
+|-------|-------------------|---------------|
+| New member joins a household | `member_joined` | `POST /member/join` — notifies existing members |
+| Food shared with a member | `food_shared` | `POST /food-ownerships/` — notifies the recipient member |
+| Food nearing expiry | `expiry_reminder` | Requires a scheduled background job (not yet implemented) |
+
+**notification` table schema:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT (PK, Auto) | Unique notification ID |
+| user_id | INT (FK → user) | Owning user (CASCADE on delete) |
+| message | VARCHAR(500) | Notification message text |
+| notification_type | VARCHAR(50) | Notification type (expiry_reminder, member_joined, food_shared) |
+| read | BOOLEAN | Whether the notification has been read (default false) |
+| created_at | DATETIME | Creation timestamp |
+
+---
+
+#### 11.1 List Notifications
+
+```
+GET /users/{user_id}/notifications?read={bool}
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| user_id | int | User ID |
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| read | bool or null | null | Filter by read status (omit for all) |
+
+**Validation:** `user_id` must exist (returns 404 if not found)
+
+**Response 200:**
+```json
+[
+  {
+    "id": 1,
+    "user_id": 42,
+    "message": "Alice has joined the household",
+    "notification_type": "member_joined",
+    "read": false,
+    "created_at": "2026-06-11T12:00:00"
+  },
+  {
+    "id": 2,
+    "user_id": 42,
+    "message": "Milk has been shared with you",
+    "notification_type": "food_shared",
+    "read": true,
+    "created_at": "2026-06-10T10:00:00"
+  }
+]
+```
+
+---
+
+#### 11.2 Mark Notification as Read
+
+```
+PATCH /users/{user_id}/notifications/{notification_id}/read
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| user_id | int | User ID |
+| notification_id | int | Notification ID |
+
+**Validation:** Both `user_id` and `notification_id` must exist (returns 404 if not found). The notification must belong to the specified user.
+
+**Response 204:** No content
+
+---
+
+#### 11.3 Mark All Notifications as Read
+
+```
+PATCH /users/{user_id}/notifications/read-all
+```
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| user_id | int | User ID |
+
+**Validation:** `user_id` must exist (returns 404 if not found)
+
+**Behaviour:** Marks all unread notifications for the user as read.
+
+**Response 204:** No content
+
+---
+
 <!-- ### 10. Open Food Facts Product Search (DISABLED) -->
 <!-- off_data.db has been removed due to large file size. -->
 <!-- Use the Australian subset /off-products-au/ endpoints instead. -->
@@ -1624,6 +1739,9 @@ GET /off-products-au/stats
 | Suggestion | GET | `/households/{household_id}/suggestions` | Get shopping suggestion for a household |
 | Notification | GET | `/users/{user_id}/notification-preferences` | List notification preferences for a user |
 | Notification | PUT | `/users/{user_id}/notification-preferences` | Update all notification preferences (batch) |
+| Notification | GET | `/users/{user_id}/notifications` | List notifications (optional `?read=` filter) |
+| Notification | PATCH | `/users/{user_id}/notifications/{id}/read` | Mark a single notification as read |
+| Notification | PATCH | `/users/{user_id}/notifications/read-all` | Mark all notifications as read |
 | OFF AU Product | GET | `/off-products-au/search?q=&page=&page_size=` | Search AU products by name (q optional; returns all results when omitted) |
 | OFF AU Product | GET | `/off-products-au/by-barcode/{code}` | Get AU product by barcode (all fields) |
 | OFF AU Product | GET | `/off-products-au/stats` | Get AU database statistics |

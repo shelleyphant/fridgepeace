@@ -10,6 +10,7 @@ from models import (
     FoodOwnership,
     Household,
     HouseholdMember,
+    Notification,
     OffProductAu,
     PackagedFood,
     UnpackagedFood,
@@ -39,6 +40,7 @@ from schemas import (
     NotificationPreferenceBatchUpdate,
     NotificationPreferenceCreate,
     NotificationPreferenceResponse,
+    NotificationResponse,
     OffProductAuDetail,
     OffProductAuSearchPage,
     OffProductStats,
@@ -167,6 +169,25 @@ def create_household_member(payload: HouseholdMemberCreate, db: Session = Depend
         display_name=payload.display_name,
     )
     db.add(member)
+    db.flush()
+
+    # Notify existing members of the household about the new member
+    other_members = (
+        db.query(HouseholdMember)
+        .filter(
+            HouseholdMember.household_id == payload.household_id,
+            HouseholdMember.id != member.id,
+        )
+        .all()
+    )
+    for other in other_members:
+        _create_notification(
+            db,
+            user_id=other.user_id,
+            message=f"{display_name} has joined the household",
+            notification_type="member_joined",
+        )
+
     db.commit()
     db.refresh(member)
     return member
@@ -218,6 +239,25 @@ def member_join(payload: MemberJoinRequest, db: Session = Depends(get_db)):
         display_name=display_name,
     )
     db.add(member)
+    db.flush()
+
+    # Notify existing members of the household about the new member
+    other_members = (
+        db.query(HouseholdMember)
+        .filter(
+            HouseholdMember.household_id == payload.household_id,
+            HouseholdMember.id != member.id,
+        )
+        .all()
+    )
+    for other in other_members:
+        _create_notification(
+            db,
+            user_id=other.user_id,
+            message=f"{display_name} has joined the household",
+            notification_type="member_joined",
+        )
+
     db.commit()
     db.refresh(member)
     return member
@@ -526,6 +566,17 @@ def create_ownership(payload: FoodOwnershipCreate, db: Session = Depends(get_db)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ownership already exists")
     ownership = FoodOwnership(**payload.model_dump())
     db.add(ownership)
+    db.flush()
+
+    # Notify the member about the shared food
+    food_name = _resolve_food_name(db, item.unpackaged_food_id, item.packaged_food_id) or "Food"
+    _create_notification(
+        db,
+        user_id=member.user_id,
+        message=f"{food_name} has been shared with you",
+        notification_type="food_shared",
+    )
+
     db.commit()
     db.refresh(ownership)
     return ownership
@@ -865,3 +916,105 @@ def update_notification_preferences(
         .filter(UserNotificationPreference.user_id == user_id)
         .all()
     )
+
+
+# ─── Notification Helpers ──────────────────────────────────
+
+def _create_notification(
+    db: Session,
+    user_id: int,
+    message: str,
+    notification_type: str,
+) -> Optional[Notification]:
+    """Create a notification for a user if they have the corresponding
+    notification type enabled in their preferences.
+
+    If no preference record exists for the given type, the notification
+    is created by default (opt-out model).
+    """
+    pref = (
+        db.query(UserNotificationPreference)
+        .filter(
+            UserNotificationPreference.user_id == user_id,
+            UserNotificationPreference.notification_type == notification_type,
+            UserNotificationPreference.channel == "in_app",
+        )
+        .first()
+    )
+    if pref is not None and not pref.enabled:
+        return None
+
+    notification = Notification(
+        user_id=user_id,
+        message=message,
+        notification_type=notification_type,
+    )
+    db.add(notification)
+    db.flush()
+    return notification
+
+
+# ─── Notifications ─────────────────────────────────────────
+# Actual notification records created by the backend when relevant
+# events occur. Users can retrieve them and mark them as read.
+
+@router.get(
+    "/users/{user_id}/notifications",
+    response_model=list[NotificationResponse],
+)
+def list_notifications(
+    user_id: int,
+    read: Optional[bool] = Query(None, description="Filter by read status"),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    query = db.query(Notification).filter(Notification.user_id == user_id)
+    if read is not None:
+        query = query.filter(Notification.read == read)
+    return query.order_by(Notification.created_at.desc(), Notification.id.desc()).all()
+
+
+@router.patch(
+    "/users/{user_id}/notifications/{notification_id}/read",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def mark_notification_read(
+    user_id: int,
+    notification_id: int,
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    notification = db.query(Notification).filter(
+        Notification.id == notification_id,
+        Notification.user_id == user_id,
+    ).first()
+    if not notification:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
+
+    notification.read = True
+    db.commit()
+
+
+@router.patch(
+    "/users/{user_id}/notifications/read-all",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def mark_all_notifications_read(
+    user_id: int,
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    db.query(Notification).filter(
+        Notification.user_id == user_id,
+        Notification.read == False,
+    ).update({"read": True})
+    db.commit()
