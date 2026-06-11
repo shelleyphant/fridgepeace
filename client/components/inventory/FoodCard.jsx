@@ -3,7 +3,6 @@ import moment from 'moment/moment';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { categoryIcon } from '../../source/categoryIcons';
 import { useAddFood } from '../../hooks/useAddFood';
-import { useMembers } from '../../hooks/useMembers';
 import { calcExpiryDate } from '../../source/calcExpiryDate';
 import { validateFoodEntry } from '../../source/validateFoodEntry';
 import Modal from '../ui/Modal';
@@ -20,13 +19,10 @@ import {
   AddCircleIcon,
   Edit02Icon,
 } from '@hugeicons/core-free-icons';
-import { useInventory } from '../../hooks/useInventory';
 
-const FoodCard = ({ item, className, onChange }) => {
+const FoodCard = ({ item, className, onChange, members = [] }) => {
   const Icon = categoryIcon(item.category);
-  const { refresh } = useInventory();
   const { updateFood, deleteFood, transferOwnership } = useAddFood();
-  const { members } = useMembers(item.household_id);
   const [pendingOwnerId, setPendingOwnerId] = useState('');
   const [quantity, setQuantity] = useState(item.quantity);
   const [storageLocation, setStorageLocation] = useState(item.storage_location ?? '');
@@ -248,7 +244,6 @@ const FoodCard = ({ item, className, onChange }) => {
                   if (success) {
                     onChange?.();
                     close();
-                    refresh();
                   }
                 }}
                 title={`Update `}
