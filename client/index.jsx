@@ -18,10 +18,11 @@ const App = () => {
   const [ready, setReady] = useState(isSetUp);
   const [toast, setToast] = useState(null);
   const household = useHousehold(localStorage.getItem('household_id'));
+  const { members } = useMembers(localStorage.getItem('household_id'));
   const { inventory, loading, refresh } = useInventory(
     localStorage.getItem('household_id'),
+    members,
   );
-  const { members } = useMembers(localStorage.getItem('household_id'));
 
   if (!ready) {
     return (
