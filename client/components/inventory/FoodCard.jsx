@@ -33,6 +33,10 @@ const FoodCard = ({ item, className, onChange, members = [] }) => {
   const currentOwnerId =
     members.find((m) => item.owners?.includes(m.display_name))?.id ?? '';
 
+  const currentUserId = parseInt(localStorage.getItem('member_id'));
+  const currentMember = members.find((m) => m.user_id === currentUserId);
+  const isOwner = item.owners?.includes(currentMember?.display_name) ?? false;
+
   const handleTransferOwnership = async (close) => {
     await transferOwnership(item, parseInt(pendingOwnerId));
     onChange?.();
@@ -143,120 +147,126 @@ const FoodCard = ({ item, className, onChange, members = [] }) => {
       </span>
 
       <div className="absolute right-0 -bottom-2">
-        <Drawer
-          trigger={(open) => (
-            <button onClick={open} className="bg-water-200 rounded-4xl p-2">
-              <HugeiconsIcon icon={Edit02Icon} size={16} />
-            </button>
-          )}
-        >
-          {(close) => (
-            <div>
-              <span className="block">{item.name}</span>
-              <label>Quantity</label>
-              <Input
-                onChangeAction={(e) => setQuantity(e.target.value)}
-                value={quantity}
-                type="number"
-              />
-              <label>Storage location</label>
-              <select
-                className="border-water-600 relative my-4 w-full border p-4"
-                onChange={(e) => setStorageLocation(e.target.value)}
-                value={storageLocation}
-              >
-                <option value="" disabled>
-                  Select a location
-                </option>
-                <option value="fridge">Fridge</option>
-                <option value="freezer">Freezer</option>
-                <option value="pantry">Pantry</option>
-                <option value="counter">Counter</option>
-              </select>
-              <label>
-                {item._source === 'foodkeeper' || item.unpackaged_food_id
-                  ? 'Purchase Date'
-                  : 'Use By Date'}
-              </label>
-              <Input
-                onChangeAction={(e) => setDate(e.target.value)}
-                value={date}
-                type="date"
-              />
-              <Modal
-                trigger={(open) => (
-                  <select
-                    className="border-water-600 relative my-4 w-full border p-4"
-                    value={currentOwnerId}
-                    onChange={(e) => {
-                      setPendingOwnerId(e.target.value);
-                      open();
-                    }}
-                  >
-                    <option value="" disabled>
-                      Owner
-                    </option>
-                    {members.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.display_name}
+        {isOwner && (
+          <Drawer
+            trigger={(open) => (
+              <button onClick={open} className="bg-water-200 rounded-4xl p-2">
+                <HugeiconsIcon icon={Edit02Icon} size={16} />
+              </button>
+            )}
+          >
+            {(close) => (
+              <div>
+                <span className="block">{item.name}</span>
+                <label>Quantity</label>
+                <Input
+                  onChangeAction={(e) => setQuantity(e.target.value)}
+                  value={quantity}
+                  type="number"
+                />
+                <label>Storage location</label>
+                <select
+                  className="border-water-600 relative my-4 w-full border p-4"
+                  onChange={(e) => setStorageLocation(e.target.value)}
+                  value={storageLocation}
+                >
+                  <option value="" disabled>
+                    Select a location
+                  </option>
+                  <option value="fridge">Fridge</option>
+                  <option value="freezer">Freezer</option>
+                  <option value="pantry">Pantry</option>
+                  <option value="counter">Counter</option>
+                </select>
+                <label>
+                  {item._source === 'foodkeeper' || item.unpackaged_food_id
+                    ? 'Purchase Date'
+                    : 'Use By Date'}
+                </label>
+                <Input
+                  onChangeAction={(e) => setDate(e.target.value)}
+                  value={date}
+                  type="date"
+                />
+                <Modal
+                  trigger={(open) => (
+                    <select
+                      className="border-water-600 relative my-4 w-full border p-4"
+                      value={currentOwnerId}
+                      onChange={(e) => {
+                        setPendingOwnerId(e.target.value);
+                        open();
+                      }}
+                    >
+                      <option value="" disabled>
+                        Owner
                       </option>
-                    ))}
-                  </select>
-                )}
-              >
-                {(close) => (
-                  <div>
-                    <p className="mb-4">
-                      Change the owner of {item.name} to{' '}
-                      {
-                        members.find((m) => m.id === parseInt(pendingOwnerId))
-                          ?.display_name
-                      }
-                      ?
-                    </p>
-                    <div className="flex justify-end gap-2">
-                      <Button title="Cancel" action={close} color="blue" />
-                      <Button
-                        title="Confirm"
-                        color="red"
-                        action={() => handleTransferOwnership(close)}
-                      />
+                      {members.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.display_name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                >
+                  {(close) => (
+                    <div>
+                      <p className="mb-4">
+                        Change the owner of {item.name} to{' '}
+                        {
+                          members.find((m) => m.id === parseInt(pendingOwnerId))
+                            ?.display_name
+                        }
+                        ?
+                      </p>
+                      <div className="flex justify-end gap-2">
+                        <Button title="Cancel" action={close} color="blue" />
+                        <Button
+                          title="Confirm"
+                          color="red"
+                          action={() => handleTransferOwnership(close)}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
+                </Modal>
+                <Button
+                  action={async () => {
+                    const msg = validateFoodEntry(item, {
+                      quantity,
+                      date,
+                      storageLocation,
+                    });
+                    if (msg) {
+                      setValidationError(msg);
+                      setValidationKey((k) => k + 1);
+                      return;
+                    }
+                    const success = await updateFood(item, {
+                      additionalQuantity:
+                        parseFloat(quantity) - parseFloat(item.quantity),
+                      expiry_date: calcExpiryDate(item, storageLocation, date),
+                      storage_location: storageLocation,
+                    });
+                    if (success) {
+                      onChange?.();
+                      close();
+                    }
+                  }}
+                  title={`Update `}
+                />
+                <a onClick={close}>Cancel</a>
+                {validationError && (
+                  <Toast
+                    key={validationKey}
+                    level="warning"
+                    message={validationError}
+                  />
                 )}
-              </Modal>
-              <Button
-                action={async () => {
-                  const msg = validateFoodEntry(item, {
-                    quantity,
-                    date,
-                    storageLocation,
-                  });
-                  if (msg) {
-                    setValidationError(msg);
-                    setValidationKey((k) => k + 1);
-                    return;
-                  }
-                  const success = await updateFood(item, {
-                    additionalQuantity:
-                      parseFloat(quantity) - parseFloat(item.quantity),
-                    expiry_date: calcExpiryDate(item, storageLocation, date),
-                    storage_location: storageLocation,
-                  });
-                  if (success) {
-                    onChange?.();
-                    close();
-                  }
-                }}
-                title={`Update `}
-              />
-              <a onClick={close}>Cancel</a>
-              {validationError && (
-                <Toast key={validationKey} level="warning" message={validationError} />
-              )}
-            </div>
-          )}
-        </Drawer>
+              </div>
+            )}
+          </Drawer>
+        )}
       </div>
     </div>
   );
