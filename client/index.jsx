@@ -39,7 +39,9 @@ const App = () => {
             {household?.name}
           </h1>
           <span>{household?.id}</span>
-          <Drawer trigger={(open) => <Button title="Add a Food" action={open} />}>
+          <Drawer
+            trigger={(open) => <Button title="Add a Food" action={() => open()} />}
+          >
             {(close) => (
               <AddFood
                 onClose={close}
