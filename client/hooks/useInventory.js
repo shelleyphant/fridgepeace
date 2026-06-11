@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const API = process.env.API_URL ?? '';
 
-export function useInventory(householdId) {
+export function useInventory(householdId, members) {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,27 +12,23 @@ export function useInventory(householdId) {
     if (!householdId) return;
     setError(null);
     try {
-      const [
-        { data: inv },
-        { data: packaged },
-        { data: unpackaged },
-        { data: members },
-      ] = await Promise.all([
-        axios.get(`${API}/food-inventory/?household_id=${householdId}`),
-        axios.get(`${API}/packaged-foods/`),
-        axios.get(`${API}/unpackaged-foods/`),
-        axios.get(`${API}/member/${householdId}/members`),
-      ]);
+      const [{ data: inv }, { data: packaged }, { data: unpackaged }] =
+        await Promise.all([
+          axios.get(`${API}/food-inventory/?household_id=${householdId}`),
+          axios.get(`${API}/packaged-foods/`),
+          axios.get(`${API}/unpackaged-foods/`),
+        ]);
 
       const packagedById = Object.fromEntries(packaged.map((f) => [f.id, f]));
       const unpackagedById = Object.fromEntries(unpackaged.map((f) => [f.id, f]));
-      const memberById = Object.fromEntries(members.map((m) => [m.id, m.display_name]));
 
-      const ownerships = await Promise.all(
+      const owners = await Promise.all(
         inv.map(({ id }) =>
           axios.get(`${API}/food-ownerships/by-inventory/${id}`).then((r) => r.data),
         ),
       );
+
+      const memberById = Object.fromEntries(members.map((m) => [m.id, m.display_name]));
 
       const items = inv.map((item, i) => {
         const food =
@@ -42,7 +38,7 @@ export function useInventory(householdId) {
           ...item,
           name: food?.name ?? 'Unknown',
           category: food?.category ?? null,
-          owners: ownerships[i].map((o) => memberById[o.member_id] ?? 'Unknown'),
+          owners: owners[i].map((o) => memberById[o.member_id] ?? 'Unknown'),
           _source: item.packaged_food_id ? 'packaged' : 'unpackaged',
           fridge_days_max: food?.fridge_days_max ?? null,
           freezer_days_max: food?.freezer_days_max ?? null,
@@ -56,7 +52,7 @@ export function useInventory(householdId) {
     } finally {
       setLoading(false);
     }
-  }, [householdId]);
+  }, [householdId, members]);
 
   useEffect(() => {
     refresh();
