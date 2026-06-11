@@ -31,6 +31,11 @@ const NewFood = ({ onSuccess }) => {
       </label>
 
       {loading && <HugeiconsIcon icon={Loading02Icon} className="animate-spin" />}
+      {!loading && search && results.length === 0 && (
+        <p className="text-water-600 mt-2 text-sm">
+          No results found for &quot;{search}&quot;.
+        </p>
+      )}
       <Modal
         trigger={(open) =>
           !selected &&

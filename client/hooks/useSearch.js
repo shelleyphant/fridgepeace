@@ -38,10 +38,10 @@ export function useSearch(query) {
       return;
     }
 
+    setLoading(true);
     let cancelled = false;
 
     const timer = setTimeout(async () => {
-      setLoading(true);
       const local = fuse
         .search(query)
         .map(({ item, score }) => ({ ...item, _source: 'foodkeeper', _score: score }));
