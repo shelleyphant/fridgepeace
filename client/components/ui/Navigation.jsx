@@ -40,6 +40,7 @@ const Navigation = ({ onReset }) => {
                 showDot={hasUnread}
               />
             )}
+            onClose={() => setIsOpen(false)}
           >
             {(close) => (
               <Notifications
@@ -48,9 +49,7 @@ const Navigation = ({ onReset }) => {
                 markAsRead={markAsRead}
                 markAllAsRead={markAllAsRead}
                 onClose={close}
-                onSuccess={() => {
-                  close();
-                }}
+                onSuccess={close}
               />
             )}
           </Drawer>
@@ -60,15 +59,10 @@ const Navigation = ({ onReset }) => {
             trigger={(open) => (
               <NavButton name="Settings" icon={Settings01Icon} action={open} />
             )}
+            onClose={() => setIsOpen(false)}
           >
             {(close) => (
-              <Settings
-                onClose={close}
-                onSuccess={() => {
-                  close();
-                }}
-                onReset={onReset}
-              />
+              <Settings onClose={close} onSuccess={close} onReset={onReset} />
             )}
           </Drawer>
         </li>
