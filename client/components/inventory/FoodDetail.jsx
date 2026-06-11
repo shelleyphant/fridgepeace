@@ -12,11 +12,6 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
   const [storageLocation, setStorageLocation] = useState(
     inventoryItem?.storage_location ?? '',
   );
-  // const [date, setDate] = useState(
-  //   food._source === 'foodkeeper' || food.unpackaged_food_id
-  //     ? moment().format('YYYY-MM-DD')
-  //     : '',
-  // );
   const [date, setDate] = useState(moment().format('YYYY-MM-DD'));
   const { addFood, updateFood, resolveMemberId, error } = useAddFood();
   const [validationError, setValidationError] = useState(null);
