@@ -8,7 +8,7 @@ const Tooltip = ({ message, confirmation }) => {
   return (
     <div className="relative inline-block">
       <button type="button" onClick={() => setOpen(true)} aria-label="Help">
-        <HugeiconsIcon icon={HelpCircleIcon} />
+        <HugeiconsIcon icon={HelpCircleIcon} size={14} className="text-water-700" />
       </button>
       {open && (
         <article className="absolute z-10 mt-2 w-64 rounded-2xl bg-white p-4 text-sm shadow-lg">
