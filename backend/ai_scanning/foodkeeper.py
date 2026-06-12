@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from schemas import FoodKeeperMatch, StorageGuidance
+from .schemas import FoodKeeperMatch, StorageGuidance
 
 
 @dataclass
@@ -79,7 +79,7 @@ def _is_processed_or_beverage(record: FoodKeeperRecord) -> bool:
 
 @lru_cache(maxsize=4)
 def load_foodkeeper_records(path: str) -> tuple[FoodKeeperRecord, ...]:
-    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    payload = json.loads(Path(path).read_text())
     sheets = {sheet["name"]: sheet["data"] for sheet in payload["sheets"]}
 
     categories = {}
