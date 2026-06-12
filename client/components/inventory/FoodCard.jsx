@@ -9,6 +9,7 @@ import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Drawer from '../ui/Drawer';
 import Input from '../ui/Input';
+import Select from '../ui/Select';
 import Toast from '../ui/Toast';
 import {
   Clock01Icon,
@@ -165,8 +166,7 @@ const FoodCard = ({ item, className, onChange, members = [] }) => {
                   type="number"
                 />
                 <label>Storage location</label>
-                <select
-                  className="border-water-600 relative my-4 w-full border p-4"
+                <Select
                   onChange={(e) => setStorageLocation(e.target.value)}
                   value={storageLocation}
                 >
@@ -177,7 +177,7 @@ const FoodCard = ({ item, className, onChange, members = [] }) => {
                   <option value="freezer">Freezer</option>
                   <option value="pantry">Pantry</option>
                   <option value="counter">Counter</option>
-                </select>
+                </Select>
                 <label>
                   {item._source === 'foodkeeper' || item.unpackaged_food_id
                     ? 'Purchase Date'
@@ -190,23 +190,25 @@ const FoodCard = ({ item, className, onChange, members = [] }) => {
                 />
                 <Modal
                   trigger={(open) => (
-                    <select
-                      className="border-water-600 relative my-4 w-full border p-4"
-                      value={currentOwnerId}
-                      onChange={(e) => {
-                        setPendingOwnerId(e.target.value);
-                        open();
-                      }}
-                    >
-                      <option value="" disabled>
-                        Owner
-                      </option>
-                      {members.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.display_name}
+                    <>
+                      <label>Owner</label>
+                      <Select
+                        value={currentOwnerId}
+                        onChange={(e) => {
+                          setPendingOwnerId(e.target.value);
+                          open();
+                        }}
+                      >
+                        <option value="" disabled>
+                          Owner
                         </option>
-                      ))}
-                    </select>
+                        {members.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.display_name}
+                          </option>
+                        ))}
+                      </Select>
+                    </>
                   )}
                 >
                   {(close) => (
@@ -255,7 +257,6 @@ const FoodCard = ({ item, className, onChange, members = [] }) => {
                   }}
                   title={`Update `}
                 />
-                <a onClick={close}>Cancel</a>
                 {validationError && (
                   <Toast
                     key={validationKey}

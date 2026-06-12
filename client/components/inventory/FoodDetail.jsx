@@ -6,6 +6,7 @@ import { validateFoodEntry } from '../../source/validateFoodEntry';
 import Button from '../ui/Button';
 import Toast from '../ui/Toast';
 import Input from '../ui/Input';
+import Select from '../ui/Select';
 
 const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
   const [quantity, setQuantity] = useState('');
@@ -31,8 +32,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
         type="number"
       />
       <label>Storage location</label>
-      <select
-        className="border-water-600 relative my-4 w-full border p-4"
+      <Select
         onChange={(e) => setStorageLocation(e.target.value)}
         value={storageLocation}
       >
@@ -43,7 +43,8 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
         <option value="freezer">Freezer</option>
         <option value="pantry">Pantry</option>
         <option value="counter">Counter</option>
-      </select>
+      </Select>
+
       <label>
         {food._source === 'foodkeeper' || food.unpackaged_food_id
           ? 'Purchase Date'
