@@ -11,9 +11,12 @@ import Notifications from '../user/Notifications';
 import Settings from '../user/Settings';
 import Drawer from './Drawer';
 import { logOut } from '../../hooks/useMembership';
+import { useNotifications } from '../../hooks/useNotifications';
 
 const Navigation = ({ onReset }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { notifications, loading, markAsRead, markAllAsRead } = useNotifications();
+  const hasUnread = notifications.some((n) => !n.read);
   return (
     <nav className="absolute top-6 right-6 flex flex-col items-end">
       <NavButton
@@ -22,20 +25,31 @@ const Navigation = ({ onReset }) => {
         action={() => {
           setIsOpen(isOpen ? false : true);
         }}
+        showDot={hasUnread}
       />
-      <ul className={isOpen ? `flex` : `hidden`}>
+      <ul
+        className={`absolute -top-8 right-10 mt-4 flex gap-2 rounded-3xl bg-white p-4 shadow transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'pointer-events-none translate-x-[calc(200%)]'}`}
+      >
         <li>
           <Drawer
             trigger={(open) => (
-              <NavButton name="Notifications" icon={BellIcon} action={open} />
+              <NavButton
+                name="Notifications"
+                icon={BellIcon}
+                action={open}
+                showDot={hasUnread}
+              />
             )}
+            onClose={() => setIsOpen(false)}
           >
             {(close) => (
               <Notifications
+                notifications={notifications}
+                loading={loading}
+                markAsRead={markAsRead}
+                markAllAsRead={markAllAsRead}
                 onClose={close}
-                onSuccess={() => {
-                  close();
-                }}
+                onSuccess={close}
               />
             )}
           </Drawer>
@@ -45,15 +59,10 @@ const Navigation = ({ onReset }) => {
             trigger={(open) => (
               <NavButton name="Settings" icon={Settings01Icon} action={open} />
             )}
+            onClose={() => setIsOpen(false)}
           >
             {(close) => (
-              <Settings
-                onClose={close}
-                onSuccess={() => {
-                  close();
-                }}
-                onReset={onReset}
-              />
+              <Settings onClose={close} onSuccess={close} onReset={onReset} />
             )}
           </Drawer>
         </li>

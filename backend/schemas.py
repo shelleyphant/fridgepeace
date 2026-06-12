@@ -392,3 +392,16 @@ class NotificationPreferenceResponse(BaseModel):
 class NotificationPreferenceBatchUpdate(BaseModel):
     """Batch update request — replaces all preferences for a user."""
     preferences: list[NotificationPreferenceCreate]
+
+
+# ─── Notification ─────────────────────────────────────────
+
+class NotificationResponse(BaseModel):
+    """A single notification record returned to the client."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    message: str
+    notification_type: str
+    read: bool
+    created_at: datetime
