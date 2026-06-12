@@ -14,11 +14,13 @@ backend/
 │   ├── date_parser.py          Australian date parsing (day-first rules)
 │   ├── foodkeeper.py           FoodKeeper database matching and storage guidance
 │   ├── gemini_service.py       Gemini API request logic for food/date recognition
-│   └── image_utils.py          Image validation and HEIC/HEIF conversion
+│   ├── image_utils.py          Image validation and HEIC/HEIF conversion
+│   ├── router.py               AI scanning API endpoints (prefix: /ai-scan)
+│   └── schemas.py              AI scanning Pydantic response models
 ├── main.py                   FastAPI entry point, router registration, health check
 ├── models.py                   SQLAlchemy ORM models (10 tables)
-├── schemas.py                Pydantic request/response models with validation
-├── routers.py                All API endpoint routes
+├── schemas.py                Pydantic request/response models (non-AI) with validation
+├── routers.py                All non-AI API endpoint routes
 ├── requirements.txt          Dependency list
 ├── API_DOCUMENTATION.md      This file
 └── off_data_au.db            Australian OFF subset (SQLite, ~70K products, compact — 19 fields)
@@ -1570,30 +1572,47 @@ GET /off-products-au/stats
 
 ### 12. AI Scanning
 
-The AI scanning module uses Google Gemini Vision to identify food items and extract expiry dates from images. It supports three scanning scenarios:
+The AI scanning module uses Google Gemini to identify food items and extract expiry dates from images. All AI endpoints live in `ai_scanning/router.py` (prefix `/ai-scan`) and use response models from `ai_scanning/schemas.py`.
 
-- **Unpackaged food** — raw produce (fruit, vegetables) identified from photos
-- **Packaged food** — branded products identified from package photos
-- **Expiry date** — printed date text extracted from labels
+It supports **5 endpoints** across several workflows:
 
-> **Architecture**: The AI scanning routes and Pydantic models have been merged into `routers.py` (via `APIRouter` sub-router with prefix `/ai-scan`) and `schemas.py` for unified management. The `ai_scanning/` package contains only the core logic modules (config, date parser, foodkeeper, gemini service, image utils).
+| # | Endpoint | Purpose |
+|---|----------|---------|
+| 1 | `POST /ai-scan/food-photo` | Classify a single photo as packaged / unpackaged / uncertain |
+| 2 | `POST /ai-scan/unpackaged-food` | Identify an unpackaged food item and match FoodKeeper records |
+| 3 | `POST /ai-scan/packaged-food` | Identify a packaged product and build search terms |
+| 4 | `POST /ai-scan/expiry-date` | Extract and parse a printed date from a label photo |
+| 5 | `POST /ai-scan/combined` | **All-in-one scan** — accepts 1–2 images, auto-classifies, identifies food/product, reads expiry date, and returns a combined result |
 
-> **Mock Mode**: By default, the module runs in mock mode (`GEMINI_MOCK_MODE=true`) and returns fixed responses without calling the actual Gemini API. Set `GEMINI_MOCK_MODE=false` and provide a valid `GEMINI_API_KEY` to use real AI inference.
+> **Mock Mode**: By default, the module runs in mock mode (`GEMINI_MOCK_MODE=true`) and returns fixed responses without calling the real Gemini API. Set `GEMINI_MOCK_MODE=false` and provide a valid `GEMINI_API_KEY` to use real AI inference.
 
-#### Image Requirements
+#### Common Image Requirements
+
+All AI scanning endpoints accept `multipart/form-data` with one or more image fields.
 
 | Constraint | Value |
 |------------|-------|
-| Max file size | 5 MB |
-| Supported formats | JPEG, PNG, WebP, BMP, TIFF, HEIC/HEIF |
-| HEIC handling | Automatically converted to JPEG in-memory |
+| Max file size | 5 MB per image |
+| Supported formats | JPEG, PNG, WebP, HEIC, HEIF |
+| HEIC/HEIF handling | Automatically converted to JPEG in-memory via `pillow-heif` |
 
-**Error responses:**
+#### Common Error Responses
 
-| Status | Condition | Response |
-|:------:|-----------|----------|
-| 413 | File exceeds 5 MB | `{"detail": "File too large — max 5 MB"}` |
-| 415 | Unsupported content type | `{"detail": "Unsupported file type: <type>"}` |
+| Status | Condition |
+|:------:|-----------|
+| 400 | Empty or corrupt image |
+| 413 | File exceeds 5 MB (`detail: "Image must be 5 MB or smaller"`) |
+| 415 | Unsupported content type (`detail: "Only JPEG, PNG, WebP, HEIC, and HEIF images are supported"`) |
+
+#### Common Response Fields
+
+The following fields appear in all AI scanning response schemas to help clients handle incomplete results gracefully:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `is_incomplete` | bool | Whether the result is missing essential information |
+| `missing_information` | list[string] | What information is still needed (e.g. `"food-match"`, `"expiry-date"`, `"food-type"`) |
+| `fallback_actions` | list[string] | Suggested actions for the UI when information is incomplete (e.g. `"upload-another-photo"`, `"manual-food-search"`, `"manual-expiry-entry"`) |
 
 ---
 
@@ -1658,6 +1677,9 @@ POST /ai-scan/unpackaged-food
 | alternatives | list[FoodKeeperMatch] | Lower-scoring FoodKeeper matches |
 | foodkeeper_options | list[FoodKeeperOption] | All matches with score and storage guidance (ranked) |
 | requires_confirmation | bool | Whether the result needs user confirmation |
+| is_incomplete | bool | Whether essential information is missing (e.g. no FoodKeeper match) |
+| missing_information | list[string] | What information is still needed (e.g. `["food-match"]`) |
+| fallback_actions | list[string] | Suggested UI actions when incomplete (e.g. `["upload-another-photo", "manual-food-search"]`) |
 | error | string or null | Error message if processing failed |
 
 **FoodKeeperMatch fields:**
@@ -1736,6 +1758,9 @@ POST /ai-scan/packaged-food
 | search_terms | list[string] | Pre-built search terms for database lookup |
 | confidence | float | Gemini's confidence score (0–1) |
 | requires_confirmation | bool | Whether the result needs user confirmation |
+| is_incomplete | bool | Whether essential information is missing |
+| missing_information | list[string] | What information is still needed (e.g. `["food-match"]`) |
+| fallback_actions | list[string] | Suggested UI actions when incomplete |
 | error | string or null | Error message if processing failed |
 
 ---
@@ -1771,9 +1796,219 @@ POST /ai-scan/expiry-date
 | expiry_date | string or null | Parsed date in `YYYY-MM-DD` format |
 | confidence | float | Gemini's confidence score (0–1) |
 | requires_confirmation | bool | Whether the result needs user confirmation |
+| is_incomplete | bool | Whether the date could not be reliably extracted |
+| missing_information | list[string] | What information is still needed (e.g. `["expiry-date"]`) |
+| fallback_actions | list[string] | Suggested UI actions when incomplete |
 | error | string or null | Error message if processing failed |
 
 **Date parsing:** Uses Australian day-first conventions — `DD/MM/YYYY` and `DD MON YYYY` are the primary formats. See `ai_scanning/date_parser.py` for the full list of supported patterns.
+
+**Supported label types:** `use-by`, `best-before`, `baked-on`, `packed-on`, `sell-by`, `display-until`
+
+---
+
+#### 12.4 Classify Food Photo
+
+Determines whether a single food photo shows a packaged product, unpackaged food, or is uncertain.
+
+```
+POST /ai-scan/food-photo
+```
+
+**Request:** Multipart form-data with a single `file` field containing the image.
+
+**Response 200 (mock mode — unpackaged food identified):**
+```json
+{
+  "food_type": "unpackaged",
+  "confidence": 0.92,
+  "images_used": 1,
+  "images_requested_next": 0,
+  "needs_second_photo": false,
+  "requires_food_type_confirmation": false,
+  "requires_match_confirmation": true,
+  "is_incomplete": false,
+  "missing_information": [],
+  "fallback_actions": [],
+  "next_step": "confirm-food-match",
+  "user_message": "This looks like unpackaged food. Confirm the food match, then ask for storage method and start date.",
+  "food_name": "apple",
+  "matched_foodkeeper_item": {
+    "id": 248, "name": "Apples", "category": "Produce > Fresh Fruits",
+    "subtitle": null, "keywords": "Apples,apple", "score": 2.0
+  },
+  "storage_guidance": {
+    "pantry": "1 to 2 weeks", "refrigerate": "3 to 4 weeks", "freeze": "8 to 12 months"
+  },
+  "alternatives": [],
+  "foodkeeper_options": [
+    {
+      "id": 248, "name": "Apples", "category": "Produce > Fresh Fruits",
+      "subtitle": null, "keywords": "Apples,apple", "score": 2.0,
+      "recommended": true,
+      "storage_guidance": {
+        "pantry": "1 to 2 weeks", "refrigerate": "3 to 4 weeks", "freeze": "8 to 12 months"
+      }
+    }
+  ],
+  "reason": null,
+  "error": null
+}
+```
+
+**Response fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| food_type | string | `"packaged"`, `"unpackaged"`, or `"uncertain"` |
+| confidence | float | Gemini's confidence score (0–1) |
+| images_used | int | Number of images processed (1 or 2) |
+| images_requested_next | int | Number of additional images suggested |
+| needs_second_photo | bool or null | Whether a second photo is needed for expiry date |
+| requires_food_type_confirmation | bool | Whether the food type classification needs user verification |
+| requires_match_confirmation | bool | Whether the food/product match needs user verification |
+| is_incomplete | bool | Whether essential information is missing |
+| missing_information | list[string] | What information is still needed (e.g. `["food-match"]`, `["expiry-date"]`, `["food-type"]`) |
+| fallback_actions | list[string] | Suggested UI actions when incomplete |
+| next_step | string | Suggested next workflow step |
+| user_message | string | Human-readable prompt for the UI to show |
+| food_name | string or null | Identified unpackaged food name (if food_type is `"unpackaged"`) |
+| product_name | string or null | Identified packaged product name (if food_type is `"packaged"`) |
+| brand | string or null | Brand name (if packaged) |
+| category | string or null | Product category (if packaged) |
+| search_terms | list[string] | Pre-built search terms (if packaged) |
+| matched_foodkeeper_item | FoodKeeperMatch or null | Best matching FoodKeeper record (if unpackaged) |
+| storage_guidance | StorageGuidance or null | Storage duration for the best match (if unpackaged) |
+| alternatives | list[FoodKeeperMatch] | Lower-scoring FoodKeeper matches |
+| foodkeeper_options | list[FoodKeeperOption] | All FoodKeeper matches with score and storage guidance |
+| reason | string or null | Additional reasoning or processing detail |
+| error | string or null | Error message if processing failed |
+
+---
+
+#### 12.5 Combined Scan (All-in-One)
+
+Performs a complete multi-step scan with 1–2 photos. Automatically determines the food type, identifies the item, reads expiry dates, and returns everything in a single combined response.
+
+**How it works:**
+1. Classify each uploaded photo via Gemini (`inspect_image_set`) — packaged / unpackaged / uncertain
+2. If a packaged product is identified, run Gemini product identification on the assigned food image
+3. If expiry image is available, extract and parse the printed date from the assigned expiry image
+4. If unpackaged food is identified, run Gemini food identification on the assigned food image and match FoodKeeper records
+5. Return a single combined response with all fields at the top level
+
+```
+POST /ai-scan/combined
+```
+
+**Request:** Multipart form-data with up to 2 image fields: `image_1` (required) and `image_2` (optional).
+
+**Response 200 (mock mode — unpackaged, no expiry):**
+```json
+{
+  "food_type": "unpackaged",
+  "confidence": 0.92,
+  "assigned_food_image": "image_1",
+  "assigned_expiry_image": null,
+  "food_name": "apple",
+  "matched_foodkeeper_item": {
+    "id": 248, "name": "Apples", "category": "Produce > Fresh Fruits",
+    "subtitle": null, "keywords": "Apples,apple", "score": 2.0
+  },
+  "storage_guidance": {
+    "pantry": "1 to 2 weeks", "refrigerate": "3 to 4 weeks", "freeze": "8 to 12 months"
+  },
+  "alternatives": [],
+  "foodkeeper_options": [
+    {
+      "id": 248, "name": "Apples", "category": "Produce > Fresh Fruits",
+      "subtitle": null, "keywords": "Apples,apple", "score": 2.0,
+      "recommended": true,
+      "storage_guidance": {
+        "pantry": "1 to 2 weeks", "refrigerate": "3 to 4 weeks", "freeze": "8 to 12 months"
+      }
+    }
+  ],
+  "raw_expiry_text": null,
+  "label_type": null,
+  "expiry_date": null,
+  "images_received": 1,
+  "requires_confirmation": true,
+  "is_incomplete": false,
+  "missing_information": [],
+  "fallback_actions": [],
+  "next_step": "collect-storage-details",
+  "user_message": "We matched this unpackaged food. Ask for storage method and start date, then let the user review and save.",
+  "reason": null,
+  "error": null
+}
+```
+
+**Response 200 (packaged product with expiry date):**
+```json
+{
+  "food_type": "packaged",
+  "confidence": 0.95,
+  "assigned_food_image": "image_1",
+  "assigned_expiry_image": "image_2",
+  "product_name": "Corn Flakes",
+  "brand": "Kellogg's",
+  "category": "cereal",
+  "search_terms": ["Corn Flakes", "Kellogg's Corn Flakes", "cereal"],
+  "raw_expiry_text": "BEST BEFORE 08 JUN 2026",
+  "label_type": "best-before",
+  "expiry_date": "2026-06-08",
+  "images_received": 2,
+  "requires_confirmation": true,
+  "is_incomplete": false,
+  "missing_information": [],
+  "fallback_actions": [],
+  "next_step": "review-and-save",
+  "user_message": "We recognised the packaged product and read the expiry date. Let the user review the result and save.",
+  "reason": null,
+  "error": null
+}
+```
+
+**Response fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| food_type | string | Overall classification: `"packaged"`, `"unpackaged"`, or `"uncertain"` |
+| confidence | float | Overall confidence score (0–1) |
+| assigned_food_image | string or null | Which image slot was used for food identification (`"image_1"` or `"image_2"`) |
+| assigned_expiry_image | string or null | Which image slot was used for expiry date extraction |
+| product_name | string or null | Identified packaged product name |
+| food_name | string or null | Identified unpackaged food name |
+| brand | string or null | Brand name (packaged products) |
+| category | string or null | Product category |
+| search_terms | list[string] | Pre-built search terms for database lookup |
+| matched_foodkeeper_item | FoodKeeperMatch or null | Best matching FoodKeeper record (unpackaged) |
+| storage_guidance | StorageGuidance or null | Storage duration for the best match |
+| alternatives | list[FoodKeeperMatch] | Lower-scoring FoodKeeper matches |
+| foodkeeper_options | list[FoodKeeperOption] | All matches with score and storage guidance |
+| raw_expiry_text | string or null | Raw text extracted from label |
+| label_type | string or null | `"use-by"`, `"best-before"`, `"baked-on"`, `"packed-on"`, `"sell-by"`, `"display-until"`, or null |
+| expiry_date | string or null | Parsed date in `YYYY-MM-DD` format |
+| images_received | int | Number of images that were uploaded and processed |
+| requires_confirmation | bool | Whether the result needs user confirmation |
+| is_incomplete | bool | Whether the overall scan is missing essential information |
+| missing_information | list[string] | Specific information still needed (e.g. `["food-match"]`, `["expiry-date"]`, `["food-type"]`) |
+| fallback_actions | list[string] | Suggested UI actions for completing the workflow |
+| next_step | string | Suggested next workflow step |
+| user_message | string | Human-readable prompt for the UI to show |
+| reason | string or null | Additional reasoning or processing detail |
+| error | string or null | Error message if processing failed |
+
+| Field | Type | Description |
+|-------|------|-------------|
+| code | string or null | Barcode (EAN-13) |
+| product_name | string or null | Full product name |
+| brand | string or null | Brand name |
+| category | string or null | Product category |
+| ingredients_text | string or null | Full ingredients list |
+| nutrition_score | string or null | Nutri-Score grade (e.g. `"A"` – `"E"`) |
+| image_url | string or null | Front product image URL |
 
 ---
 
@@ -1858,6 +2093,8 @@ The AI scanning module introduces the following environment variables (managed v
 | OFF AU Product | GET | `/off-products-au/search?q=&page=&page_size=` | Search AU products by name (q optional; returns all results when omitted) |
 | OFF AU Product | GET | `/off-products-au/by-barcode/{code}` | Get AU product by barcode (all fields) |
 | OFF AU Product | GET | `/off-products-au/stats` | Get AU database statistics |
+| AI Scan | POST | `/ai-scan/food-photo` | Classify photo as packaged / unpackaged / uncertain |
 | AI Scan | POST | `/ai-scan/unpackaged-food` | Identify unpackaged food from photo |
 | AI Scan | POST | `/ai-scan/packaged-food` | Identify packaged food from photo |
 | AI Scan | POST | `/ai-scan/expiry-date` | Extract expiry date from label photo |
+| AI Scan | POST | `/ai-scan/combined` | All-in-one scan (1-2 photos) |
