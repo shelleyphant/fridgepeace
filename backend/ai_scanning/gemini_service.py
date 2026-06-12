@@ -27,20 +27,25 @@ def _json_from_text(text: str) -> dict[str, Any]:
         raise GeminiError(f"Gemini did not return valid JSON: {exc}") from exc
 
 
-async def _call_gemini(settings: Settings, image_bytes: bytes, mime_type: str, prompt: str) -> dict[str, Any]:
+def _inline_image_part(image_bytes: bytes, mime_type: str) -> dict[str, Any]:
+    return {
+        "inline_data": {
+            "mime_type": mime_type,
+            "data": base64.b64encode(image_bytes).decode("ascii"),
+        }
+    }
+
+
+async def _call_gemini_parts(settings: Settings, prompt: str, image_parts: list[dict[str, Any]]) -> dict[str, Any]:
     if not settings.gemini_api_key:
         raise GeminiError("GEMINI_API_KEY is not configured")
 
-    image_b64 = base64.b64encode(image_bytes).decode("ascii")
     url = f"{GEMINI_BASE_URL}/{settings.gemini_model}:generateContent"
     params = {"key": settings.gemini_api_key}
     body = {
         "contents": [
             {
-                "parts": [
-                    {"text": prompt},
-                    {"inline_data": {"mime_type": mime_type, "data": image_b64}},
-                ]
+                "parts": [{"text": prompt}, *image_parts],
             }
         ],
         "generationConfig": {
@@ -80,6 +85,10 @@ async def _call_gemini(settings: Settings, image_bytes: bytes, mime_type: str, p
     return _json_from_text(text)
 
 
+async def _call_gemini(settings: Settings, image_bytes: bytes, mime_type: str, prompt: str) -> dict[str, Any]:
+    return await _call_gemini_parts(settings, prompt, [_inline_image_part(image_bytes, mime_type)])
+
+
 async def identify_food(settings: Settings, image_bytes: bytes, mime_type: str) -> dict[str, Any]:
     if settings.gemini_mock_mode:
         return {"food_name": "apple", "confidence": 0.82}
@@ -99,6 +108,105 @@ Rules:
 - Confidence must be between 0 and 1.
 """
     return await _call_gemini(settings, image_bytes, mime_type, prompt)
+
+
+async def classify_food_photo(settings: Settings, image_bytes: bytes, mime_type: str) -> dict[str, Any]:
+    if settings.gemini_mock_mode:
+        return {
+            "food_type": "unpackaged",
+            "food_name": "apple",
+            "product_name": None,
+            "brand": None,
+            "category": "fresh fruit",
+            "search_terms": [],
+            "confidence": 0.82,
+            "reason": "Loose fresh fruit is visible without retail packaging.",
+        }
+
+    prompt = """
+You are helping a food waste app inspect one food photo and choose the correct workflow.
+Return JSON only with this exact shape:
+{
+  "food_type": "packaged | unpackaged | uncertain",
+  "food_name": "short common food name for FoodKeeper search or null",
+  "product_name": "short packaged product name or null",
+  "brand": "brand name if visible, otherwise null",
+  "category": "simple category if visible or obvious, otherwise null",
+  "search_terms": ["short search terms for packaged product lookup"],
+  "confidence": 0.0,
+  "reason": "short explanation"
+}
+
+Rules:
+- Use "packaged" for branded or pre-packaged retail grocery items in visible packaging.
+- Use "unpackaged" for loose produce, cooked food without retail packaging, or leftovers.
+- Use "uncertain" if the image does not clearly support one workflow.
+- For unpackaged food, return a short common food name such as "apple", "banana", "spinach", or "cooked rice".
+- For packaged food, return a short product_name and brand only if visible.
+- Do not return expiry dates here.
+- Do not guess if the image is unclear. Use null fields and low confidence.
+- Confidence must be between 0 and 1.
+"""
+    return await _call_gemini(settings, image_bytes, mime_type, prompt)
+
+
+async def inspect_image_set(
+    settings: Settings,
+    images: list[tuple[str, bytes, str]],
+) -> dict[str, Any]:
+    if not images:
+        raise GeminiError("At least one image is required")
+
+    if settings.gemini_mock_mode:
+        if len(images) == 1:
+            return {
+                "food_type": "unpackaged",
+                "assigned_food_image": images[0][0],
+                "assigned_expiry_image": None,
+                "confidence": 0.82,
+                "reason": "The single image looks like loose produce without retail packaging.",
+            }
+        return {
+            "food_type": "packaged",
+            "assigned_food_image": images[0][0],
+            "assigned_expiry_image": images[1][0],
+            "confidence": 0.9,
+            "reason": "One image shows the retail package and the other shows the printed date label.",
+        }
+
+    image_summary_lines = [
+        f"- {slot}: inspect this image and decide whether it is better for food/product recognition or expiry-label OCR."
+        for slot, _, _ in images
+    ]
+    prompt = f"""
+You are helping a food waste app inspect one or two uploaded images of the same item.
+The backend will use your answer to decide the next UI step.
+
+Return JSON only with this exact shape:
+{{
+  "food_type": "packaged | unpackaged | uncertain",
+  "assigned_food_image": "image_1 | image_2 | null",
+  "assigned_expiry_image": "image_1 | image_2 | null",
+  "confidence": 0.0,
+  "reason": "short explanation"
+}}
+
+Image slots:
+{chr(10).join(image_summary_lines)}
+
+Rules:
+- Choose "packaged" for branded or pre-packaged retail grocery items in visible packaging.
+- Choose "unpackaged" for loose produce, leftovers, cooked food without retail packaging, or fresh items not sold in sealed retail packaging.
+- Choose "uncertain" if the images do not clearly support one workflow.
+- assigned_food_image must be the single best image for identifying the food or packaged product.
+- assigned_expiry_image must be the single best image for reading a printed expiry, best-before, or use-by label.
+- If neither image clearly contains a printed date label, use null for assigned_expiry_image.
+- The same image may be assigned to both roles only if it clearly supports both jobs.
+- Do not invent a readable date here; only assign the best candidate image for later OCR.
+- Confidence must be between 0 and 1.
+"""
+    parts = [_inline_image_part(image_bytes, mime_type) for _, image_bytes, mime_type in images]
+    return await _call_gemini_parts(settings, prompt, parts)
 
 
 async def identify_packaged_food(settings: Settings, image_bytes: bytes, mime_type: str) -> dict[str, Any]:
