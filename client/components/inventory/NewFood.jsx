@@ -78,7 +78,7 @@ const NewFood = ({ onSuccess }) => {
               onSuccess?.();
               close();
             }}
-            close={() => {
+            onCancel={() => {
               setSelected(null);
               close();
             }}
