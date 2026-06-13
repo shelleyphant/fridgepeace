@@ -55,12 +55,6 @@ const AIScan = ({ onBack, onComplete }) => {
     }
   };
 
-  const clearImage2 = () => {
-    setImage2(null);
-    setImage2Preview(null);
-    if (image2Ref.current) image2Ref.current.value = '';
-  };
-
   const handleScan = async () => {
     if (!image1) {
       setUploadError('Please upload a food photo first.');
@@ -148,19 +142,11 @@ const AIScan = ({ onBack, onComplete }) => {
             className="block w-full text-sm text-slate-500 file:mr-3 file:cursor-pointer file:rounded-full file:border-0 file:bg-water-100 file:px-4 file:py-2 file:text-sm file:text-water-800 hover:file:bg-water-200"
           />
           {image2Preview && (
-            <div className="relative mt-2 inline-block">
-              <img
-                src={image2Preview}
-                alt="Expiry label preview"
-                className="max-h-32 rounded-lg object-cover"
-              />
-              <button
-                onClick={clearImage2}
-                className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs text-white hover:cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
+            <img
+              src={image2Preview}
+              alt="Expiry label preview"
+              className="mt-2 max-h-32 rounded-lg object-cover"
+            />
           )}
         </div>
 
