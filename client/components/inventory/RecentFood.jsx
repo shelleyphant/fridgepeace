@@ -34,7 +34,7 @@ const RecentFood = ({ inventory, onSuccess }) => {
           <FoodDetail
             food={selected}
             onSuccess={onSuccess}
-            close={() => {
+            onCancel={() => {
               setSelected(null);
               close();
             }}

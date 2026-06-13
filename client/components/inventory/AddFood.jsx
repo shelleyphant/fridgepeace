@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import NewFood from './NewFood';
 import RecentFood from './RecentFood';
 import { useRecentFoods } from '../../hooks/useRecentFoods';

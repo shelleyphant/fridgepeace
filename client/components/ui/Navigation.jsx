@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import NavButton from './NavButton';
 import {
   BellIcon,
@@ -18,7 +18,7 @@ const Navigation = ({ onReset }) => {
   const { notifications, loading, markAsRead, markAllAsRead } = useNotifications();
   const hasUnread = notifications.some((n) => !n.read);
   return (
-    <nav className="absolute top-6 right-6 flex flex-col items-end">
+    <nav ref={navRef} className="absolute top-6 right-6 flex flex-col items-end">
       <NavButton
         name="Menu"
         icon={isOpen ? Cancel01Icon : Menu01Icon}
