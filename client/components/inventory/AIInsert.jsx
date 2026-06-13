@@ -5,6 +5,7 @@ import { useAddFood } from '../../hooks/useAddFood';
 import Button from '../ui/Button';
 import Toast from '../ui/Toast';
 import Input from '../ui/Input';
+import Select from '../ui/Select';
 
 const API = process.env.API_URL ?? '';
 
@@ -18,7 +19,7 @@ const AIInsert = ({ food, extras = {}, onSuccess, onCancel }) => {
     : (error?.response?.data?.detail ?? error?.message ?? null);
 
   const isPackaged = food._source === 'packaged';
-  const storageLocation = extras?.storage_location ?? '';
+  const [storageLocation, setStorageLocation] = useState(extras?.storage_location ?? '');
 
   const [date, setDate] = useState(() => {
     if (isPackaged) {
@@ -35,9 +36,18 @@ const AIInsert = ({ food, extras = {}, onSuccess, onCancel }) => {
     return moment().format('YYYY-MM-DD');
   });
 
+  const [validationError, setValidationError] = useState(null);
+
   const handleSubmit = async () => {
     if (!quantity || isNaN(quantity) || Number(quantity) <= 0) return;
+
+    if (isPackaged && !storageLocation) {
+      setValidationError('Please select a storage location.');
+      return;
+    }
+
     setSaving(true);
+    setValidationError(null);
 
     try {
       let foodToSave = food;
@@ -60,7 +70,7 @@ const AIInsert = ({ food, extras = {}, onSuccess, onCancel }) => {
       const success = await addFood(foodToSave, {
         quantity: String(quantity),
         expiry_date: date,
-        storage_location: isPackaged ? null : (storageLocation || null),
+        storage_location: storageLocation || null,
       });
 
       if (success) onSuccess?.();
@@ -91,6 +101,21 @@ const AIInsert = ({ food, extras = {}, onSuccess, onCancel }) => {
         type="date"
       />
 
+      {isPackaged && (
+        <>
+          <label className="text-water-700 mt-4 block text-sm font-medium">
+            Storage location <span className="text-red-500">*</span>
+          </label>
+          <Select onChange={(e) => setStorageLocation(e.target.value)} value={storageLocation}>
+            <option value="" disabled>Select a location</option>
+            <option value="fridge">Fridge</option>
+            <option value="freezer">Freezer</option>
+            <option value="pantry">Pantry</option>
+            <option value="counter">Counter</option>
+          </Select>
+        </>
+      )}
+
       <div className="mt-6 flex flex-col gap-3">
         <Button action={handleSubmit} title={saving ? 'Saving...' : 'Add to kitchen'} className="flex-1" />
         {onCancel && (
@@ -103,6 +128,7 @@ const AIInsert = ({ food, extras = {}, onSuccess, onCancel }) => {
         )}
       </div>
 
+      {validationError && <Toast level="warning" message={validationError} />}
       {apiError && <Toast level="error" message={apiError} />}
     </div>
   );
