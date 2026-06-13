@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import moment from 'moment';
 import { useAIScan } from '../../hooks/useAIScan';
 import Button from '../ui/Button';
 import Toast from '../ui/Toast';
+import Select from '../ui/Select';
+import Input from '../ui/Input';
 
 const AIScan = ({ onBack, onComplete }) => {
   const { scan, result, loading, error, reset } = useAIScan();
@@ -14,6 +17,13 @@ const AIScan = ({ onBack, onComplete }) => {
   const [uploadError, setUploadError] = useState(null);
   const [showManualExpiry, setShowManualExpiry] = useState(false);
   const [manualExpiryDate, setManualExpiryDate] = useState('');
+
+  // unpackaged sub-steps
+  const [unpackagedStep, setUnpackagedStep] = useState('confirm'); // confirm | storage
+  const [selectedFoodKeeper, setSelectedFoodKeeper] = useState(null);
+  const [storageLocation, setStorageLocation] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState(moment().format('YYYY-MM-DD'));
+  const [validationError, setValidationError] = useState(null);
 
   const image1Ref = useRef(null);
   const image2Ref = useRef(null);
@@ -65,6 +75,33 @@ const AIScan = ({ onBack, onComplete }) => {
     setStep('upload');
     setShowManualExpiry(false);
     setManualExpiryDate('');
+    setUnpackagedStep('confirm');
+    setSelectedFoodKeeper(null);
+    setStorageLocation('');
+    setPurchaseDate(moment().format('YYYY-MM-DD'));
+    setValidationError(null);
+  };
+
+  const confirmFoodKeeperMatch = (item) => {
+    setSelectedFoodKeeper(item);
+    setUnpackagedStep('storage');
+  };
+
+  const handleUnpackagedSave = () => {
+    if (!storageLocation) {
+      setValidationError('Please select a storage location.');
+      return;
+    }
+    setValidationError(null);
+    const item = selectedFoodKeeper || result?.matched_foodkeeper_item;
+    onComplete?.(
+      {
+        _source: 'foodkeeper',
+        ID: item?.id ?? item?.ID,
+        Name: item?.name ?? item?.Name,
+      },
+      { storage_location: storageLocation, purchase_date: purchaseDate },
+    );
   };
 
   // ============ UPLOAD ============
@@ -283,12 +320,116 @@ const AIScan = ({ onBack, onComplete }) => {
           </>
         )}
 
-        {/* Other scenarios: placeholder */}
-        {!(isPackaged && isComplete) && !(isPackaged && !isComplete) && (
+        {/* Unpackaged: FoodKeeper match + storage */}
+        {isUnpackaged && (
+          <>
+            {unpackagedStep === 'confirm' ? (
+              <div className="flex flex-col gap-4">
+                <p className="text-water-500 text-sm">{result.user_message}</p>
+
+                {result.matched_foodkeeper_item && (
+                  <div className="rounded-2xl border border-lime-300 bg-lime-50 p-3">
+                    <p className="text-water-800 text-xs font-medium uppercase">Best match</p>
+                    <p className="text-water-800 text-base font-medium">
+                      {result.matched_foodkeeper_item.name ?? result.matched_foodkeeper_item.Name}
+                    </p>
+                    {(result.matched_foodkeeper_item.subtitle ?? result.matched_foodkeeper_item.Name_subtitle) && (
+                      <p className="text-water-500 text-sm">
+                        {result.matched_foodkeeper_item.subtitle ?? result.matched_foodkeeper_item.Name_subtitle}
+                      </p>
+                    )}
+                    <Button
+                      title="Confirm this item"
+                      action={() => confirmFoodKeeperMatch(result.matched_foodkeeper_item)}
+                      className="mt-2"
+                    />
+                  </div>
+                )}
+
+                {(result?.alternatives ?? []).length > 0 && (
+                  <div>
+                    <p className="text-water-600 mb-1 text-xs font-medium uppercase">Alternative matches</p>
+                    <ul className="flex flex-col gap-1">
+                      {(result.alternatives).map((item, i) => (
+                        <li
+                          key={i}
+                          className="cursor-pointer rounded-xl border border-water-200 p-2 hover:bg-water-50"
+                          onClick={() => confirmFoodKeeperMatch(item)}
+                        >
+                          <p className="text-water-700 text-sm font-medium">
+                            {item.name ?? item.Name}
+                          </p>
+                          {(item.subtitle ?? item.Name_subtitle) && (
+                            <p className="text-water-400 text-xs">{item.subtitle ?? item.Name_subtitle}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {!result.matched_foodkeeper_item && !(result?.alternatives ?? []).length && (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-amber-600 text-sm">No FoodKeeper match found. Try again or search manually.</p>
+                    <Button title="Upload another photo" action={handleRetry} />
+                    {onBack && (
+                      <button onClick={onBack} className="text-water-600 cursor-pointer self-center text-sm underline">
+                        Search manually
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <p className="text-water-700 text-base font-medium">
+                  {selectedFoodKeeper?.name ?? selectedFoodKeeper?.Name ?? result?.matched_foodkeeper_item?.name ?? result?.matched_foodkeeper_item?.Name}
+                </p>
+
+                {/* Storage guidance */}
+                {(selectedFoodKeeper?.storage_guidance ?? result?.storage_guidance) && (
+                  <div className="rounded-2xl border border-water-200 bg-water-50 p-3 text-xs">
+                    {(() => {
+                      const g = selectedFoodKeeper?.storage_guidance ?? result?.storage_guidance;
+                      return (
+                        <>
+                          {g.pantry && <p>Pantry: {g.pantry}</p>}
+                          {g.refrigerate && <p>Fridge: {g.refrigerate}</p>}
+                          {g.freeze && <p>Freezer: {g.freeze}</p>}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                <label className="text-water-700 text-sm font-medium">Storage location</label>
+                <Select onChange={(e) => setStorageLocation(e.target.value)} value={storageLocation}>
+                  <option value="" disabled>Select a location</option>
+                  <option value="fridge">Fridge</option>
+                  <option value="freezer">Freezer</option>
+                  <option value="pantry">Pantry</option>
+                  <option value="counter">Counter</option>
+                </Select>
+
+                <label className="text-water-700 text-sm font-medium">Purchase date</label>
+                <Input type="date" value={purchaseDate} onChangeAction={(e) => setPurchaseDate(e.target.value)} />
+
+                {validationError && <Toast level="warning" message={validationError} />}
+
+                <Button title="Review &amp; Save" action={handleUnpackagedSave} className="flex-1" />
+                <button onClick={() => setUnpackagedStep('confirm')} className="text-water-600 cursor-pointer self-center text-sm underline">
+                  Back to match selection
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Uncertain: placeholder */}
+        {isUncertain && (
           <>
             <div className="rounded-2xl border border-dashed border-water-300 bg-water-50/50 p-3 text-center text-xs text-water-400">
-              {isUnpackaged && 'Next: FoodKeeper match & storage (coming in 3d)'}
-              {isUncertain && 'Next: Retry or manual search (coming in 3e)'}
+              Next: Retry or manual search (coming in 3e)
             </div>
             <Button title="Scan another" action={handleRetry} />
           </>
