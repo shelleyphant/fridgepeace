@@ -203,7 +203,7 @@ const AIScan = ({ onBack, onComplete }) => {
             onClick={onBack}
             className="text-water-600 cursor-pointer self-center text-sm underline"
           >
-            Back to manual search
+            {isUncertain ? 'Search manually' : 'Back to manual search'}
           </button>
         )}
       </div>
@@ -425,14 +425,24 @@ const AIScan = ({ onBack, onComplete }) => {
           </>
         )}
 
-        {/* Uncertain: placeholder */}
+        {/* Uncertain: retry or manual search */}
         {isUncertain && (
-          <>
-            <div className="rounded-2xl border border-dashed border-water-300 bg-water-50/50 p-3 text-center text-xs text-water-400">
-              Next: Retry or manual search (coming in 3e)
+          <div className="flex flex-col gap-4">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-amber-800 text-xs font-medium uppercase">Uncertain</p>
+              <p className="text-water-600 mt-1 text-sm">
+                {result?.user_message || 'We could not confidently identify this food item.'}
+              </p>
             </div>
-            <Button title="Scan another" action={handleRetry} />
-          </>
+
+            {result?.food_name && (
+              <p className="text-water-500 text-sm">
+                Possible match: <span className="text-water-700 font-medium">{result.food_name}</span>
+              </p>
+            )}
+
+            <Button title="Upload another photo" action={handleRetry} />
+          </div>
         )}
 
         {onBack && (
