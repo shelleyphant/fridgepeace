@@ -3,17 +3,6 @@ import axios from 'axios';
 
 const API = process.env.API_URL ?? '';
 
-/**
- * Hook for the POST /ai-scan/combined endpoint.
- *
- * @returns {{
- *   scan: (image1: File, image2?: File) => Promise<object|null>,
- *   result: object|null,
- *   loading: boolean,
- *   error: object|null,
- *   reset: () => void,
- * }}
- */
 export function useAIScan() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
