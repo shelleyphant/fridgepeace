@@ -6,25 +6,22 @@ import RecentFood from './RecentFood';
 import { useRecentFoods } from '../../hooks/useRecentFoods';
 import Button from '../ui/Button';
 import Modal from '../ui/Modal';
-import FoodDetail from './FoodDetail';
+import AIInsert from './AIInsert';
 
 const AddFood = ({ onClose, onSuccess, inventory }) => {
   const { recentFoods } = useRecentFoods(inventory);
   const [showScan, setShowScan] = useState(false);
   const [scanFood, setScanFood] = useState(null);
-  const [scanPrefill, setScanPrefill] = useState(null);
+  const [scanExtras, setScanExtras] = useState(null);
 
   const handleScanComplete = (food, extras) => {
     setScanFood(food);
-    setScanPrefill(extras?.expiry_date
-      ? { storage_location: '', expiry_date: extras.expiry_date }
-      : { storage_location: '' }
-    );
+    setScanExtras(extras ?? {});
   };
 
   const closeModal = () => {
     setScanFood(null);
-    setScanPrefill(null);
+    setScanExtras(null);
   };
 
   if (showScan) {
@@ -40,9 +37,9 @@ const AddFood = ({ onClose, onSuccess, inventory }) => {
           setOpen={(open) => { if (!open) closeModal(); }}
         >
           {(close) => (
-            <FoodDetail
+            <AIInsert
               food={scanFood}
-              inventoryItem={scanPrefill}
+              extras={scanExtras}
               onSuccess={() => {
                 onSuccess?.();
                 close();

@@ -28,12 +28,10 @@ const AIScan = ({ onBack, onComplete }) => {
   const image1Ref = useRef(null);
   const image2Ref = useRef(null);
 
-  // When result arrives, show result page
   useEffect(() => {
     if (result) setStep('result');
   }, [result]);
 
-  // When error arrives, show error page
   useEffect(() => {
     if (error) setStep('error');
   }, [error]);
@@ -98,7 +96,6 @@ const AIScan = ({ onBack, onComplete }) => {
     );
   };
 
-  // ============ UPLOAD ============
   if (step === 'upload') {
     return (
       <div className="flex flex-col gap-4">
@@ -167,7 +164,6 @@ const AIScan = ({ onBack, onComplete }) => {
     );
   }
 
-  // ============ SCANNING ============
   if (step === 'scanning') {
     return (
       <div className="flex flex-col items-center gap-4 py-8">
@@ -177,7 +173,6 @@ const AIScan = ({ onBack, onComplete }) => {
     );
   }
 
-  // ============ ERROR ============
   if (step === 'error') {
     return (
       <div className="flex flex-col gap-4">
@@ -196,7 +191,6 @@ const AIScan = ({ onBack, onComplete }) => {
     );
   }
 
-  // ============ RESULT (basic info, scene UI comes in 3b-3e) ============
   if (step === 'result') {
     const isPackaged = result?.food_type === 'packaged';
     const isUnpackaged = result?.food_type === 'unpackaged';
@@ -218,14 +212,12 @@ const AIScan = ({ onBack, onComplete }) => {
       <div className="flex flex-col gap-4">
         <h2 className="text-water-800 text-lg font-medium">Scan Result</h2>
 
-        {/* Food type badge */}
         <div className="mb-2">
           <span className="rounded-full bg-water-100 px-3 py-1 text-xs font-medium text-water-700">
             {isPackaged ? 'Packaged' : isUnpackaged ? 'Unpackaged' : 'Uncertain'}
             {isPackaged && (isComplete ? ' — Complete' : ' — Incomplete')}
           </span>
         </div>
-
 
         <div className="rounded-2xl border border-water-200 bg-water-50 p-4">
           {result?.product_name && (
@@ -252,7 +244,6 @@ const AIScan = ({ onBack, onComplete }) => {
           )}
         </div>
 
-        {/* Packaged + Complete: Review & Save */}
         {isPackaged && isComplete && (
           <>
             <Button title="Review &amp; Save" action={handleReviewAndSave} className="flex-1" />
@@ -260,7 +251,6 @@ const AIScan = ({ onBack, onComplete }) => {
           </>
         )}
 
-        {/* Packaged + Incomplete: manual expiry or retry */}
         {isPackaged && !isComplete && (
           <>
             {showManualExpiry ? (
@@ -306,7 +296,6 @@ const AIScan = ({ onBack, onComplete }) => {
           </>
         )}
 
-        {/* Unpackaged: FoodKeeper match + storage */}
         {isUnpackaged && (
           <>
             {unpackagedStep === 'confirm' ? (
@@ -372,7 +361,6 @@ const AIScan = ({ onBack, onComplete }) => {
                   {selectedFoodKeeper?.name ?? selectedFoodKeeper?.Name ?? result?.matched_foodkeeper_item?.name ?? result?.matched_foodkeeper_item?.Name}
                 </p>
 
-                {/* Storage guidance */}
                 {(selectedFoodKeeper?.storage_guidance ?? result?.storage_guidance) && (
                   <div className="rounded-2xl border border-water-200 bg-water-50 p-3 text-xs">
                     {(() => {
@@ -411,7 +399,6 @@ const AIScan = ({ onBack, onComplete }) => {
           </>
         )}
 
-        {/* Uncertain: retry or manual search */}
         {isUncertain && (
           <div className="flex flex-col gap-4">
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
