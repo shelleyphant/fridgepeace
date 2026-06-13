@@ -5,21 +5,12 @@ import { useAddFood } from '../../hooks/useAddFood';
 import Button from '../ui/Button';
 import Toast from '../ui/Toast';
 import Input from '../ui/Input';
-import Select from '../ui/Select';
 
 const API = process.env.API_URL ?? '';
 
 const AIInsert = ({ food, extras = {}, onSuccess, onCancel }) => {
   const [quantity, setQuantity] = useState(1);
   const [saving, setSaving] = useState(false);
-  const [storageLocation, setStorageLocation] = useState(
-    extras?.storage_location ?? '',
-  );
-  const [date, setDate] = useState(() => {
-    if (extras?.purchase_date) return extras.purchase_date;
-    if (extras?.expiry_date) return extras.expiry_date;
-    return moment().format('YYYY-MM-DD');
-  });
   const { addFood, error } = useAddFood();
 
   const apiError = Array.isArray(error?.response?.data?.detail)
@@ -27,13 +18,28 @@ const AIInsert = ({ food, extras = {}, onSuccess, onCancel }) => {
     : (error?.response?.data?.detail ?? error?.message ?? null);
 
   const isPackaged = food._source === 'packaged';
+  const storageLocation = extras?.storage_location ?? '';
+
+  const [date, setDate] = useState(() => {
+    if (isPackaged) {
+      return extras?.expiry_date || moment().format('YYYY-MM-DD');
+    }
+    const loc = (extras?.storage_location || '').toLowerCase();
+    let minDays = null;
+    if (loc === 'fridge') minDays = food.fridge_days_min;
+    else if (loc === 'freezer') minDays = food.freezer_days_min;
+    else if (loc === 'pantry' || loc === 'counter') minDays = food.pantry_days_min;
+    if (minDays != null && extras?.purchase_date) {
+      return moment(extras.purchase_date).add(minDays, 'days').format('YYYY-MM-DD');
+    }
+    return moment().format('YYYY-MM-DD');
+  });
 
   const handleSubmit = async () => {
     if (!quantity || isNaN(quantity) || Number(quantity) <= 0) return;
     setSaving(true);
 
     try {
-      // For AI-scanned packaged food without a packaged_food_id, create the record first
       let foodToSave = food;
       if (isPackaged && !food.packaged_food_id) {
         const { data: created } = await axios.post(
@@ -53,7 +59,7 @@ const AIInsert = ({ food, extras = {}, onSuccess, onCancel }) => {
 
       const success = await addFood(foodToSave, {
         quantity: String(quantity),
-        expiry_date: isPackaged ? date : null,
+        expiry_date: date,
         storage_location: isPackaged ? null : (storageLocation || null),
       });
 
@@ -76,28 +82,8 @@ const AIInsert = ({ food, extras = {}, onSuccess, onCancel }) => {
         type="number"
       />
 
-      {!isPackaged && (
-        <>
-          <label className="text-water-700 mt-4 block text-sm font-medium">
-            Storage location
-          </label>
-          <Select
-            onChange={(e) => setStorageLocation(e.target.value)}
-            value={storageLocation}
-          >
-            <option value="" disabled>
-              Select a location
-            </option>
-            <option value="fridge">Fridge</option>
-            <option value="freezer">Freezer</option>
-            <option value="pantry">Pantry</option>
-            <option value="counter">Counter</option>
-          </Select>
-        </>
-      )}
-
       <label className="text-water-700 mt-4 block text-sm font-medium">
-        {isPackaged ? 'Use By Date' : 'Purchase Date'}
+        {isPackaged ? 'Use By Date' : 'Best Before (auto-calculated)'}
       </label>
       <Input
         onChangeAction={(e) => setDate(e.target.value)}

@@ -15,6 +15,9 @@ class FoodKeeperMatch(BaseModel):
     subtitle: Optional[str] = None
     keywords: Optional[str] = None
     score: float
+    fridge_days_min: Optional[int] = None
+    freezer_days_min: Optional[int] = None
+    pantry_days_min: Optional[int] = None
 
 
 class StorageGuidance(BaseModel):

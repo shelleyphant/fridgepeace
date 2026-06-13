@@ -91,6 +91,9 @@ const AIScan = ({ onBack, onComplete }) => {
         _source: 'foodkeeper',
         ID: item?.id ?? item?.ID,
         Name: item?.name ?? item?.Name,
+        fridge_days_min: item?.fridge_days_min,
+        freezer_days_min: item?.freezer_days_min,
+        pantry_days_min: item?.pantry_days_min,
       },
       { storage_location: storageLocation, purchase_date: purchaseDate },
     );

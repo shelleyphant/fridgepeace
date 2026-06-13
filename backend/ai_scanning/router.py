@@ -6,7 +6,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from .config import get_settings
 from .date_parser import parse_labelled_expiry
-from .foodkeeper import get_storage_guidance, search_foodkeeper
+from .foodkeeper import get_storage_guidance, load_foodkeeper_records, search_foodkeeper
 from .gemini_service import (
     GeminiError,
     classify_food_photo,
@@ -37,10 +37,44 @@ router = APIRouter(prefix="/ai-scan", tags=["AI scanning"])
 VALID_IMAGE_SLOTS = {"image_1", "image_2"}
 
 
+def _to_days(value, metric) -> int | None:
+    """Convert a value+metric to days (e.g. '2' + 'weeks' → 14)."""
+    if value is None:
+        return None
+    try:
+        v = int(value)
+    except (ValueError, TypeError):
+        return None
+    if not metric:
+        return v
+    m = str(metric).lower()
+    if m == 'weeks':
+        return v * 7
+    if m == 'months':
+        return v * 30
+    if m == 'years':
+        return v * 365
+    return v
+
+
+def _get_min_days(record, location_prefix: str) -> int | None:
+    """Extract minimum storage days for a location (Refrigerate/Freeze/Pantry) from a FoodKeeper record.
+    Prefers DOP-prefixed fields (date-of-purchase) over regular fields."""
+    if record is None:
+        return None
+    fields = record.fields
+    min_val = fields.get(f"DOP_{location_prefix}_Min") or fields.get(f"{location_prefix}_Min")
+    metric = fields.get(f"DOP_{location_prefix}_Metric") or fields.get(f"{location_prefix}_Metric")
+    return _to_days(min_val, metric)
+
+
 def _build_foodkeeper_options(
     matches: list[FoodKeeperMatch],
     foodkeeper_json_path: str,
 ) -> list[FoodKeeperOption]:
+    records = load_foodkeeper_records(foodkeeper_json_path)
+    record_map = {r.id: r for r in records}
+
     return [
         FoodKeeperOption(
             id=match.id,
@@ -51,6 +85,9 @@ def _build_foodkeeper_options(
             score=match.score,
             recommended=index == 0,
             storage_guidance=get_storage_guidance(match, foodkeeper_json_path),
+            fridge_days_min=_get_min_days(record_map.get(match.id), "Refrigerate"),
+            freezer_days_min=_get_min_days(record_map.get(match.id), "Freeze"),
+            pantry_days_min=_get_min_days(record_map.get(match.id), "Pantry"),
         )
         for index, match in enumerate(matches)
     ]
@@ -160,9 +197,9 @@ def _combined_unpackaged_lookup(
         limit=5,
         prefer_unpackaged_fresh=True,
     )
-    best_match = matches[0] if matches else None
-    guidance = get_storage_guidance(best_match, foodkeeper_json_path) if best_match else None
     foodkeeper_options = _build_foodkeeper_options(matches, foodkeeper_json_path)
+    best_match = foodkeeper_options[0] if foodkeeper_options else None
+    guidance = get_storage_guidance(best_match, foodkeeper_json_path) if best_match else None
 
     if not best_match:
         return CombinedScanResponse(
@@ -190,7 +227,7 @@ def _combined_unpackaged_lookup(
         food_name=food_name,
         matched_foodkeeper_item=best_match,
         storage_guidance=guidance,
-        alternatives=matches[1:],
+        alternatives=foodkeeper_options[1:],
         foodkeeper_options=foodkeeper_options,
         images_received=images_received,
         requires_confirmation=True,
@@ -572,9 +609,9 @@ async def scan_food_photo(image: UploadFile = File(...)):
         limit=5,
         prefer_unpackaged_fresh=True,
     )
-    best_match = matches[0] if matches else None
-    guidance = get_storage_guidance(best_match, foodkeeper_json_path) if best_match else None
     foodkeeper_options = _build_foodkeeper_options(matches, foodkeeper_json_path)
+    best_match = foodkeeper_options[0] if foodkeeper_options else None
+    guidance = get_storage_guidance(best_match, foodkeeper_json_path) if best_match else None
 
     return FoodPhotoScanResponse(
         food_type="unpackaged",
@@ -592,7 +629,7 @@ async def scan_food_photo(image: UploadFile = File(...)):
         food_name=food_name or None,
         matched_foodkeeper_item=best_match,
         storage_guidance=guidance,
-        alternatives=matches[1:],
+        alternatives=foodkeeper_options[1:],
         foodkeeper_options=foodkeeper_options,
         reason=reason,
         error=None if best_match else "No FoodKeeper match found",
@@ -637,16 +674,16 @@ async def scan_unpackaged_food(image: UploadFile = File(...)):
         limit=5,
         prefer_unpackaged_fresh=True,
     )
-    best_match = matches[0] if matches else None
-    guidance = get_storage_guidance(best_match, foodkeeper_json_path) if best_match else None
     foodkeeper_options = _build_foodkeeper_options(matches, foodkeeper_json_path)
+    best_match = foodkeeper_options[0] if foodkeeper_options else None
+    guidance = get_storage_guidance(best_match, foodkeeper_json_path) if best_match else None
 
     return FoodScanResponse(
         food_name=str(food_name).strip().lower(),
         confidence=confidence,
         matched_foodkeeper_item=best_match,
         storage_guidance=guidance,
-        alternatives=matches[1:],
+        alternatives=foodkeeper_options[1:],
         foodkeeper_options=foodkeeper_options,
         requires_confirmation=True,
         is_incomplete=best_match is None,
