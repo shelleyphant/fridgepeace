@@ -12,6 +12,8 @@ const AIScan = ({ onBack, onComplete }) => {
   const [image2Preview, setImage2Preview] = useState(null);
   const [step, setStep] = useState('upload'); // upload | scanning | result | error
   const [uploadError, setUploadError] = useState(null);
+  const [showManualExpiry, setShowManualExpiry] = useState(false);
+  const [manualExpiryDate, setManualExpiryDate] = useState('');
 
   const image1Ref = useRef(null);
   const image2Ref = useRef(null);
@@ -61,6 +63,8 @@ const AIScan = ({ onBack, onComplete }) => {
   const handleRetry = () => {
     reset();
     setStep('upload');
+    setShowManualExpiry(false);
+    setManualExpiryDate('');
   };
 
   // ============ UPLOAD ============
@@ -199,7 +203,7 @@ const AIScan = ({ onBack, onComplete }) => {
           </span>
         </div>
 
-        {/* Basic info card */}
+
         <div className="rounded-2xl border border-water-200 bg-water-50 p-4">
           {result?.product_name && (
             <p className="text-water-800 text-base font-medium">{result.product_name}</p>
@@ -233,11 +237,56 @@ const AIScan = ({ onBack, onComplete }) => {
           </>
         )}
 
+        {/* Packaged + Incomplete: manual expiry or retry */}
+        {isPackaged && !isComplete && (
+          <>
+            {showManualExpiry ? (
+              <div className="flex flex-col gap-3">
+                <label className="text-water-700 text-sm font-medium">Enter Expiry Date</label>
+                <input
+                  type="date"
+                  value={manualExpiryDate}
+                  onChange={(e) => setManualExpiryDate(e.target.value)}
+                  className="border-water-600 w-full rounded-xl border p-3 text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    title="Confirm"
+                    action={() => {
+                      if (!manualExpiryDate) return;
+                      onComplete?.(
+                        {
+                          _source: 'packaged',
+                          product_name: result.product_name,
+                          brands: result.brand,
+                          categories: result.category,
+                        },
+                        { expiry_date: manualExpiryDate },
+                      );
+                    }}
+                    className="flex-1"
+                  />
+                  <button
+                    onClick={() => setShowManualExpiry(false)}
+                    className="text-water-600 cursor-pointer self-center text-sm underline"
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <Button title="Upload another photo" action={handleRetry} />
+                <Button title="Enter expiry manually" action={() => setShowManualExpiry(true)} color="blue" />
+              </div>
+            )}
+          </>
+        )}
+
         {/* Other scenarios: placeholder */}
-        {!(isPackaged && isComplete) && (
+        {!(isPackaged && isComplete) && !(isPackaged && !isComplete) && (
           <>
             <div className="rounded-2xl border border-dashed border-water-300 bg-water-50/50 p-3 text-center text-xs text-water-400">
-              {isPackaged && !isComplete && 'Next: Manual expiry or retry (coming in 3c)'}
               {isUnpackaged && 'Next: FoodKeeper match & storage (coming in 3d)'}
               {isUncertain && 'Next: Retry or manual search (coming in 3e)'}
             </div>
