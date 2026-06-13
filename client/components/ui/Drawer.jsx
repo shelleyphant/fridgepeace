@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 const Drawer = ({ trigger, children, onClose }) => {
+  const CLOSE_DRAG_THRESHOLD = 100;
   const [isOpen, setIsOpen] = useState(false);
   const [rendered, setRendered] = useState(false);
   const [show, setShow] = useState(false);
