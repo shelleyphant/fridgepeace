@@ -121,11 +121,24 @@ const AIScan = ({ onBack, onComplete }) => {
             className="block w-full text-sm text-slate-500 file:mr-3 file:cursor-pointer file:rounded-full file:border-0 file:bg-water-100 file:px-4 file:py-2 file:text-sm file:text-water-800 hover:file:bg-water-200"
           />
           {image1Preview && (
-            <img
-              src={image1Preview}
-              alt="Food preview"
-              className="mt-2 max-h-40 rounded-lg object-cover"
-            />
+            <div className="relative mt-2 inline-block">
+              <img
+                src={image1Preview}
+                alt="Food preview"
+                className="max-h-40 rounded-lg object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setImage1(null);
+                  setImage1Preview(null);
+                  if (image1Ref.current) image1Ref.current.value = '';
+                }}
+                className="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white text-xs hover:bg-black/70"
+              >
+                ✕
+              </button>
+            </div>
           )}
         </div>
 
@@ -142,11 +155,24 @@ const AIScan = ({ onBack, onComplete }) => {
             className="block w-full text-sm text-slate-500 file:mr-3 file:cursor-pointer file:rounded-full file:border-0 file:bg-water-100 file:px-4 file:py-2 file:text-sm file:text-water-800 hover:file:bg-water-200"
           />
           {image2Preview && (
-            <img
-              src={image2Preview}
-              alt="Expiry label preview"
-              className="mt-2 max-h-32 rounded-lg object-cover"
-            />
+            <div className="relative mt-2 inline-block">
+              <img
+                src={image2Preview}
+                alt="Expiry label preview"
+                className="max-h-32 rounded-lg object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setImage2(null);
+                  setImage2Preview(null);
+                  if (image2Ref.current) image2Ref.current.value = '';
+                }}
+                className="absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white text-xs hover:bg-black/70"
+              >
+                ✕
+              </button>
+            </div>
           )}
         </div>
 
