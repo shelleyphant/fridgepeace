@@ -1,9 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-const CLOSE_DRAG_THRESHOLD = 80;
-
-const Drawer = ({ trigger, children }) => {
+const Drawer = ({ trigger, children, onClose }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [rendered, setRendered] = useState(false);
   const [show, setShow] = useState(false);
@@ -13,7 +11,10 @@ const Drawer = ({ trigger, children }) => {
   const panelRef = useRef(null);
 
   const open = () => setIsOpen(true);
-  const close = () => setIsOpen(false);
+  const close = () => {
+    setIsOpen(false);
+    onClose?.();
+  };
 
   useEffect(() => {
     if (isOpen) {

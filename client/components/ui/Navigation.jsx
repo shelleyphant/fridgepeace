@@ -15,25 +15,8 @@ import { useNotifications } from '../../hooks/useNotifications';
 
 const Navigation = ({ onReset }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const navRef = useRef(null);
   const { notifications, loading, markAsRead, markAllAsRead } = useNotifications();
   const hasUnread = notifications.some((n) => !n.read);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleClickOutside = (e) => {
-      if (navRef.current && !navRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [isOpen]);
-
   return (
     <nav ref={navRef} className="absolute top-6 right-6 flex flex-col items-end">
       <NavButton
