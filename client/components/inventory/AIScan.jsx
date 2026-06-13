@@ -203,7 +203,7 @@ const AIScan = ({ onBack, onComplete }) => {
             onClick={onBack}
             className="text-water-600 cursor-pointer self-center text-sm underline"
           >
-            {isUncertain ? 'Search manually' : 'Back to manual search'}
+            Back to manual search
           </button>
         )}
       </div>
