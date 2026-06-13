@@ -248,30 +248,32 @@ const AIScan = ({ onBack, onComplete }) => {
           </span>
         </div>
 
-        <div className="rounded-2xl border border-water-200 bg-water-50 p-4">
-          {result?.product_name && (
-            <p className="text-water-800 text-base font-medium">{result.product_name}</p>
-          )}
-          {result?.brand && (
-            <p className="text-water-500 text-sm">{result.brand}</p>
-          )}
-          {result?.food_name && (
-            <p className="text-water-800 text-base font-medium">{result.food_name}</p>
-          )}
-          {result?.expiry_date && (
-            <p className="text-water-700 mt-1 text-sm">
-              Expiry: <span className="font-medium">{moment(result.expiry_date).format('DD/MM/YYYY')}</span>
-            </p>
-          )}
-          {result?.user_message && (
-            <p className="text-water-500 mt-2 text-sm">{result.user_message}</p>
-          )}
-          {result?.missing_information?.length > 0 && (
-            <p className="text-amber-600 mt-1 text-xs">
-              Missing: {result.missing_information.join(', ')}
-            </p>
-          )}
-        </div>
+        {!isUnpackaged && (
+          <div className="rounded-2xl border border-water-200 bg-water-50 p-4">
+            {result?.product_name && (
+              <p className="text-water-800 text-base font-medium">{result.product_name}</p>
+            )}
+            {result?.brand && (
+              <p className="text-water-500 text-sm">{result.brand}</p>
+            )}
+            {result?.food_name && (
+              <p className="text-water-800 text-base font-medium">{result.food_name}</p>
+            )}
+            {result?.expiry_date && (
+              <p className="text-water-700 mt-1 text-sm">
+                Expiry: <span className="font-medium">{moment(result.expiry_date).format('DD/MM/YYYY')}</span>
+              </p>
+            )}
+            {result?.user_message && (
+              <p className="text-water-500 mt-2 text-sm">{result.user_message}</p>
+            )}
+            {result?.missing_information?.length > 0 && (
+              <p className="text-amber-600 mt-1 text-xs">
+                Missing: {result.missing_information.join(', ')}
+              </p>
+            )}
+          </div>
+        )}
 
         {isPackaged && isComplete && (
           <>
@@ -329,8 +331,6 @@ const AIScan = ({ onBack, onComplete }) => {
           <>
             {unpackagedStep === 'confirm' ? (
               <div className="flex flex-col gap-4">
-                <p className="text-water-500 text-sm">{result.user_message}</p>
-
                 {result.matched_foodkeeper_item && (
                   <div className="rounded-2xl border border-lime-300 bg-lime-50 p-3">
                     <p className="text-water-800 text-xs font-medium uppercase">Best match</p>
