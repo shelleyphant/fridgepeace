@@ -306,7 +306,7 @@ async def scan_combined(
     assigned_expiry_image = _normalise_slot(inspection.get("assigned_expiry_image"), available_slots)
     reason = inspection.get("reason")
 
-    if food_type not in {"packaged", "unpackaged"} or inspection_confidence < 0.7 or assigned_food_image is None:
+    if food_type not in {"packaged", "unpackaged"} or inspection_confidence < 0.6 or assigned_food_image is None:
         return _combined_uncertain_response(
             images_received=images_received,
             confidence=inspection_confidence,
@@ -346,7 +346,7 @@ async def scan_combined(
             existing=packaged_result.get("search_terms") or [],
         )
 
-        if not product_name or product_confidence < 0.7:
+        if not product_name or product_confidence < 0.6:
             return CombinedScanResponse(
                 food_type="packaged",
                 confidence=min(inspection_confidence, product_confidence or inspection_confidence),
@@ -405,7 +405,7 @@ async def scan_combined(
         raw_text = expiry_result.get("raw_text")
         gemini_label_type = expiry_result.get("label_type")
         expiry_confidence = float(expiry_result.get("confidence") or 0.0)
-        if not raw_text or expiry_confidence < 0.7:
+        if not raw_text or expiry_confidence < 0.6:
             return _combined_expiry_incomplete_response(
                 confidence=min(inspection_confidence, product_confidence, expiry_confidence or inspection_confidence),
                 images_received=images_received,
@@ -498,7 +498,7 @@ async def scan_combined(
 
     food_name = unpackaged_result.get("food_name")
     unpackaged_confidence = float(unpackaged_result.get("confidence") or 0.0)
-    if not food_name or unpackaged_confidence < 0.7:
+    if not food_name or unpackaged_confidence < 0.6:
         return CombinedScanResponse(
             food_type="unpackaged",
             confidence=min(inspection_confidence, unpackaged_confidence or inspection_confidence),
@@ -555,7 +555,7 @@ async def scan_food_photo(image: UploadFile = File(...)):
     confidence = float(result.get("confidence") or 0.0)
     reason = result.get("reason")
 
-    if food_type not in {"packaged", "unpackaged"} or confidence < 0.7:
+    if food_type not in {"packaged", "unpackaged"} or confidence < 0.6:
         return FoodPhotoScanResponse(
             food_type="uncertain",
             confidence=confidence,
@@ -657,7 +657,7 @@ async def scan_unpackaged_food(image: UploadFile = File(...)):
 
     food_name = result.get("food_name")
     confidence = float(result.get("confidence") or 0.0)
-    if not food_name or confidence < 0.7:
+    if not food_name or confidence < 0.6:
         return FoodScanResponse(
             food_name=food_name,
             confidence=confidence,
@@ -716,7 +716,7 @@ async def scan_packaged_food(image: UploadFile = File(...)):
 
     product_name = result.get("product_name")
     confidence = float(result.get("confidence") or 0.0)
-    if not product_name or confidence < 0.7:
+    if not product_name or confidence < 0.6:
         return PackagedFoodScanResponse(
             product_name=product_name,
             brand=result.get("brand"),
@@ -767,7 +767,7 @@ async def scan_expiry_date(image: UploadFile = File(...)):
     raw_text = result.get("raw_text")
     gemini_label_type = result.get("label_type")
     confidence = float(result.get("confidence") or 0.0)
-    if not raw_text or confidence < 0.7:
+    if not raw_text or confidence < 0.6:
         return ExpiryDateResponse(
             raw_text=raw_text,
             label_type=gemini_label_type,
