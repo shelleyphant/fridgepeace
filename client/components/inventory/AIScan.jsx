@@ -1,17 +1,30 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useAIScan } from '../../hooks/useAIScan';
 import Button from '../ui/Button';
 import Toast from '../ui/Toast';
 
 const AIScan = ({ onBack }) => {
+  const { scan, result, loading, error, reset } = useAIScan();
+
   const [image1, setImage1] = useState(null);
   const [image1Preview, setImage1Preview] = useState(null);
   const [image2, setImage2] = useState(null);
   const [image2Preview, setImage2Preview] = useState(null);
-  const [step, setStep] = useState('upload'); // upload | scanning | done
+  const [step, setStep] = useState('upload'); // upload | scanning | result | error
   const [uploadError, setUploadError] = useState(null);
 
   const image1Ref = useRef(null);
   const image2Ref = useRef(null);
+
+  // When result arrives, show result page
+  useEffect(() => {
+    if (result) setStep('result');
+  }, [result]);
+
+  // When error arrives, show error page
+  useEffect(() => {
+    if (error) setStep('error');
+  }, [error]);
 
   const handleImage1Change = (e) => {
     const file = e.target.files?.[0];
@@ -36,20 +49,21 @@ const AIScan = ({ onBack }) => {
     if (image2Ref.current) image2Ref.current.value = '';
   };
 
-  const handleScan = () => {
+  const handleScan = async () => {
     if (!image1) {
       setUploadError('Please upload a food photo first.');
       return;
     }
     setStep('scanning');
-    // TODO: wire up useAIScan
-    setTimeout(() => setStep('done'), 2000);
+    await scan(image1, image2 || undefined);
   };
 
   const handleRetry = () => {
+    reset();
     setStep('upload');
   };
 
+  // ============ UPLOAD ============
   if (step === 'upload') {
     return (
       <div className="flex flex-col gap-4">
@@ -126,6 +140,7 @@ const AIScan = ({ onBack }) => {
     );
   }
 
+  // ============ SCANNING ============
   if (step === 'scanning') {
     return (
       <div className="flex flex-col items-center gap-4 py-8">
@@ -135,25 +150,92 @@ const AIScan = ({ onBack }) => {
     );
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      <h2 className="text-water-800 text-lg font-medium">Scan Result</h2>
-      <div className="rounded-2xl border border-water-200 bg-water-50 p-4">
-        <p className="text-water-500 text-sm italic">
-          Result will appear here once the backend is connected.
-        </p>
+  // ============ ERROR ============
+  if (step === 'error') {
+    return (
+      <div className="flex flex-col gap-4">
+        <h2 className="text-water-800 text-lg font-medium">Scan Failed</h2>
+        <Toast level="error" message={typeof error === 'string' ? error : 'Something went wrong. Please try again.'} />
+        <Button title="Try Again" action={handleRetry} />
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="text-water-600 cursor-pointer self-center text-sm underline"
+          >
+            Back to manual search
+          </button>
+        )}
       </div>
-      <Button title="Scan another" action={handleRetry} />
-      {onBack && (
-        <button
-          onClick={onBack}
-          className="text-water-600 cursor-pointer self-center text-sm underline"
-        >
-          Back to manual search
-        </button>
-      )}
-    </div>
-  );
+    );
+  }
+
+  // ============ RESULT (basic info, scene UI comes in 3b-3e) ============
+  if (step === 'result') {
+    const isPackaged = result?.food_type === 'packaged';
+    const isUnpackaged = result?.food_type === 'unpackaged';
+    const isUncertain = result?.food_type === 'uncertain';
+    const isComplete = !result?.is_incomplete;
+
+    return (
+      <div className="flex flex-col gap-4">
+        <h2 className="text-water-800 text-lg font-medium">Scan Result</h2>
+
+        {/* Food type badge */}
+        <div className="mb-2">
+          <span className="rounded-full bg-water-100 px-3 py-1 text-xs font-medium text-water-700">
+            {isPackaged ? 'Packaged' : isUnpackaged ? 'Unpackaged' : 'Uncertain'}
+            {isPackaged && (isComplete ? ' — Complete' : ' — Incomplete')}
+          </span>
+        </div>
+
+        {/* Basic info card */}
+        <div className="rounded-2xl border border-water-200 bg-water-50 p-4">
+          {result?.product_name && (
+            <p className="text-water-800 text-base font-medium">{result.product_name}</p>
+          )}
+          {result?.brand && (
+            <p className="text-water-500 text-sm">{result.brand}</p>
+          )}
+          {result?.food_name && (
+            <p className="text-water-800 text-base font-medium">{result.food_name}</p>
+          )}
+          {result?.expiry_date && (
+            <p className="text-water-700 mt-1 text-sm">
+              Expiry: <span className="font-medium">{result.expiry_date}</span>
+            </p>
+          )}
+          {result?.user_message && (
+            <p className="text-water-500 mt-2 text-sm">{result.user_message}</p>
+          )}
+          {result?.missing_information?.length > 0 && (
+            <p className="text-amber-600 mt-1 text-xs">
+              Missing: {result.missing_information.join(', ')}
+            </p>
+          )}
+        </div>
+
+        {/* Scene indicator (placeholder UI, full implementation in 3b-3e) */}
+        <div className="rounded-2xl border border-dashed border-water-300 bg-water-50/50 p-3 text-center text-xs text-water-400">
+          {isPackaged && isComplete && 'Next: Review & Save (coming in 3b)'}
+          {isPackaged && !isComplete && 'Next: Manual expiry or retry (coming in 3c)'}
+          {isUnpackaged && 'Next: FoodKeeper match & storage (coming in 3d)'}
+          {isUncertain && 'Next: Retry or manual search (coming in 3e)'}
+        </div>
+
+        <Button title="Scan another" action={handleRetry} />
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="text-water-600 cursor-pointer self-center text-sm underline"
+          >
+            Back to manual search
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return null;
 };
 
 export default AIScan;
