@@ -6,13 +6,25 @@ import { validateFoodEntry } from '../../source/validateFoodEntry';
 import Button from '../ui/Button';
 import Toast from '../ui/Toast';
 import Input from '../ui/Input';
+import Select from '../ui/Select';
 
-const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
-  const [quantity, setQuantity] = useState('');
+const FoodDetail = ({
+  food,
+  inventoryItem,
+  initialQuantity = '',
+  quantityMode = 'delta',
+  submitLabel = 'Add to kitchen',
+  onSuccess,
+  onCancel,
+  extraFields,
+}) => {
+  const [quantity, setQuantity] = useState(initialQuantity);
   const [storageLocation, setStorageLocation] = useState(
     inventoryItem?.storage_location ?? '',
   );
-  const [date, setDate] = useState(moment().format('YYYY-MM-DD'));
+  const [date, setDate] = useState(
+    inventoryItem?.expiry_date ?? moment().format('YYYY-MM-DD'),
+  );
   const { addFood, updateFood, resolveMemberId, error } = useAddFood();
   const [validationError, setValidationError] = useState(null);
   const [validationKey, setValidationKey] = useState(0);
@@ -20,6 +32,35 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
   const apiError = Array.isArray(error?.response?.data?.detail)
     ? error.response.data.detail.map((d) => d.msg).join(', ')
     : (error?.response?.data?.detail ?? error?.message ?? null);
+
+  const handleSubmit = async () => {
+    const msg = validateFoodEntry(food, { quantity, date, storageLocation });
+    if (msg) {
+      setValidationError(msg);
+      setValidationKey((k) => k + 1);
+      return;
+    }
+
+    const success = inventoryItem?.id
+      ? await updateFood(inventoryItem, {
+          additionalQuantity:
+            quantityMode === 'absolute'
+              ? parseFloat(quantity) - parseFloat(inventoryItem.quantity)
+              : quantity,
+          expiry_date: calcExpiryDate(food, storageLocation, date),
+          storage_location: storageLocation,
+          member_id:
+            quantityMode === 'delta'
+              ? await resolveMemberId(inventoryItem.household_id)
+              : undefined,
+        })
+      : await addFood(food, {
+          quantity,
+          expiry_date: calcExpiryDate(food, storageLocation, date),
+          storage_location: storageLocation || null,
+        });
+    if (success) onSuccess?.();
+  };
 
   return (
     <div>
@@ -31,8 +72,7 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
         type="number"
       />
       <label>Storage location</label>
-      <select
-        className="border-water-600 relative my-4 w-full border p-4"
+      <Select
         onChange={(e) => setStorageLocation(e.target.value)}
         value={storageLocation}
       >
@@ -43,38 +83,19 @@ const FoodDetail = ({ food, inventoryItem, onSuccess, close }) => {
         <option value="freezer">Freezer</option>
         <option value="pantry">Pantry</option>
         <option value="counter">Counter</option>
-      </select>
+      </Select>
+
       <label>
         {food._source === 'foodkeeper' || food.unpackaged_food_id
           ? 'Purchase Date'
           : 'Use By Date'}
       </label>
       <Input onChangeAction={(e) => setDate(e.target.value)} value={date} type="date" />
-      <Button
-        action={async () => {
-          const msg = validateFoodEntry(food, { quantity, date, storageLocation });
-          if (msg) {
-            setValidationError(msg);
-            setValidationKey((k) => k + 1);
-            return;
-          }
-          const success = inventoryItem
-            ? await updateFood(inventoryItem, {
-                additionalQuantity: quantity,
-                expiry_date: calcExpiryDate(food, storageLocation, date),
-                storage_location: storageLocation,
-                member_id: await resolveMemberId(inventoryItem.household_id),
-              })
-            : await addFood(food, {
-                quantity,
-                expiry_date: calcExpiryDate(food, storageLocation, date),
-                storage_location: storageLocation || null,
-              });
-          if (success) onSuccess?.();
-        }}
-        title={'Add to kitchen'}
-      />
-      <a onClick={close}>Cancel</a>
+
+      {extraFields}
+
+      <Button action={handleSubmit} title={submitLabel} />
+      {onCancel && <a onClick={onCancel}>Cancel</a>}
       {validationError && (
         <Toast key={validationKey} level="warning" message={validationError} />
       )}
