@@ -41,7 +41,7 @@ const FoodDetail = ({
       return;
     }
 
-    const success = inventoryItem
+    const success = inventoryItem?.id
       ? await updateFood(inventoryItem, {
           additionalQuantity:
             quantityMode === 'absolute'
