@@ -23,6 +23,7 @@ backend/
 ├── routers.py                All non-AI API endpoint routes
 ├── requirements.txt          Dependency list
 ├── API_DOCUMENTATION.md      This file
+├── API_KEY.db                SQLite database storing API keys (fallback when env vars are not set; see Environment Variables below)
 └── off_data_au.db            Australian OFF subset (SQLite, ~70K products, compact — 19 fields)
 ```
 
@@ -1699,7 +1700,7 @@ It supports **5 endpoints** across several workflows:
 | 4 | `POST /ai-scan/expiry-date` | Extract and parse a printed date from a label photo |
 | 5 | `POST /ai-scan/combined` | **All-in-one scan** — accepts 1–2 images, auto-classifies, identifies food/product, reads expiry date, and returns a combined result |
 
-> **Mock Mode**: By default, the module runs in mock mode (`GEMINI_MOCK_MODE=true`) and returns fixed responses without calling the real Gemini API. Set `GEMINI_MOCK_MODE=false` and provide a valid `GEMINI_API_KEY` to use real AI inference.
+> **Mock Mode**: Set `GEMINI_MOCK_MODE=true` to return fixed mock responses without calling the real Gemini API. By default, mock mode is disabled (`false`) and a valid API key is required.
 
 #### Common Image Requirements
 
@@ -1820,6 +1821,9 @@ POST /ai-scan/unpackaged-food
 | score | float | Match relevance score |
 | recommended | bool | Whether this is the top recommendation |
 | storage_guidance | StorageGuidance or null | Recommended storage durations |
+| fridge_days_min | int or null | Minimum fridge shelf life in days |
+| freezer_days_min | int or null | Minimum freezer shelf life in days |
+| pantry_days_min | int or null | Minimum pantry shelf life in days |
 
 **StorageGuidance fields:**
 
@@ -1907,7 +1911,7 @@ POST /ai-scan/expiry-date
 | Field | Type | Description |
 |-------|------|-------------|
 | raw_text | string or null | Raw text extracted from the label |
-| label_type | string or null | `best-before`, `use-by`, or null if unreadable |
+| label_type | string or null | `"use-by"`, `"best-before"`, `"baked-on"`, `"packed-on"`, `"sell-by"`, `"display-until"`, or null if unreadable |
 | expiry_date | string or null | Parsed date in `YYYY-MM-DD` format |
 | confidence | float | Gemini's confidence score (0–1) |
 | requires_confirmation | bool | Whether the result needs user confirmation |
@@ -2115,16 +2119,6 @@ POST /ai-scan/combined
 | reason | string or null | Additional reasoning or processing detail |
 | error | string or null | Error message if processing failed |
 
-| Field | Type | Description |
-|-------|------|-------------|
-| code | string or null | Barcode (EAN-13) |
-| product_name | string or null | Full product name |
-| brand | string or null | Brand name |
-| category | string or null | Product category |
-| ingredients_text | string or null | Full ingredients list |
-| nutrition_score | string or null | Nutri-Score grade (e.g. `"A"` – `"E"`) |
-| image_url | string or null | Front product image URL |
-
 ---
 
 ## Environment Variables
@@ -2133,10 +2127,12 @@ The AI scanning module introduces the following environment variables (managed v
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GEMINI_API_KEY` | — | Google Gemini API key (required if `GEMINI_MOCK_MODE=false`) |
+| `GEMINI_API_KEY` | — | Google Gemini API key (required if `GEMINI_MOCK_MODE=false`). Falls back to `API_KEY.db` if not set |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model name to use |
-| `GEMINI_MOCK_MODE` | `true` | If `true`, returns fixed mock responses without calling the real API |
+| `GEMINI_MOCK_MODE` | `false` | If `true`, returns fixed mock responses without calling the real API |
 | `FOODKEEPER_JSON_PATH` | `../client/source/food-data/foodkeeper.json` | Path to the FoodKeeper JSON database |
+
+> **API_KEY.db fallback**: If `GEMINI_API_KEY` is not set in the environment, the app reads the key from `backend/API_KEY.db` (a SQLite database with a table `api_keys(service TEXT, api_key TEXT)`). This is committed to the repository so the production instance can serve API keys without modifying environment files. The row for Gemini should have `service = 'gemini'`.
 
 ---
 
