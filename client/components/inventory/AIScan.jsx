@@ -264,9 +264,6 @@ const AIScan = ({ onBack, onComplete }) => {
                 Expiry: <span className="font-medium">{moment(result.expiry_date).format('DD/MM/YYYY')}</span>
               </p>
             )}
-            {result?.user_message && (
-              <p className="text-water-500 mt-2 text-sm">{result.user_message}</p>
-            )}
             {result?.missing_information?.length > 0 && (
               <p className="text-amber-600 mt-1 text-xs">
                 Missing: {result.missing_information.join(', ')}
