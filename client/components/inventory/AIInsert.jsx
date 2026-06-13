@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import moment from 'moment';
+import axios from 'axios';
 import { useAddFood } from '../../hooks/useAddFood';
 import Button from '../ui/Button';
 import Toast from '../ui/Toast';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 
+const API = process.env.API_URL ?? '';
+
 const AIInsert = ({ food, extras = {}, onSuccess, onCancel }) => {
   const [quantity, setQuantity] = useState(1);
+  const [saving, setSaving] = useState(false);
   const [storageLocation, setStorageLocation] = useState(
     extras?.storage_location ?? '',
   );
@@ -26,14 +30,37 @@ const AIInsert = ({ food, extras = {}, onSuccess, onCancel }) => {
 
   const handleSubmit = async () => {
     if (!quantity || isNaN(quantity) || Number(quantity) <= 0) return;
+    setSaving(true);
 
-    const success = await addFood(food, {
-      quantity: String(quantity),
-      expiry_date: isPackaged ? date : null,
-      storage_location: isPackaged ? null : (storageLocation || null),
-    });
+    try {
+      // For AI-scanned packaged food without a packaged_food_id, create the record first
+      let foodToSave = food;
+      if (isPackaged && !food.packaged_food_id) {
+        const { data: created } = await axios.post(
+          `${API}/packaged-foods/`,
+          {
+            barcode: null,
+            name: food.product_name,
+            brand: food.brands ?? null,
+            image_url: null,
+            category: food.categories ?? null,
+            nutrition: null,
+          },
+          { headers: { 'content-type': 'application/json' } },
+        );
+        foodToSave = { ...food, packaged_food_id: created.id };
+      }
 
-    if (success) onSuccess?.();
+      const success = await addFood(foodToSave, {
+        quantity: String(quantity),
+        expiry_date: isPackaged ? date : null,
+        storage_location: isPackaged ? null : (storageLocation || null),
+      });
+
+      if (success) onSuccess?.();
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -79,7 +106,7 @@ const AIInsert = ({ food, extras = {}, onSuccess, onCancel }) => {
       />
 
       <div className="mt-6 flex flex-col gap-3">
-        <Button action={handleSubmit} title="Add to kitchen" className="flex-1" />
+        <Button action={handleSubmit} title={saving ? 'Saving...' : 'Add to kitchen'} className="flex-1" />
         {onCancel && (
           <button
             onClick={onCancel}
