@@ -231,7 +231,7 @@ const AIScan = ({ onBack, onComplete }) => {
           )}
           {result?.expiry_date && (
             <p className="text-water-700 mt-1 text-sm">
-              Expiry: <span className="font-medium">{result.expiry_date}</span>
+              Expiry: <span className="font-medium">{moment(result.expiry_date).format('DD/MM/YYYY')}</span>
             </p>
           )}
           {result?.user_message && (
