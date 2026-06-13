@@ -3,7 +3,7 @@ import { useAIScan } from '../../hooks/useAIScan';
 import Button from '../ui/Button';
 import Toast from '../ui/Toast';
 
-const AIScan = ({ onBack }) => {
+const AIScan = ({ onBack, onComplete }) => {
   const { scan, result, loading, error, reset } = useAIScan();
 
   const [image1, setImage1] = useState(null);
@@ -176,6 +176,17 @@ const AIScan = ({ onBack }) => {
     const isUncertain = result?.food_type === 'uncertain';
     const isComplete = !result?.is_incomplete;
 
+    const handleReviewAndSave = () => {
+      const food = {
+        _source: 'packaged',
+        product_name: result.product_name,
+        brands: result.brand,
+        categories: result.category,
+      };
+      const extras = { expiry_date: result.expiry_date || null };
+      onComplete?.(food, extras);
+    };
+
     return (
       <div className="flex flex-col gap-4">
         <h2 className="text-water-800 text-lg font-medium">Scan Result</h2>
@@ -214,15 +225,26 @@ const AIScan = ({ onBack }) => {
           )}
         </div>
 
-        {/* Scene indicator (placeholder UI, full implementation in 3b-3e) */}
-        <div className="rounded-2xl border border-dashed border-water-300 bg-water-50/50 p-3 text-center text-xs text-water-400">
-          {isPackaged && isComplete && 'Next: Review & Save (coming in 3b)'}
-          {isPackaged && !isComplete && 'Next: Manual expiry or retry (coming in 3c)'}
-          {isUnpackaged && 'Next: FoodKeeper match & storage (coming in 3d)'}
-          {isUncertain && 'Next: Retry or manual search (coming in 3e)'}
-        </div>
+        {/* Packaged + Complete: Review & Save */}
+        {isPackaged && isComplete && (
+          <>
+            <Button title="Review &amp; Save" action={handleReviewAndSave} className="flex-1" />
+            <Button title="Scan another" action={handleRetry} />
+          </>
+        )}
 
-        <Button title="Scan another" action={handleRetry} />
+        {/* Other scenarios: placeholder */}
+        {!(isPackaged && isComplete) && (
+          <>
+            <div className="rounded-2xl border border-dashed border-water-300 bg-water-50/50 p-3 text-center text-xs text-water-400">
+              {isPackaged && !isComplete && 'Next: Manual expiry or retry (coming in 3c)'}
+              {isUnpackaged && 'Next: FoodKeeper match & storage (coming in 3d)'}
+              {isUncertain && 'Next: Retry or manual search (coming in 3e)'}
+            </div>
+            <Button title="Scan another" action={handleRetry} />
+          </>
+        )}
+
         {onBack && (
           <button
             onClick={onBack}

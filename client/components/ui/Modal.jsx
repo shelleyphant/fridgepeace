@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 
-const Modal = ({ trigger, children }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const Modal = ({ trigger, children, open, setOpen }) => {
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
 
-  const open = () => setIsOpen(true);
+  const isControlled = open !== undefined;
+  const isOpen = isControlled ? open : internalIsOpen;
+  const setIsOpen = isControlled ? setOpen : setInternalIsOpen;
+
+  const openFn = () => setIsOpen(true);
   const close = () => setIsOpen(false);
 
   return (
     <>
-      {trigger(open)}
+      {!isControlled && trigger(openFn)}
       {isOpen &&
         createPortal(
           <div
