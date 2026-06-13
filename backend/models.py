@@ -124,6 +124,9 @@ class User(Base):
     notification_preferences: Mapped[list["UserNotificationPreference"]] = relationship(
         "UserNotificationPreference", back_populates="user", cascade="all, delete-orphan"
     )
+    notifications: Mapped[list["Notification"]] = relationship(
+        "Notification", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 # ─── Household Member ──────────────────────────────────────
@@ -372,6 +375,30 @@ class UserNotificationPreference(Base):
             name="uq_user_notification_type_channel",
         ),
     )
+
+
+# ─── Notification ─────────────────────────────────────────
+# Actual notification records created by the backend when
+# relevant events occur (expiry reminders, member joined,
+# food shared). Users can mark them as read via the frontend.
+
+class Notification(Base):
+    __tablename__ = "notification"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id", ondelete="CASCADE", onupdate="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    message: Mapped[str] = mapped_column(String(500), nullable=False)
+    notification_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    user: Mapped["User"] = relationship("User", back_populates="notifications")
 
 
 Base.metadata.create_all(bind=engine)

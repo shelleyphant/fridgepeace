@@ -30,7 +30,16 @@ const RecentFood = ({ inventory, onSuccess }) => {
           )
         }
       >
-        {(close) => <FoodDetail food={selected} onSuccess={onSuccess} close={close} />}
+        {(close) => (
+          <FoodDetail
+            food={selected}
+            onSuccess={onSuccess}
+            onCancel={() => {
+              setSelected(null);
+              close();
+            }}
+          />
+        )}
       </Modal>
     </div>
   );

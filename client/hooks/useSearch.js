@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import Fuse from 'fuse.js';
 import foodData from '../source/food-data/foodkeeper.json';
 
+const API = process.env.API_URL ?? '';
+
 export const categories = Object.fromEntries(
   (foodData.sheets.find((s) => s.name === 'Category')?.data ?? [])
     .map((row) => Object.assign({}, ...row))
@@ -17,71 +19,55 @@ const products =
 const fuse = new Fuse(products, {
   keys: ['Name', 'Name_subtitle', 'Keywords'],
   threshold: 0.3,
+  includeScore: true,
 });
+
+const PAGE_SIZE = 10;
 
 export function useSearch(query) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+
     if (!query) {
       setResults([]);
       setLoading(false);
       return;
     }
 
+    setLoading(true);
     let cancelled = false;
 
     const timer = setTimeout(async () => {
-      setLoading(true);
       const local = fuse
         .search(query)
-        .map(({ item }) => ({ ...item, _source: 'foodkeeper' }));
+        .map(({ item, score }) => ({ ...item, _source: 'foodkeeper', _score: score }));
 
       let remote = [];
       try {
-        let json;
-        if (process.env.API_URL) {
-          const params = new URLSearchParams({
-            q: query,
-            countries_tags_en: 'australia',
-            sort_by: 'unique_scans_n',
-            page_size: '20',
-          });
-          const res = await window.fetch(
-            `https://world.openfoodfacts.org/api/v2/search?${params}`,
-            {
-              headers: { 'User-Agent': 'FridgePeace/1.0 (university project)' },
-            },
-          );
-          json = await res.json();
-        } else {
-          const params = new URLSearchParams({
-            action: 'process',
-            search_terms: query,
-            tagtype_0: 'countries',
-            tag_contains_0: 'contains',
-            tag_0: 'Australia',
-            sort_by: 'unique_scans_n',
-            page_size: '20',
-            json: '1',
-          });
-          const res = await window.fetch(`/off-proxy/cgi/search.pl?${params}`);
-          json = await res.json();
-        }
-        const fetched = (json?.products ?? []).map((p) => ({
-          ...p,
-          _source: 'openfoodfacts',
-        }));
-        remote = new Fuse(fetched, { keys: ['product_name', 'brands'], threshold: 0.3 })
+        const params = new URLSearchParams({ q: query, page_size: '20' });
+        const res = await window.fetch(`${API}/off-products-au/search?${params}`);
+        const json = await res.json();
+        const fetched = (json?.items ?? []).map((p) => ({ ...p, _source: 'openfoodfacts' }));
+        remote = new Fuse(fetched, {
+          keys: ['product_name', 'brands'],
+          threshold: 0.3,
+          includeScore: true,
+        })
           .search(query)
-          .map(({ item }) => item);
+          .map(({ item, score }) => ({ ...item, _score: score }));
       } catch (e) {
         console.error('OFF search failed:', e);
       }
 
       if (!cancelled) {
-        setResults([...local, ...remote]);
+        const combined = [...local, ...remote]
+          .sort((a, b) => a._score - b._score)
+          .map(({ _score, ...item }) => item);
+        setResults(combined);
         setLoading(false);
       }
     }, 400);
@@ -92,5 +78,12 @@ export function useSearch(query) {
     };
   }, [query]);
 
-  return { results, loading };
+  const loadMore = () => setVisibleCount((c) => c + PAGE_SIZE);
+
+  return {
+    results: results.slice(0, visibleCount),
+    loading,
+    loadMore,
+    hasMore: visibleCount < results.length,
+  };
 }
